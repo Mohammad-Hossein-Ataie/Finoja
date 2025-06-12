@@ -1,0 +1,35 @@
+/* فونت IRANSans به صورت گلوبال */
+@font-face {
+  font-family: 'IRANSans';
+  font-style: normal;
+  font-weight: 900;
+  src: url('/fonts/IRANSansWeb(FaNum)_Black.eot');
+  src: url('/fonts/IRANSansWeb(FaNum)_Black.eot?#iefix') format('embedded-opentype'),
+    url('/fonts/IRANSansWeb(FaNum)_Black.woff2') format('woff2'),
+    url('/fonts/IRANSansWeb(FaNum)_Black.woff') format('woff'),
+    url('/fonts/IRANSansWeb(FaNum)_Black.ttf') format('truetype');
+}
+
+/* سایر وزن‌های IRANSans */
+@font-face {
+  font-family: 'IRANSans';
+  font-style: normal;
+  font-weight: bold;
+  src: url('/fonts/IRANSansWeb(FaNum)_Bold.eot');
+  src: url('/fonts/IRANSansWeb(FaNum)_Bold.eot?#iefix') format('embedded-opentype'),
+    url('/fonts/IRANSansWeb(FaNum)_Bold.woff2') format('woff2'),
+    url('/fonts/IRANSansWeb(FaNum)_Bold.woff') format('woff'),
+    url('/fonts/IRANSansWeb(FaNum)_Bold.ttf') format('truetype');
+}
+
+/* سایر وزن‌های IRANSans  */
+@font-face {
+  font-family: 'IRANSans';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/fonts/IRANSansWeb(FaNum)_Medium.eot');
+  src: url('/fonts/IRANSansWeb(FaNum)_Medium.eot?#iefix') format('embedded-opentype'),
+    url('/fonts/IRANSansWeb(FaNum)_Medium.woff2') format('woff2'),
+    url('/fonts/IRANSansWeb(FaNum)_Medium.woff') format('woff'),
+    url('/fonts/IRANSansWeb(FaNum)_Medium.ttf') format('truetype');
+}
