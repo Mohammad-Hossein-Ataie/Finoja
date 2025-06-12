@@ -2,13 +2,14 @@
 import { useState } from 'react';
 import {
   Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography,
-  Collapse, Alert, FormControl, InputLabel, MenuItem, Select
+  Collapse, Alert, FormControl, InputLabel, MenuItem, Select, Checkbox, FormControlLabel
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowUpward from '@mui/icons-material/ArrowUpward';
 import ArrowDownward from '@mui/icons-material/ArrowDownward';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import RichTextEditor from './RichTextEditor';
 
 const DEFAULT_STEP = {
   type: 'explanation',
@@ -16,6 +17,7 @@ const DEFAULT_STEP = {
   text: '',
   options: ['', '', '', ''],
   correctIndex: 0,
+  correctIndexes: [],
   answer: '',
   explanation: '',
   feedbackCorrect: '',
@@ -28,7 +30,7 @@ export default function StepList({
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(DEFAULT_STEP);
-  const [openIndex, setOpenIndex] = useState(null); // برای باز و بسته شدن هر گام
+  const [openIndex, setOpenIndex] = useState(null);
 
   // جابه‌جایی ترتیب گام‌ها
   const moveStep = async (fromIdx, toIdx) => {
@@ -100,7 +102,6 @@ export default function StepList({
   };
 
   const handleTypeChange = (value) => {
-    // ریست فیلدهای غیرمرتبط با نوع جدید
     setForm({ ...DEFAULT_STEP, type: value });
   };
 
@@ -111,7 +112,7 @@ export default function StepList({
       <ul style={{ margin: 0, padding: 0, paddingRight: 16 }}>
         <li>برای گام «توضیح»، فقط متن را بنویسید.</li>
         <li>در گام «جای‌خالی»، برای محل جای خالی از <b>-</b> استفاده کنید.</li>
-        <li>برای گام «چندگزینه‌ای»، گزینه صحیح را مشخص و فیدبک صحیح/غلط را بنویسید.</li>
+        <li>برای گام «چندگزینه‌ای»، گزینه صحیح یا گزینه‌های صحیح را مشخص و فیدبک صحیح/غلط را بنویسید.</li>
       </ul>
     </Alert>
   );
@@ -129,13 +130,18 @@ export default function StepList({
             <Select value={form.type} label="نوع گام" onChange={e => handleTypeChange(e.target.value)}>
               <MenuItem value="explanation">توضیح</MenuItem>
               <MenuItem value="multiple-choice">سوال چندگزینه‌ای</MenuItem>
+              <MenuItem value="multi-answer">سوال چندگزینه‌ای چندجوابی</MenuItem>
               <MenuItem value="fill-in-the-blank">جای‌خالی</MenuItem>
             </Select>
           </FormControl>
           {form.type === 'explanation' && (
-            <TextField label="متن توضیح" size="small" multiline minRows={2}
-              value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} />
+            <RichTextEditor
+              value={form.content}
+              onChange={val => setForm(f => ({ ...f, content: val }))}
+            />
           )}
+
+          {/* باقی فرم سوالات (بدون تغییر) ... */}
           {form.type === 'multiple-choice' && (
             <>
               <TextField label="متن سوال" size="small" value={form.text}
@@ -162,6 +168,44 @@ export default function StepList({
                 value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
             </>
           )}
+
+          {form.type === 'multi-answer' && (
+            <>
+              <TextField label="متن سوال" size="small" value={form.text}
+                onChange={e => setForm(f => ({ ...f, text: e.target.value }))} />
+              {form.options.map((option, idx) => (
+                <Box key={idx} display="flex" alignItems="center" gap={1}>
+                  <TextField
+                    label={`گزینه ${idx + 1}`}
+                    size="small"
+                    value={option}
+                    onChange={e => handleOptionChange(idx, e.target.value)}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={Array.isArray(form.correctIndexes) && form.correctIndexes.includes(idx)}
+                        onChange={e => {
+                          let arr = Array.isArray(form.correctIndexes) ? [...form.correctIndexes] : [];
+                          if (e.target.checked) arr.push(idx);
+                          else arr = arr.filter(i => i !== idx);
+                          setForm(f => ({ ...f, correctIndexes: arr }));
+                        }}
+                      />
+                    }
+                    label="صحیح"
+                  />
+                </Box>
+              ))}
+              <TextField label="توضیح پس از جواب" size="small"
+                value={form.explanation} onChange={e => setForm(f => ({ ...f, explanation: e.target.value }))} />
+              <TextField label="فیدبک صحیح" size="small"
+                value={form.feedbackCorrect} onChange={e => setForm(f => ({ ...f, feedbackCorrect: e.target.value }))} />
+              <TextField label="فیدبک غلط" size="small"
+                value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
+            </>
+          )}
+
           {form.type === 'fill-in-the-blank' && (
             <>
               <Typography variant="caption" color="info.main">
@@ -180,6 +224,7 @@ export default function StepList({
                 value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
             </>
           )}
+
           <Stack direction="row" gap={1}>
             <Button size="small" variant="contained" onClick={addOrEditStep}>ثبت</Button>
             <Button size="small" color="error" onClick={() => { setShowForm(false); setEditing(null); setForm(DEFAULT_STEP); }}>انصراف</Button>
@@ -213,11 +258,20 @@ export default function StepList({
               <IconButton size="small" onClick={() => moveStep(i, i + 1)} disabled={i === (topic.steps.length - 1)}>
                 <ArrowDownward fontSize="small" />
               </IconButton>
-              <Typography fontWeight="bold">{i + 1}. {s.type === 'explanation' ? 'توضیح' : s.type === 'multiple-choice' ? 'سوال چندگزینه‌ای' : 'جای‌خالی'}</Typography>
+              <Typography fontWeight="bold">
+                {i + 1}. {
+                  s.type === 'explanation' ? 'توضیح'
+                  : s.type === 'multiple-choice' ? 'سوال چندگزینه‌ای'
+                  : s.type === 'multi-answer' ? 'سوال چندگزینه‌ای چندجوابی'
+                  : 'جای‌خالی'
+                }
+              </Typography>
             </Stack>
             <Collapse in={openIndex === i}>
               {/* نمایش محتوا بر اساس نوع گام */}
-              {s.type === 'explanation' && <Typography sx={{ mt: 1 }}>{s.content}</Typography>}
+              {s.type === 'explanation' &&
+                <Box sx={{ mt: 1 }} dangerouslySetInnerHTML={{ __html: s.content }} />
+              }
 
               {s.type === 'multiple-choice' && (
                 <>
@@ -225,6 +279,29 @@ export default function StepList({
                   <ol>
                     {(s.options || []).map((op, idx) =>
                       <li key={idx} style={{ fontWeight: s.correctIndex === idx ? "bold" : "normal" }}>{op}</li>
+                    )}
+                  </ol>
+                  {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
+                  <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
+                  <br />
+                  <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
+                </>
+              )}
+
+              {s.type === 'multi-answer' && (
+                <>
+                  <Typography sx={{ mt: 1 }}>سوال: {s.text}</Typography>
+                  <ol>
+                    {(s.options || []).map((op, idx) =>
+                      <li
+                        key={idx}
+                        style={{
+                          fontWeight: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "bold" : "normal",
+                          color: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "#388e3c" : "inherit"
+                        }}
+                      >
+                        {op}
+                      </li>
                     )}
                   </ol>
                   {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}

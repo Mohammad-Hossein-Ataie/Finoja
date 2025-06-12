@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 
 const stepSchema = new mongoose.Schema({
-  type: { type: String, enum: ['explanation', 'multiple-choice', 'fill-in-the-blank'], default: 'explanation' },
+  type: { type: String, enum: ['explanation', 'multiple-choice', 'multi-answer', 'fill-in-the-blank'], default: 'explanation' },
   content: String,
   text: String,
   options: [String],
-  correctIndex: Number,
+  correctIndex: Number,        // برای سوال تک‌گزینه‌ای
+  correctIndexes: [Number],    // برای چندجوابی
   answer: String,
   explanation: String,
   feedbackCorrect: String,

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Box, Typography, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CourseCard from "@/components/CourseCard";
+import RichTextEditor from "@/components/RichTextEditor";
 
 function fetcher(url) { return fetch(url).then(res => res.json()); }
 
@@ -54,9 +55,18 @@ export default function CoursesPanel() {
           <CourseCard
             key={course._id}
             course={course}
-            onEdit={() => { setForm({ title: course.title, description: course.description, teacher: course.teacher?._id || "" }); setEditing(course); setOpen(true); }}
+            onEdit={() => {
+              setForm({
+                title: course.title,
+                description: course.description,
+                teacher: course.teacher?._id || ""
+              });
+              setEditing(course);
+              setOpen(true);
+            }}
             onDelete={() => handleDelete(course._id)}
             refreshCourses={() => fetcher("/api/courses").then(setCourses)}
+            teacherName={course.teacher?.name || "بدون استاد"}
           />
         ))}
       </Stack>
@@ -64,7 +74,13 @@ export default function CoursesPanel() {
         <DialogTitle>{editing ? "ویرایش دوره" : "افزودن دوره"}</DialogTitle>
         <DialogContent>
           <TextField label="عنوان دوره" value={form.title} fullWidth margin="dense" onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-          <TextField label="توضیحات" value={form.description} fullWidth margin="dense" multiline onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+          <Box sx={{ my: 2 }}>
+            <Typography sx={{ mb: 1 }} color="text.secondary" fontWeight={600}>توضیح دوره:</Typography>
+            <RichTextEditor
+              value={form.description}
+              onChange={val => setForm(f => ({ ...f, description: val }))}
+            />
+          </Box>
           <FormControl fullWidth margin="dense">
             <InputLabel>استاد</InputLabel>
             <Select value={form.teacher} label="استاد" onChange={e => setForm(f => ({ ...f, teacher: e.target.value }))}>
