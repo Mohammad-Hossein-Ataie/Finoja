@@ -1,8 +1,18 @@
-import dbConnect from '@/lib/dbConnect';
-import Teacher from '@/models/Teacher';
+import { cookies } from "next/headers";
+import { verifyJwt } from "@/lib/jwt";
+import dbConnect from "@/lib/dbConnect";
+import Teacher from "@/models/Teacher";
 
 export async function PUT(request, { params }) {
   await dbConnect();
+  const cookieStore = cookies();
+  const token = cookieStore.get("token")?.value;
+  const payload = verifyJwt(token);
+  if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // فقط ادمین مجاز به ویرایش
+  if (payload.role !== "admin") return Response.json({ error: "Forbidden" }, { status: 403 });
+
   const body = await request.json();
   const updated = await Teacher.findByIdAndUpdate(params.id, body, { new: true });
   return Response.json(updated);
@@ -10,6 +20,14 @@ export async function PUT(request, { params }) {
 
 export async function DELETE(request, { params }) {
   await dbConnect();
+  const cookieStore = cookies();
+  const token = cookieStore.get("token")?.value;
+  const payload = verifyJwt(token);
+  if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // فقط ادمین مجاز به حذف
+  if (payload.role !== "admin") return Response.json({ error: "Forbidden" }, { status: 403 });
+
   await Teacher.findByIdAndDelete(params.id);
   return Response.json({ deleted: true });
 }
