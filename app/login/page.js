@@ -1,68 +1,19 @@
-"use client";
-import { useState } from "react";
-import { Box, Button, TextField, Typography, Alert } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { cookies } from "next/headers";
+import { verifyJwt } from "@/lib/jwt";
+import { redirect } from "next/navigation";
+import LoginForm from "./LoginForm";   // کامپوننت کلاینتی جداگانه
 
-export default function LoginPage() {
-  const [form, setForm] = useState({ username: "", password: "" });
-  const [error, setError] = useState("");
-  const router = useRouter();
+export default async function LoginPage() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
 
-  const handleSubmit = async () => {
-    setError("");
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      body: JSON.stringify(form),
-      headers: { "Content-Type": "application/json" },
-      credentials: "include", // اینجا بیرون از headers باید باشه
-    });
-
-    if (res.ok) {
-      router.replace("/dashboard");
-    } else {
-      const { error } = await res.json();
-      setError(error || "Login failed");
+  if (token) {
+    const payload = await verifyJwt(token);
+    if (payload) {
+      redirect("/dashboard");          // توکن معتبر ⇒ مستقیماً داشبورد
     }
-  };
+  }
 
-  return (
-    <Box
-      sx={{
-        maxWidth: 400,
-        mx: "auto",
-        mt: 12,
-        p: 4,
-        boxShadow: 2,
-        bgcolor: "#fff",
-        borderRadius: 3,
-      }}
-    >
-      <Typography fontWeight={700} mb={3}>
-        ورود به پنل
-      </Typography>
-      <TextField
-        label="نام کاربری"
-        value={form.username}
-        onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
-        fullWidth
-        margin="dense"
-      />
-      <TextField
-        label="رمز عبور"
-        type="password"
-        value={form.password}
-        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-        fullWidth
-        margin="dense"
-      />
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
-      )}
-      <Button variant="contained" onClick={handleSubmit} sx={{ mt: 3 }}>
-        ورود
-      </Button>
-    </Box>
-  );
+  // توکن نبود یا نامعتبر بود ⇒ فرمِ ورود را نمایش می‌دهیم
+  return <LoginForm />;
 }
