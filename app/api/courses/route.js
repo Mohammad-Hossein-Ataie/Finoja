@@ -5,31 +5,42 @@ import Course from "@/models/Course";
 
 export async function GET() {
   await dbConnect();
-  const cookieStore = cookies();
+
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
-  const payload = verifyJwt(token);
-  if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const payload = await verifyJwt(token);
+
+  if (!payload) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   if (payload.role === "admin") {
     const courses = await Course.find().populate("teacher");
     return Response.json(courses);
-  } else if (payload.role === "teacher") {
+  }
+
+  if (payload.role === "teacher") {
     const courses = await Course.find({ teacher: payload.teacher }).populate("teacher");
     return Response.json(courses);
-  } else {
-    return Response.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  return Response.json({ error: "Forbidden" }, { status: 403 });
 }
 
 export async function POST(req) {
   await dbConnect();
-  const cookieStore = cookies();
-  const token = cookieStore.get("token")?.value;
-  const payload = verifyJwt(token);
-  if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  // فقط ادمین یا استاد مجاز به ایجاد کورس؟ (معمولاً فقط ادمین)
-  if (payload.role !== "admin") return Response.json({ error: "Forbidden" }, { status: 403 });
+  const cookieStore = await cookies();
+  const token = cookieStore.get("token")?.value;
+  const payload = await verifyJwt(token);
+
+  if (!payload) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (payload.role !== "admin") {
+    return Response.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const body = await req.json();
   const created = await Course.create(body);
