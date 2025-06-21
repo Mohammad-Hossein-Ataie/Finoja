@@ -2,8 +2,8 @@
 import { useEffect, useState } from "react";
 import { Box, Typography, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import CourseCard from "@/components/CourseCard";
-import RichTextEditor from "@/components/RichTextEditor";
+import CourseCard from "../../../components/CourseCard";
+import RichTextEditor from "../../../components/RichTextEditor";
 
 function fetcher(url) { return fetch(url).then(res => res.json()); }
 

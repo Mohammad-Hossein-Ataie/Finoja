@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import { verifyJwt } from "@/lib/jwt";
-import dbConnect from "@/lib/dbConnect";
-import Course from "@/models/Course";
+import { verifyJwt } from "../../../lib/jwt";
+import dbConnect from "../../../lib/dbConnect";
+import Course from "../../../models/Course";
 
 export async function GET() {
   await dbConnect();

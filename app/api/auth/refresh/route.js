@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { verifyJwt, signJwt } from "@/lib/jwt";
+import { verifyJwt, signJwt } from "../../../../lib/jwt";
 
 export async function POST() {
   const cookieStore = await cookies();

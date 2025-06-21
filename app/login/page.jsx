@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { verifyJwt } from "@/lib/jwt";
+import { verifyJwt } from "../../lib/jwt";
 import { redirect } from "next/navigation";
 import LoginForm from "./LoginForm";   // کامپوننت کلاینتی جداگانه
 

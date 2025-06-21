@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
-import dbConnect from "@/lib/dbConnect";
-import User from "@/models/User";
-import { signJwt } from "@/lib/jwt";
+import dbConnect from "../../../../lib/dbConnect";
+import User from "../../../../models/User";
+import { signJwt } from "../../../../lib/jwt";
 
 export async function POST(req) {
   await dbConnect();
