@@ -10,7 +10,7 @@ export default function DashboardLayout({ children }) {
         sx={{
           display: { xs: "none", md: "block" },
           position: "fixed",
-          right: 0,
+          left: 0,
           top: 0,
           height: "100vh",
           zIndex: 100,
@@ -24,8 +24,8 @@ export default function DashboardLayout({ children }) {
         sx={{
           flex: 1,
           p: { xs: 1, md: 3 },
-          mr: { md: "220px" }, // Equal to sidebar width
-          width: "100%",
+          ml: { md: "220px" }, // Equal to sidebar width
+          // width: "100%",
         }}
       >
         {/* Mobile: Show Sidebar on top */}
