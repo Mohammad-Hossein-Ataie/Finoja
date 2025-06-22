@@ -15,14 +15,24 @@ export default function LoginForm() {
       method: "POST",
       body: JSON.stringify(form),
       headers: { "Content-Type": "application/json" },
-      credentials: "include",   // کوکی httpOnly همراه درخواست برود
+      credentials: "include", // کوکی httpOnly همراه درخواست برود
     });
 
     if (res.ok) {
-      router.replace("/dashboard");
-    } else {
-      const { error } = await res.json();
-      setError(error || "Login failed");
+      // بعد از لاگین باید نقش را از API بگیری!
+      const user = await fetch("/api/auth/me", { credentials: "include" }).then(
+        (r) => r.json()
+      );
+      if (user.role === "admin") {
+        router.replace("/dashboard");
+      } else if (user.role === "teacher") {
+        router.replace("/dashboard/courses");
+      } else if (user.role === "student") {
+        router.replace("/dashboard/student");
+      } else {
+        router.replace("/login");
+      }
+      return;
     }
   };
 
@@ -45,9 +55,7 @@ export default function LoginForm() {
       <TextField
         label="نام کاربری"
         value={form.username}
-        onChange={(e) =>
-          setForm((f) => ({ ...f, username: e.target.value }))
-        }
+        onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
         fullWidth
         margin="dense"
       />
@@ -56,9 +64,7 @@ export default function LoginForm() {
         label="رمز عبور"
         type="password"
         value={form.password}
-        onChange={(e) =>
-          setForm((f) => ({ ...f, password: e.target.value }))
-        }
+        onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
         fullWidth
         margin="dense"
       />

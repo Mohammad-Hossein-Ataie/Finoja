@@ -14,8 +14,14 @@ export async function POST() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // تضمین type string
   const newToken = await signJwt(
-    { _id: payload._id, role: payload.role, teacher: payload.teacher },
+    { 
+      _id: typeof payload._id === "string" ? payload._id : payload._id.toString(), 
+      role: payload.role, 
+      teacher: payload.teacher,
+      student: payload.student,
+    },
     "15m"
   );
 

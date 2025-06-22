@@ -14,9 +14,13 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await User.findById(payload._id)
+  // اطمینان از اینکه _id رشته است
+  const userId = typeof payload._id === "string" ? payload._id : payload._id.toString();
+
+  const user = await User.findById(userId)
     .select("-password")
-    .populate("teacher");
+    .populate("teacher")
+    .populate("student");
 
   return Response.json(user);
 }

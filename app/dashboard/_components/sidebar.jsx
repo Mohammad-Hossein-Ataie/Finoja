@@ -22,12 +22,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
-import { endpoints } from "@/utils/endpoints";
+import { endpoints } from "../../../utils";
+import { useCurrentUser } from "../../../lib/useCurrentUser";
 
 const navLinks = [
-  { href: "/dashboard", icon: <DashboardIcon />, label: "داشبورد" },
-  { href: "/dashboard/courses", icon: <SchoolIcon />, label: "دوره‌ها" },
-  { href: "/dashboard/teachers", icon: <PersonIcon />, label: "اساتید" },
+  { href: "/dashboard", icon: <DashboardIcon />, label: "داشبورد", roles: ["admin"] },
+  { href: "/dashboard/courses", icon: <SchoolIcon />, label: "دوره‌ها", roles: ["admin", "teacher"] },
+  { href: "/dashboard/teachers", icon: <PersonIcon />, label: "اساتید", roles: ["admin"] },
 ];
 
 export default function Sidebar() {
@@ -36,20 +37,21 @@ export default function Sidebar() {
   const theme      = useTheme();
   const isMobile   = useMediaQuery(theme.breakpoints.down("md"));
   const [open, setOpen] = useState(false);
+  const { user } = useCurrentUser();
 
-  /* ---------- خروج ---------- */
+  const allowedLinks = navLinks.filter(link => user && link.roles.includes(user.role));
+
   const handleLogout = async () => {
     try {
       await fetch(endpoints.logout, {
         method: "POST",
-        credentials: "include",   // کوکی httpOnly ارسال شود
+        credentials: "include",
       });
     } finally {
       router.push("/login");
     }
   };
 
-  /* ---------- محتوای اصلی سایدبار ---------- */
   const SidebarContent = (
     <Box
       sx={{
@@ -76,7 +78,7 @@ export default function Sidebar() {
       <Divider sx={{ bgcolor: "#444", mb: 1 }} />
 
       <List sx={{ mt: 2, flexGrow: 1 }}>
-        {navLinks.map((link) => (
+        {allowedLinks.map((link) => (
           <ListItem key={link.href} disablePadding>
             <Link
               href={link.href}
@@ -109,8 +111,6 @@ export default function Sidebar() {
           </ListItem>
         ))}
       </List>
-
-      {/* دکمه خروج پایین سایدبار */}
       <Box sx={{ mt: "auto" }}>
         <Divider sx={{ bgcolor: "#444", mb: 1 }} />
         <ListItem disablePadding>
@@ -138,11 +138,9 @@ export default function Sidebar() {
     </Box>
   );
 
-  /* ---------- موبایل ---------- */
   if (isMobile) {
     return (
       <>
-        {/* نوار بالای موبایل */}
         <Box
           sx={{
             width: "100%",
@@ -174,8 +172,6 @@ export default function Sidebar() {
             <MenuIcon fontSize="large" />
           </IconButton>
         </Box>
-
-        {/* دراور راست به چپ */}
         <Drawer
           anchor="right"
           open={open}
@@ -216,7 +212,6 @@ export default function Sidebar() {
     );
   }
 
-  /* ---------- دسکتاپ ---------- */
   return (
     <Box
       sx={{

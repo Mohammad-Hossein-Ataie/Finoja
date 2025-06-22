@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { verifyJwt } from "../../../lib/jwt";
 import dbConnect from "../../../lib/dbConnect";
-import Teacher from "../../../models/Teacher";
+import Student from "../../../models/Student";
 import User from "../../../models/User";
 
 function randomPassword() {
@@ -15,12 +15,11 @@ export async function GET() {
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
-  // فقط ادمین اجازه دارد
-  if (!payload || payload.role !== "admin")
+  if (!payload || (payload.role !== "admin" && payload.role !== "teacher"))
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const teachers = await Teacher.find();
-  return Response.json(teachers);
+  const students = await Student.find();
+  return Response.json(students);
 }
 
 export async function POST(req) {
@@ -30,7 +29,8 @@ export async function POST(req) {
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
-  if (!payload || payload.role !== "admin")
+  // اجازه بده admin و teacher بتواند دانش‌آموز بسازد
+  if (!payload || (payload.role !== "admin" && payload.role !== "teacher"))
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
@@ -38,34 +38,34 @@ export async function POST(req) {
   if (!username)
     return Response.json({ error: "Username (phone/email/nationalCode) required" }, { status: 400 });
 
-  // Check existing user or teacher
+  // Check existing user or student
   const userExists = await User.findOne({ username });
   if (userExists)
     return Response.json({ error: "User already exists with this username" }, { status: 400 });
 
-  const teacherExists = await Teacher.findOne({ $or: [
+  const studentExists = await Student.findOne({ $or: [
     { nationalCode: body.nationalCode },
     { phone: body.phone },
     { email: body.email }
   ]});
-  if (teacherExists)
-    return Response.json({ error: "Teacher already exists" }, { status: 400 });
+  if (studentExists)
+    return Response.json({ error: "Student already exists" }, { status: 400 });
 
-  // Create Teacher
-  const teacher = await Teacher.create(body);
+  // Create Student
+  const student = await Student.create(body);
 
-  // Create User for teacher
+  // Create User for student
   const password = randomPassword();
   const user = await User.create({
     username,
     password,
-    role: "teacher",
-    teacher: teacher._id,
+    role: "student",
+    student: student._id,
   });
 
   return Response.json({
-    teacher,
+    student,
     user: { username: user.username, password },
-    message: "Teacher and user created",
+    message: "Student and user created",
   });
 }

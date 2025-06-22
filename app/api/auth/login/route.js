@@ -13,10 +13,12 @@ export async function POST(req) {
     return Response.json({ error: "Invalid credentials" }, { status: 401 });
   }
 
+  // اینجا مقدار _id حتماً باید string باشد
   const token = await signJwt({
-    _id: user._id,
+    _id: user._id.toString(),
     role: user.role,
-    teacher: user.teacher?._id,
+    teacher: user.teacher?._id?.toString?.() || user.teacher,
+    student: user.student?._id?.toString?.() || user.student,
   });
 
   const cookieStore = await cookies();

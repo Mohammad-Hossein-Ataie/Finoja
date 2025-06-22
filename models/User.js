@@ -2,13 +2,17 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, unique: true },
-  password: String, // رمز به صورت هش ذخیره کن!
-  role: { type: String, enum: ["admin", "teacher"], default: "teacher" },
-  teacher: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" }, // اگر نقش استاد باشه
+  username: { type: String, unique: true, required: true },
+  password: String,
+  role: { 
+    type: String, 
+    enum: ["admin", "teacher", "student"], 
+    default: "student" // پیش‌فرض دانش‌آموز است
+  },
+  teacher: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" }, // اگر استاد باشد
+  student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" }, // اگر دانش‌آموز باشد
 });
 
-// رمز رو قبل از ذخیره هش کن
 userSchema.pre("save", async function(next) {
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);
