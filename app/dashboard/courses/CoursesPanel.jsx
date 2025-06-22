@@ -4,10 +4,17 @@ import { Box, Typography, Button, Stack, Dialog, DialogTitle, DialogContent, Dia
 import AddIcon from "@mui/icons-material/Add";
 import CourseCard from "../../../components/CourseCard";
 import RichTextEditor from "../../../components/RichTextEditor";
+import { useCurrentUser } from "../../../lib/useCurrentUser";
 
-function fetcher(url) { return fetch(url).then(res => res.json()); }
+function fetcher(url) {
+  return fetch(url, { credentials: "include" })
+    .then(res => res.ok ? res.json() : Promise.resolve([]))
+    .catch(() => []);
+}
 
 export default function CoursesPanel() {
+  const { user, loading } = useCurrentUser();
+
   const [courses, setCourses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [open, setOpen] = useState(false);
@@ -15,9 +22,20 @@ export default function CoursesPanel() {
   const [editing, setEditing] = useState(null);
 
   useEffect(() => {
+    if (!user) return;
     fetcher("/api/courses").then(setCourses);
-    fetcher("/api/teachers").then(setTeachers);
-  }, []);
+
+    if (user.role === "admin") {
+      fetcher("/api/teachers").then(data => {
+        setTeachers(Array.isArray(data) ? data : []);
+      });
+    } else if (user.role === "teacher") {
+      setTeachers(user.teacher ? [user.teacher] : []);
+      setForm(f => ({ ...f, teacher: user.teacher?._id || "" }));
+    } else {
+      setTeachers([]);
+    }
+  }, [user]);
 
   const handleSubmit = async () => {
     if (!form.title || !form.teacher) return;
@@ -36,7 +54,7 @@ export default function CoursesPanel() {
     }
     fetcher("/api/courses").then(setCourses);
     setOpen(false);
-    setForm({ title: "", description: "", teacher: "" });
+    setForm({ title: "", description: "", teacher: user.role === "teacher" ? (user.teacher?._id || "") : "" });
     setEditing(null);
   };
 
@@ -46,10 +64,16 @@ export default function CoursesPanel() {
     setCourses(courses.filter(c => c._id !== id));
   };
 
+  if (loading || !user) return null;
+
   return (
     <Box sx={{ maxWidth: 900, mx: "auto", mt: 4 }}>
       <Typography variant="h4" mb={2} fontWeight={700}>دوره‌های من</Typography>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setOpen(true); setEditing(null); }} sx={{ mb: 2 }}>افزودن دوره جدید</Button>
+      {user.role === "admin" && (
+        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setOpen(true); setEditing(null); }} sx={{ mb: 2 }}>
+          افزودن دوره جدید
+        </Button>
+      )}
       <Stack spacing={2}>
         {courses.map(course => (
           <CourseCard
@@ -83,8 +107,21 @@ export default function CoursesPanel() {
           </Box>
           <FormControl fullWidth margin="dense">
             <InputLabel>استاد</InputLabel>
-            <Select value={form.teacher} label="استاد" onChange={e => setForm(f => ({ ...f, teacher: e.target.value }))}>
-              {teachers.map(teacher => <MenuItem value={teacher._id} key={teacher._id}>{teacher.name}</MenuItem>)}
+            <Select
+              value={form.teacher}
+              label="استاد"
+              onChange={e => setForm(f => ({ ...f, teacher: e.target.value }))}
+              disabled={user.role === "teacher"} // استاد فقط خودش را دارد
+            >
+              {Array.isArray(teachers) && teachers.length > 0 ? (
+                teachers.map(teacher => (
+                  <MenuItem value={teacher._id} key={teacher._id}>
+                    {teacher.name}
+                  </MenuItem>
+                ))
+              ) : (
+                <MenuItem value="">بدون استاد</MenuItem>
+              )}
             </Select>
           </FormControl>
         </DialogContent>
