@@ -1,4 +1,4 @@
-'use client';
+"use client";
 import { useState } from 'react';
 import {
   Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography,
@@ -6,9 +6,9 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ArrowUpward from '@mui/icons-material/ArrowUpward';
-import ArrowDownward from '@mui/icons-material/ArrowDownward';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import RichTextEditor from './RichTextEditor';
 
 const DEFAULT_STEP = {
@@ -32,15 +32,17 @@ export default function StepList({
   const [form, setForm] = useState(DEFAULT_STEP);
   const [openIndex, setOpenIndex] = useState(null);
 
-  // جابه‌جایی ترتیب گام‌ها
-  const moveStep = async (fromIdx, toIdx) => {
-    if (toIdx < 0 || toIdx >= (topic.steps?.length || 0)) return;
-    const newSteps = [...(topic.steps || [])];
-    const [removed] = newSteps.splice(fromIdx, 1);
-    newSteps.splice(toIdx, 0, removed);
+  // جابجایی گام‌ها با درگ اند دراپ
+  const onDragEnd = async (result) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+    if (source.index === destination.index) return;
+    const steps = Array.from(topic.steps || []);
+    const [removed] = steps.splice(source.index, 1);
+    steps.splice(destination.index, 0, removed);
 
     const newTopics = [...unit.topics];
-    newTopics[topicIndex] = { ...topic, steps: newSteps };
+    newTopics[topicIndex] = { ...topic, steps };
     const newUnits = [...section.units];
     newUnits[unitIndex] = { ...unit, topics: newTopics };
     const newSections = [...course.sections];
@@ -53,7 +55,26 @@ export default function StepList({
     refreshCourses();
   };
 
-  // افزودن یا ویرایش گام
+  const moveStep = async (fromIdx, toIdx) => {
+    if (toIdx < 0 || toIdx >= (topic.steps?.length || 0)) return;
+    const steps = [...(topic.steps || [])];
+    const [removed] = steps.splice(fromIdx, 1);
+    steps.splice(toIdx, 0, removed);
+
+    const newTopics = [...unit.topics];
+    newTopics[topicIndex] = { ...topic, steps };
+    const newUnits = [...section.units];
+    newUnits[unitIndex] = { ...unit, topics: newTopics };
+    const newSections = [...course.sections];
+    newSections[sectionIndex] = { ...section, units: newUnits };
+    await fetch(`/api/courses/${course._id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...course, sections: newSections }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    refreshCourses();
+  };
+
   const addOrEditStep = async () => {
     let newSteps;
     if (editing !== null) {
@@ -76,7 +97,6 @@ export default function StepList({
     refreshCourses();
   };
 
-  // حذف گام
   const handleDeleteStep = async (idx) => {
     const newSteps = (topic.steps || []).filter((_, i) => i !== idx);
     const newTopics = [...unit.topics];
@@ -140,8 +160,6 @@ export default function StepList({
               onChange={val => setForm(f => ({ ...f, content: val }))}
             />
           )}
-
-          {/* باقی فرم سوالات (بدون تغییر) ... */}
           {form.type === 'multiple-choice' && (
             <>
               <TextField label="متن سوال" size="small" value={form.text}
@@ -168,7 +186,6 @@ export default function StepList({
                 value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
             </>
           )}
-
           {form.type === 'multi-answer' && (
             <>
               <TextField label="متن سوال" size="small" value={form.text}
@@ -205,7 +222,6 @@ export default function StepList({
                 value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
             </>
           )}
-
           {form.type === 'fill-in-the-blank' && (
             <>
               <Typography variant="caption" color="info.main">
@@ -224,7 +240,6 @@ export default function StepList({
                 value={form.feedbackWrong} onChange={e => setForm(f => ({ ...f, feedbackWrong: e.target.value }))} />
             </>
           )}
-
           <Stack direction="row" gap={1}>
             <Button size="small" variant="contained" onClick={addOrEditStep}>ثبت</Button>
             <Button size="small" color="error" onClick={() => { setShowForm(false); setEditing(null); setForm(DEFAULT_STEP); }}>انصراف</Button>
@@ -232,99 +247,117 @@ export default function StepList({
         </Box>
       }
 
-      {/* نمایش لیست گام‌ها */}
-      {(topic.steps || []).map((s, i) => (
-        <Card key={i} sx={{ mb: 1, pl: 2, background: "#e5ffe5" }}>
-          <CardContent sx={{ pb: 1 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <IconButton size="small" onClick={() => handleDeleteStep(i)}>
-                <DeleteIcon fontSize="small" color="error" />
-              </IconButton>
-              <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm(s); }}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => setOpenIndex(openIndex === i ? null : i)}>
-                <ExpandMoreIcon
-                  fontSize="small"
-                  sx={{
-                    transform: openIndex === i ? "rotate(180deg)" : "none",
-                    transition: "0.2s"
-                  }}
-                />
-              </IconButton>
-              <IconButton size="small" onClick={() => moveStep(i, i - 1)} disabled={i === 0}>
-                <ArrowUpward fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => moveStep(i, i + 1)} disabled={i === (topic.steps.length - 1)}>
-                <ArrowDownward fontSize="small" />
-              </IconButton>
-              <Typography fontWeight="bold">
-                {i + 1}. {
-                  s.type === 'explanation' ? 'توضیح'
-                  : s.type === 'multiple-choice' ? 'سوال چندگزینه‌ای'
-                  : s.type === 'multi-answer' ? 'سوال چندگزینه‌ای چندجوابی'
-                  : 'جای‌خالی'
-                }
-              </Typography>
-            </Stack>
-            <Collapse in={openIndex === i}>
-              {/* نمایش محتوا بر اساس نوع گام */}
-              {s.type === 'explanation' &&
-                <Box sx={{ mt: 1 }} dangerouslySetInnerHTML={{ __html: s.content }} />
-              }
+      {/* نمایش لیست گام‌ها با Drag & Drop */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="steps">
+          {(provided) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              {(topic.steps || []).map((s, i) => (
+                <Draggable key={i} draggableId={`step-${i}`} index={i}>
+                  {(prov) => (
+                    <Card
+                      ref={prov.innerRef}
+                      {...prov.draggableProps}
+                      sx={{
+                        mb: 1, pl: 2, background: "#e5ffe5",
+                        borderRadius: 3, boxShadow: 1,
+                        transition: "box-shadow 0.15s"
+                      }}
+                    >
+                      <CardContent sx={{ pb: 1 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <span {...prov.dragHandleProps}>
+                            <DragIndicatorIcon sx={{ color: "#999", cursor: "grab", mr: 1 }} />
+                          </span>
+                          <IconButton size="small" onClick={() => handleDeleteStep(i)}>
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm(s); }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => setOpenIndex(openIndex === i ? null : i)}>
+                            <ExpandMoreIcon
+                              fontSize="small"
+                              sx={{
+                                transform: openIndex === i ? "rotate(180deg)" : "none",
+                                transition: "0.2s"
+                              }}
+                            />
+                          </IconButton>
+                          <Typography fontWeight="bold">
+                            {i + 1}. {
+                              s.type === 'explanation' ? 'توضیح'
+                                : s.type === 'multiple-choice' ? 'سوال چندگزینه‌ای'
+                                  : s.type === 'multi-answer' ? 'سوال چندگزینه‌ای چندجوابی'
+                                    : 'جای‌خالی'
+                            }
+                          </Typography>
+                        </Stack>
+                        <Collapse in={openIndex === i}>
+                          {/* نمایش محتوا بر اساس نوع گام */}
+                          {s.type === 'explanation' &&
+                            <Box sx={{ mt: 1 }} dangerouslySetInnerHTML={{ __html: s.content }} />
+                          }
 
-              {s.type === 'multiple-choice' && (
-                <>
-                  <Typography sx={{ mt: 1 }}>سوال: {s.text}</Typography>
-                  <ol>
-                    {(s.options || []).map((op, idx) =>
-                      <li key={idx} style={{ fontWeight: s.correctIndex === idx ? "bold" : "normal" }}>{op}</li>
-                    )}
-                  </ol>
-                  {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
-                  <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
-                  <br />
-                  <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
-                </>
-              )}
+                          {s.type === 'multiple-choice' && (
+                            <>
+                              <Typography sx={{ mt: 1 }}>سوال: {s.text}</Typography>
+                              <ol>
+                                {(s.options || []).map((op, idx) =>
+                                  <li key={idx} style={{ fontWeight: s.correctIndex === idx ? "bold" : "normal" }}>{op}</li>
+                                )}
+                              </ol>
+                              {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
+                              <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
+                              <br />
+                              <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
+                            </>
+                          )}
 
-              {s.type === 'multi-answer' && (
-                <>
-                  <Typography sx={{ mt: 1 }}>سوال: {s.text}</Typography>
-                  <ol>
-                    {(s.options || []).map((op, idx) =>
-                      <li
-                        key={idx}
-                        style={{
-                          fontWeight: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "bold" : "normal",
-                          color: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "#388e3c" : "inherit"
-                        }}
-                      >
-                        {op}
-                      </li>
-                    )}
-                  </ol>
-                  {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
-                  <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
-                  <br />
-                  <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
-                </>
-              )}
+                          {s.type === 'multi-answer' && (
+                            <>
+                              <Typography sx={{ mt: 1 }}>سوال: {s.text}</Typography>
+                              <ol>
+                                {(s.options || []).map((op, idx) =>
+                                  <li
+                                    key={idx}
+                                    style={{
+                                      fontWeight: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "bold" : "normal",
+                                      color: Array.isArray(s.correctIndexes) && s.correctIndexes.includes(idx) ? "#388e3c" : "inherit"
+                                    }}
+                                  >
+                                    {op}
+                                  </li>
+                                )}
+                              </ol>
+                              {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
+                              <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
+                              <br />
+                              <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
+                            </>
+                          )}
 
-              {s.type === 'fill-in-the-blank' && (
-                <>
-                  <Typography sx={{ mt: 1 }}>جمله: {s.text.replace("-", "____")}</Typography>
-                  <Typography color="info.main">پاسخ صحیح: {s.answer}</Typography>
-                  {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
-                  <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
-                  <br />
-                  <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
-                </>
-              )}
-            </Collapse>
-          </CardContent>
-        </Card>
-      ))}
+                          {s.type === 'fill-in-the-blank' && (
+                            <>
+                              <Typography sx={{ mt: 1 }}>جمله: {s.text.replace("-", "____")}</Typography>
+                              <Typography color="info.main">پاسخ صحیح: {s.answer}</Typography>
+                              {s.explanation && <Typography variant="caption" color="primary">{s.explanation}</Typography>}
+                              <Typography variant="caption" color="success.main">فیدبک صحیح: {s.feedbackCorrect}</Typography>
+                              <br />
+                              <Typography variant="caption" color="error.main">فیدبک غلط: {s.feedbackWrong}</Typography>
+                            </>
+                          )}
+                        </Collapse>
+                      </CardContent>
+                    </Card>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </Box>
   );
 }
