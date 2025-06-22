@@ -1,9 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography } from '@mui/material';
+import {
+  Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import UnitList from './UnitList';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 export default function SectionList({ course, refreshCourses }) {
   const [showForm, setShowForm] = useState(false);
@@ -35,9 +39,28 @@ export default function SectionList({ course, refreshCourses }) {
     refreshCourses();
   };
 
+  // Drag and drop section reorder
+  const onDragEnd = async (result) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+    if (source.index === destination.index) return;
+    const sections = Array.from(course.sections || []);
+    const [removed] = sections.splice(source.index, 1);
+    sections.splice(destination.index, 0, removed);
+    await fetch(`/api/courses/${course._id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ ...course, sections }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    refreshCourses();
+  };
+
   return (
     <Box sx={{ mt: 2, pl: 3 }}>
-      <Button variant="outlined" size="small" sx={{ mb: 1 }}
+      <Button
+        variant="outlined"
+        size="small"
+        sx={{ mb: 1 }}
         onClick={() => { setShowForm(true); setEditing(null); }}>
         افزودن بخش
       </Button>
@@ -50,27 +73,50 @@ export default function SectionList({ course, refreshCourses }) {
           <Button size="small" color="error" onClick={() => { setShowForm(false); setEditing(null); setForm({ title: '' }); }}>انصراف</Button>
         </Box>
       }
-      {(course.sections || []).map((section, i) => (
-        <Card key={i} sx={{ mb: 1, pl: 2, background: "#fafbfc" }}>
-          <CardContent sx={{ pb: 1 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography>{section.title}</Typography>
-              <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm({ title: section.title }); }}>
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => handleDeleteSection(i)}>
-                <DeleteIcon fontSize="small" color="error" />
-              </IconButton>
-            </Stack>
-            <UnitList
-              course={course}
-              section={section}
-              sectionIndex={i}
-              refreshCourses={refreshCourses}
-            />
-          </CardContent>
-        </Card>
-      ))}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="sections">
+          {provided => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              {(course.sections || []).map((section, i) => (
+                <Draggable key={i} draggableId={`section-${i}`} index={i}>
+                  {prov => (
+                    <Card
+                      ref={prov.innerRef}
+                      {...prov.draggableProps}
+                      sx={{
+                        mb: 1, pl: 2, background: "#fafbfc", transition: "box-shadow 0.15s",
+                        boxShadow: 1, borderRadius: 3, ':hover': { boxShadow: 4 }
+                      }}
+                    >
+                      <CardContent sx={{ pb: 1 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <span {...prov.dragHandleProps}>
+                            <DragIndicatorIcon sx={{ color: "#999", cursor: "grab", mr: 1 }} />
+                          </span>
+                          <Typography fontWeight={600}>{section.title}</Typography>
+                          <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm({ title: section.title }); }}>
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleDeleteSection(i)}>
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                        </Stack>
+                        <UnitList
+                          course={course}
+                          section={section}
+                          sectionIndex={i}
+                          refreshCourses={refreshCourses}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </Box>
   );
 }
