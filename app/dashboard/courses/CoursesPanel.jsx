@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Box, Typography, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl } from "@mui/material";
+import { Box, Typography, Button, Stack, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Select, InputLabel, FormControl, Paper } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CourseCard from "../../../components/CourseCard";
 import RichTextEditor from "../../../components/RichTextEditor";
 import { useCurrentUser } from "../../../lib/useCurrentUser";
+import SchoolIcon from "@mui/icons-material/School";
 
 function fetcher(url) {
   return fetch(url, { credentials: "include" })
@@ -67,39 +68,95 @@ export default function CoursesPanel() {
   if (loading || !user) return null;
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto", mt: 4 }}>
-      <Typography variant="h4" mb={2} fontWeight={700}>دوره‌های من</Typography>
+    <Box sx={{ maxWidth: 900, mx: "auto", mt: { xs: 2, md: 4 }, px: 1 }}>
+      <Typography variant="h4" mb={3} fontWeight={900} sx={{ textAlign: "center", letterSpacing: 2 }}>
+        دوره‌های من
+      </Typography>
       {user.role === "admin" && (
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => { setOpen(true); setEditing(null); }} sx={{ mb: 2 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => { setOpen(true); setEditing(null); }}
+          sx={{
+            mb: 3,
+            fontWeight: 700,
+            borderRadius: 2,
+            px: 4,
+            py: 1.5,
+            fontSize: 18,
+            boxShadow: 2,
+            background: "linear-gradient(90deg, #223354 10%, #121B25 90%)",
+          }}
+        >
           افزودن دوره جدید
         </Button>
       )}
-      <Stack spacing={2}>
-        {courses.map(course => (
-          <CourseCard
-            key={course._id}
-            course={course}
-            onEdit={() => {
-              setForm({
-                title: course.title,
-                description: course.description,
-                teacher: course.teacher?._id || ""
-              });
-              setEditing(course);
-              setOpen(true);
-            }}
-            onDelete={() => handleDelete(course._id)}
-            refreshCourses={() => fetcher("/api/courses").then(setCourses)}
-            teacherName={course.teacher?.name || "بدون استاد"}
-          />
-        ))}
-      </Stack>
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth>
-        <DialogTitle>{editing ? "ویرایش دوره" : "افزودن دوره"}</DialogTitle>
+
+      {/* پیام اگر هیچ دوره‌ای وجود نداشت */}
+      {courses.length === 0 ? (
+        <Paper
+          sx={{
+            p: 6,
+            mt: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            bgcolor: "#f8fafc",
+            boxShadow: 1,
+            borderRadius: 4,
+            minHeight: 240,
+          }}
+        >
+          <SchoolIcon color="primary" sx={{ fontSize: 60, mb: 2 }} />
+          <Typography fontWeight={700} color="text.secondary" fontSize={20}>
+            در حال حاضر هیچ دوره‌ای ندارید.
+          </Typography>
+          {user.role === "admin" && (
+            <Typography color="text.secondary" mt={2}>
+              برای ایجاد اولین دوره، روی "افزودن دوره جدید" کلیک کنید.
+            </Typography>
+          )}
+        </Paper>
+      ) : (
+        <Stack spacing={2}>
+          {courses.map(course => (
+            <CourseCard
+              key={course._id}
+              course={course}
+              onEdit={() => {
+                setForm({
+                  title: course.title,
+                  description: course.description,
+                  teacher: course.teacher?._id || ""
+                });
+                setEditing(course);
+                setOpen(true);
+              }}
+              onDelete={() => handleDelete(course._id)}
+              refreshCourses={() => fetcher("/api/courses").then(setCourses)}
+              teacherName={course.teacher?.name || "بدون استاد"}
+            />
+          ))}
+        </Stack>
+      )}
+
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900, fontSize: 22 }}>
+          {editing ? "ویرایش دوره" : "افزودن دوره"}
+        </DialogTitle>
         <DialogContent>
-          <TextField label="عنوان دوره" value={form.title} fullWidth margin="dense" onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+          <TextField
+            label="عنوان دوره"
+            value={form.title}
+            fullWidth
+            margin="dense"
+            onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+            InputProps={{ sx: { borderRadius: 2, fontWeight: 700 } }}
+          />
           <Box sx={{ my: 2 }}>
-            <Typography sx={{ mb: 1 }} color="text.secondary" fontWeight={600}>توضیح دوره:</Typography>
+            <Typography sx={{ mb: 1 }} color="text.secondary" fontWeight={600}>
+              توضیح دوره:
+            </Typography>
             <RichTextEditor
               value={form.description}
               onChange={val => setForm(f => ({ ...f, description: val }))}
@@ -111,7 +168,8 @@ export default function CoursesPanel() {
               value={form.teacher}
               label="استاد"
               onChange={e => setForm(f => ({ ...f, teacher: e.target.value }))}
-              disabled={user.role === "teacher"} // استاد فقط خودش را دارد
+              disabled={user.role === "teacher"}
+              sx={{ borderRadius: 2 }}
             >
               {Array.isArray(teachers) && teachers.length > 0 ? (
                 teachers.map(teacher => (
@@ -126,8 +184,12 @@ export default function CoursesPanel() {
           </FormControl>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>انصراف</Button>
-          <Button onClick={handleSubmit} variant="contained">ثبت</Button>
+          <Button onClick={() => setOpen(false)} sx={{ borderRadius: 2, fontWeight: 700 }}>
+            انصراف
+          </Button>
+          <Button onClick={handleSubmit} variant="contained" sx={{ borderRadius: 2, fontWeight: 700 }}>
+            ثبت
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
