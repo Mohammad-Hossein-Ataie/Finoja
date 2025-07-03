@@ -16,7 +16,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import TopicList from "./TopicList";
+import StepList from "./StepList";  // مستقیم StepList
 
 export default function UnitList({ course, section, sectionIndex, refreshCourses }) {
   const [showForm, setShowForm] = useState(false);
@@ -29,7 +29,7 @@ export default function UnitList({ course, section, sectionIndex, refreshCourses
     if (editing !== null) {
       newUnits = section.units.map((u, i) => i === editing ? { ...u, title: form.title } : u);
     } else {
-      newUnits = [...(section.units || []), { title: form.title, topics: [] }];
+      newUnits = [...(section.units || []), { title: form.title, steps: [] }];
     }
     const newSections = [...course.sections];
     newSections[sectionIndex] = { ...section, units: newUnits };
@@ -164,7 +164,7 @@ export default function UnitList({ course, section, sectionIndex, refreshCourses
                           </IconButton>
                         </Stack>
                         <Collapse in={openIndex === i}>
-                          <TopicList
+                          <StepList
                             course={course}
                             unit={unit}
                             unitIndex={i}

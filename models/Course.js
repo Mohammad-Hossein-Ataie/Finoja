@@ -5,8 +5,8 @@ const stepSchema = new mongoose.Schema({
   content: String,
   text: String,
   options: [String],
-  correctIndex: Number,        // برای سوال تک‌گزینه‌ای
-  correctIndexes: [Number],    // برای چندجوابی
+  correctIndex: Number,
+  correctIndexes: [Number],
   answer: String,
   explanation: String,
   feedbackCorrect: String,
@@ -14,16 +14,10 @@ const stepSchema = new mongoose.Schema({
   order: Number,
 });
 
-const topicSchema = new mongoose.Schema({
-  title: String,
-  order: Number,
-  steps: [stepSchema],
-});
-
 const unitSchema = new mongoose.Schema({
   title: String,
   order: Number,
-  topics: [topicSchema],
+  steps: [stepSchema], 
 });
 
 const sectionSchema = new mongoose.Schema({
