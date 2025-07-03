@@ -36,6 +36,7 @@ const DEFAULT_STEP = {
   explanation: "",
   feedbackCorrect: "",
   feedbackWrong: "",
+  pairs: [], // برای matching
 };
 
 export default function StepList({
@@ -50,6 +51,28 @@ export default function StepList({
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(DEFAULT_STEP);
   const [openIndex, setOpenIndex] = useState(null);
+
+  // بخش اضافه: مدیریت آیتم‌های matching
+  const addMatchingPair = () => {
+    setForm((f) => ({
+      ...f,
+      pairs: [...(f.pairs || []), { left: "", right: "" }],
+    }));
+  };
+  const updateMatchingPair = (idx, side, value) => {
+    setForm((f) => {
+      const pairs = [...(f.pairs || [])];
+      pairs[idx][side] = value;
+      return { ...f, pairs };
+    });
+  };
+  const deleteMatchingPair = (idx) => {
+    setForm((f) => {
+      const pairs = [...(f.pairs || [])];
+      pairs.splice(idx, 1);
+      return { ...f, pairs };
+    });
+  };
 
   // Drag & drop for steps
   const onDragEnd = async (result) => {
@@ -133,6 +156,9 @@ export default function StepList({
           برای گام «چندگزینه‌ای»، گزینه صحیح یا گزینه‌های صحیح را مشخص و فیدبک
           صحیح/غلط را بنویسید.
         </li>
+        <li>
+          در گام «وصل‌کردنی»، جفت‌های مرتبط را بنویسید. مثلاً "کفش" و "پا"
+        </li>
       </ul>
     </Alert>
   );
@@ -166,6 +192,7 @@ export default function StepList({
                 سوال چندگزینه‌ای چندجوابی
               </MenuItem>
               <MenuItem value="fill-in-the-blank">جای‌خالی</MenuItem>
+              <MenuItem value="matching">وصل‌کردنی</MenuItem>
             </Select>
           </FormControl>
           {form.type === "explanation" && (
@@ -351,6 +378,49 @@ export default function StepList({
               />
             </>
           )}
+          {form.type === "matching" && (
+            <Box>
+              <Typography fontWeight={700} mb={1} color="primary">
+                سوال وصل‌کردنی
+              </Typography>
+              {(form.pairs || []).map((pair, idx) => (
+                <Stack
+                  direction="row"
+                  gap={1}
+                  alignItems="center"
+                  key={idx}
+                  mb={1}
+                >
+                  <TextField
+                    label="ستون راست"
+                    size="small"
+                    value={pair.left}
+                    onChange={(e) =>
+                      updateMatchingPair(idx, "left", e.target.value)
+                    }
+                  />
+                  <TextField
+                    label="ستون چپ"
+                    size="small"
+                    value={pair.right}
+                    onChange={(e) =>
+                      updateMatchingPair(idx, "right", e.target.value)
+                    }
+                  />
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => deleteMatchingPair(idx)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Stack>
+              ))}
+              <Button size="small" variant="outlined" onClick={addMatchingPair}>
+                افزودن جفت جدید
+              </Button>
+            </Box>
+          )}
           <Stack direction="row" gap={1}>
             <Button size="small" variant="contained" onClick={addOrEditStep}>
               ثبت
@@ -436,7 +506,11 @@ export default function StepList({
                               ? "سوال چندگزینه‌ای"
                               : s.type === "multi-answer"
                               ? "سوال چندگزینه‌ای چندجوابی"
-                              : "جای‌خالی"}
+                              : s.type === "fill-in-the-blank"
+                              ? "جای‌خالی"
+                              : s.type === "matching"
+                              ? "وصل‌کردنی"
+                              : ""}
                           </Typography>
                         </Stack>
                         <Collapse in={openIndex === i}>
@@ -550,6 +624,25 @@ export default function StepList({
                                 فیدبک غلط: {s.feedbackWrong}
                               </Typography>
                             </>
+                          )}
+                          {s.type === "matching" && (
+                            <Box sx={{ mt: 1 }}>
+                              <Typography fontWeight={600}>
+                                لیست جفت‌های درست:
+                              </Typography>
+                              <ol>
+                                {(s.pairs || []).map((pair, idx) => (
+                                  <li key={idx}>
+                                    <b>{pair.left}</b> ← <b>{pair.right}</b>
+                                  </li>
+                                ))}
+                              </ol>
+                              {s.explanation && (
+                                <Typography variant="caption" color="primary">
+                                  {s.explanation}
+                                </Typography>
+                              )}
+                            </Box>
                           )}
                         </Collapse>
                       </CardContent>
