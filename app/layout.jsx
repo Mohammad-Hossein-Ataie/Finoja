@@ -1,35 +1,22 @@
-'use client';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { CacheProvider } from '@emotion/react';
-import createCache from '@emotion/cache';
-import rtlPlugin from 'stylis-plugin-rtl';
-import { prefixer } from 'stylis';
+// بدون use client
 import '../styles/font.css';
+import ThemeRegistry from './ThemeRegistry'; // فایل بعدی
 
-const theme = createTheme({
-  direction: 'rtl',
-  typography: {
-    fontFamily: 'Vazirmatn, IRANSans, Arial',
+export const metadata = {
+  title: 'فینوجا | یادگیری مالی به سبک دولینگو',
+  description: 'آموزش مالی، مدرک، توصیه‌نامه. یادگیری تعاملی و حرفه‌ای.',
+  icons: {
+    icon: '/favicon/android-chrome-192x192.png',
   },
-});
-
-// RTL cache
-const cacheRtl = createCache({
-  key: 'muirtl',
-  stylisPlugins: [prefixer, rtlPlugin],
-});
+};
 
 export default function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl">
       <body>
-        <CacheProvider value={cacheRtl}>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </CacheProvider>
+        <ThemeRegistry>
+          {children}
+        </ThemeRegistry>
       </body>
     </html>
   );
