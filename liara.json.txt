@@ -1,0 +1,9 @@
+{
+  "platform": "next",
+  "build": {
+    "installCommand": "npm install",
+    "env": {
+      "NPM_CONFIG_REGISTRY": "https://registry.npmjs.org/"
+    }
+  }
+}
