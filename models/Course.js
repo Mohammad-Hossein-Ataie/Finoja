@@ -1,6 +1,9 @@
 import mongoose from "mongoose";
 
 const stepSchema = new mongoose.Schema({
+  // عنوان گام
+  title: { type: String, default: "" },
+
   type: { 
     type: String, 
     enum: [
@@ -8,26 +11,34 @@ const stepSchema = new mongoose.Schema({
       'multiple-choice', 
       'multi-answer', 
       'fill-in-the-blank', 
-      'matching'   // اضافه شد
+      'matching'
     ], 
     default: 'explanation' 
   },
-  content: String,
-  text: String,
-  options: [String],
-  correctIndex: Number,
-  correctIndexes: [Number],
-  answer: String,
-  explanation: String,
+
+  // برای توضیح و متن سؤال و جای‌خالی و ...  
+  content: String,      // متن HTML برای توضیح  
+  text: String,         // متن سؤال یا جمله
+
+  // برای گزینه‌های چندگزینه‌ای و جای‌خالی با چند گزینه
+  options: [String],    // در جای‌خالی هم استفاده می‌شود
+  correctIndex: Number, // فقط یکی صحیح است
+  correctIndexes: [Number], // چند جوابی
+
+  answer: String,       // برای پاسخ جای‌خالی سنتی  
+  explanation: String,  // توضیح بعد از جواب  
   feedbackCorrect: String,
   feedbackWrong: String,
   order: Number,
-  pairs: [           // اضافه شد
+
+  // برای matching
+  pairs: [
     {
-      left: String,  // سمت راست (مثلاً کفش)
-      right: String, // سمت چپ (مثلاً پا)
+      left: String,   // مورد سمت راست
+      right: String,  // مورد سمت چپ
     }
   ],
+  matchingQuestion: String, // عنوان سوال matching
 });
 
 const unitSchema = new mongoose.Schema({
