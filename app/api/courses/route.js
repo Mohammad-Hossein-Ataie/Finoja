@@ -2,43 +2,40 @@ import { cookies } from "next/headers";
 import { verifyJwt } from "../../../lib/jwt";
 import dbConnect from "../../../lib/dbConnect";
 import Course from "../../../models/Course";
+import "../../../models/Teacher"; // برای populate
 
 export async function GET() {
   await dbConnect();
+  let payload = null;
+  try {
+    const cookieStore = cookies();
+    const token = cookieStore.get("token")?.value;
+    if (token) payload = await verifyJwt(token);
+  } catch (e) {}
 
-  const cookieStore = await cookies();
-  const token = cookieStore.get("token")?.value;
-  const payload = await verifyJwt(token);
-
-  if (!payload) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (payload.role === "admin") {
+  // admin: همه دوره‌ها
+  if (payload && payload.role === "admin") {
     const courses = await Course.find().populate("teacher");
     return Response.json(courses);
   }
-
-  if (payload.role === "teacher") {
+  // teacher: فقط دوره‌های خودش
+  if (payload && payload.role === "teacher") {
     const courses = await Course.find({ teacher: payload.teacher }).populate("teacher");
     return Response.json(courses);
   }
-
-  return Response.json({ error: "Forbidden" }, { status: 403 });
+  // دانش‌آموز/مهمان: همه دوره‌ها
+  const courses = await Course.find().populate("teacher");
+  return Response.json(courses);
 }
 
 export async function POST(req) {
   await dbConnect();
 
-  const cookieStore = await cookies();
+  const cookieStore = cookies();
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
-  if (!payload) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (payload.role !== "admin") {
+  if (!payload || payload.role !== "admin") {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
