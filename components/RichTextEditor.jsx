@@ -1,195 +1,175 @@
-'use client';
-import { useEditor, EditorContent, BubbleMenu } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
-import TextAlign from '@tiptap/extension-text-align';
-import Color from '@tiptap/extension-color';
-import Underline from '@tiptap/extension-underline';
-import { Box, Tooltip, IconButton, Divider, Stack, Input } from '@mui/material';
-import FormatBoldIcon from '@mui/icons-material/FormatBold';
-import FormatItalicIcon from '@mui/icons-material/FormatItalic';
-import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined';
-import StrikethroughSIcon from '@mui/icons-material/StrikethroughS';
-import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
-import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
-import FormatAlignLeftIcon from '@mui/icons-material/FormatAlignLeft';
-import FormatAlignCenterIcon from '@mui/icons-material/FormatAlignCenter';
-import FormatAlignRightIcon from '@mui/icons-material/FormatAlignRight';
-import CodeIcon from '@mui/icons-material/Code';
-import InsertPhotoIcon from '@mui/icons-material/InsertPhoto';
-import LinkIcon from '@mui/icons-material/Link';
-import UndoIcon from '@mui/icons-material/Undo';
-import RedoIcon from '@mui/icons-material/Redo';
-import FormatColorTextIcon from '@mui/icons-material/FormatColorText';
-import ClearIcon from '@mui/icons-material/ClearAll';
-import { Typography } from "@mui/material";
+import React from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
+import Link from "@tiptap/extension-link";
+import TextStyle from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import TextAlign from "@tiptap/extension-text-align";
+import { Box, IconButton, Popover, Tooltip, Divider } from "@mui/material";
+import FormatBoldIcon from "@mui/icons-material/FormatBold";
+import FormatItalicIcon from "@mui/icons-material/FormatItalic";
+import FormatUnderlinedIcon from "@mui/icons-material/FormatUnderlined";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
+import FormatListNumberedIcon from "@mui/icons-material/FormatListNumbered";
+import FormatColorTextIcon from "@mui/icons-material/FormatColorText";
+import LinkIcon from "@mui/icons-material/Link";
+import TitleIcon from "@mui/icons-material/Title";
+import UndoIcon from "@mui/icons-material/Undo";
+import RedoIcon from "@mui/icons-material/Redo";
+import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
+import CodeIcon from "@mui/icons-material/Code";
+import FormatClearIcon from "@mui/icons-material/FormatClear";
+import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
+import FormatAlignCenterIcon from "@mui/icons-material/FormatAlignCenter";
+import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
+import FormatAlignJustifyIcon from "@mui/icons-material/FormatAlignJustify";
 
 export default function RichTextEditor({ value, onChange }) {
+  const [anchorEl, setAnchorEl] = React.useState(null);
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Image,
-      Link.configure({ openOnClick: false }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle,
       Color,
-      Underline
+      Underline,
+      Link,
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+      }),
+      TextAlign.configure({
+        types: ["heading", "paragraph"],
+      }),
     ],
-    content: value || '',
-    onUpdate({ editor }) {
-      onChange(editor.getHTML());
+    content: value || "",
+    onUpdate: ({ editor }) => {
+      onChange?.(editor.getHTML());
     },
   });
 
   if (!editor) return null;
 
-  // Toolbar button helper
-  const ToolbarButton = ({ onClick, icon, active, disabled, tip }) => (
-    <Tooltip title={tip || ''}>
-      <span>
-        <IconButton
-          size="small"
-          onClick={onClick}
-          sx={{
-            color: active ? 'primary.main' : 'inherit',
-            bgcolor: active ? '#e8f0fe' : 'transparent',
-            borderRadius: 1,
-            mx: 0.2,
-            transition: '0.15s',
-          }}
-          disabled={disabled}
-        >
-          {icon}
-        </IconButton>
-      </span>
-    </Tooltip>
-  );
+  // گرفتن رنگ فعلی انتخاب شده
+  const currentColor = editor.getAttributes("textStyle").color || "#000000";
 
-  // Color picker
-  const ColorPicker = () => (
-    <Input
-      type="color"
-      sx={{ width: 32, height: 32, p: 0.5, minWidth: 32, bgcolor: '#fff', borderRadius: 1, mx: 0.5 }}
-      value={editor.getAttributes('textStyle').color || '#121212'}
-      onChange={e => editor.chain().focus().setColor(e.target.value).run()}
-      inputProps={{ style: { cursor: 'pointer', padding: 0 } }}
-    />
-  );
+  // لینک ساده
+  const setLink = () => {
+    const url = window.prompt("آدرس لینک را وارد کنید:");
+    if (url) editor.chain().focus().setLink({ href: url }).run();
+  };
+
+  // رنگ متن
+  const handleColorClick = (event) => setAnchorEl(event.currentTarget);
+  const handleColorClose = () => setAnchorEl(null);
+  const handleColorChange = (event) => {
+    editor.chain().focus().setColor(event.target.value).run();
+    setAnchorEl(null);
+  };
+  const open = Boolean(anchorEl);
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" sx={{
-        p: 1, bgcolor: '#f5f8fa', borderRadius: 2, border: '1px solid #eee', mb: 1, flexWrap: 'wrap',
-        gap: 0.2, boxShadow: 1, position: 'relative', zIndex: 10,
-      }}>
-        <ToolbarButton onClick={() => editor.chain().focus().undo().run()} icon={<UndoIcon />} tip="Undo" />
-        <ToolbarButton onClick={() => editor.chain().focus().redo().run()} icon={<RedoIcon />} tip="Redo" />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          icon={<FormatBoldIcon />}
-          active={editor.isActive('bold')}
-          tip="Bold"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          icon={<FormatItalicIcon />}
-          active={editor.isActive('italic')}
-          tip="Italic"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          icon={<FormatUnderlinedIcon />}
-          active={editor.isActive('underline')}
-          tip="Underline"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          icon={<StrikethroughSIcon />}
-          active={editor.isActive('strike')}
-          tip="Strike"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-          icon={<ClearIcon />}
-          tip="Clear"
-        />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          icon={<Typography fontWeight={900} fontSize={18}>H2</Typography>}
-          active={editor.isActive('heading', { level: 2 })}
-          tip="Heading"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          icon={<FormatListBulletedIcon />}
-          active={editor.isActive('bulletList')}
-          tip="Bullet List"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          icon={<FormatListNumberedIcon />}
-          active={editor.isActive('orderedList')}
-          tip="Numbered List"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          icon={<FormatQuoteIcon />}
-          active={editor.isActive('blockquote')}
-          tip="Quote"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          icon={<CodeIcon />}
-          active={editor.isActive('codeBlock')}
-          tip="Code"
-        />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          icon={<FormatAlignLeftIcon />}
-          active={editor.isActive({ textAlign: 'left' })}
-          tip="Align Left"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          icon={<FormatAlignCenterIcon />}
-          active={editor.isActive({ textAlign: 'center' })}
-          tip="Align Center"
-        />
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          icon={<FormatAlignRightIcon />}
-          active={editor.isActive({ textAlign: 'right' })}
-          tip="Align Right"
-        />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <ColorPicker />
-        <ToolbarButton
-          onClick={() => {
-            const url = prompt('Image URL');
-            if (url) editor.chain().focus().setImage({ src: url }).run();
-          }}
-          icon={<InsertPhotoIcon />}
-          tip="Insert Image"
-        />
-        <ToolbarButton
-          onClick={() => {
-            const url = prompt('Link URL');
-            if (url) editor.chain().focus().setLink({ href: url }).run();
-          }}
-          icon={<LinkIcon />}
-          active={editor.isActive('link')}
-          tip="Insert Link"
-        />
-      </Stack>
       <Box sx={{
-        border: '1px solid #eee', borderRadius: 2, minHeight: 160, p: 1.5,
-        background: '#fff', fontSize: 16, '& .ProseMirror': { outline: 'none' }
+        display: "flex", gap: 1, alignItems: "center", mb: 1, flexWrap: "wrap"
       }}>
-        <EditorContent editor={editor} />
+        <Tooltip title="Undo"><span>
+          <IconButton size="small" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}><UndoIcon /></IconButton>
+        </span></Tooltip>
+        <Tooltip title="Redo"><span>
+          <IconButton size="small" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}><RedoIcon /></IconButton>
+        </span></Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="بولد">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleBold().run()} color={editor.isActive("bold") ? "primary" : "default"}><FormatBoldIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="ایتالیک">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleItalic().run()} color={editor.isActive("italic") ? "primary" : "default"}><FormatItalicIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="آندرلاین">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleUnderline().run()} color={editor.isActive("underline") ? "primary" : "default"}><FormatUnderlinedIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="پاک‌کردن فرمت">
+          <IconButton size="small" onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}><FormatClearIcon /></IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="لیست بولت">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleBulletList().run()} color={editor.isActive("bulletList") ? "primary" : "default"}><FormatListBulletedIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="لیست عددی">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleOrderedList().run()} color={editor.isActive("orderedList") ? "primary" : "default"}><FormatListNumberedIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="نقل قول">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleBlockquote().run()} color={editor.isActive("blockquote") ? "primary" : "default"}><FormatQuoteIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="کد">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleCodeBlock().run()} color={editor.isActive("codeBlock") ? "primary" : "default"}><CodeIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="لینک">
+          <IconButton size="small" onClick={setLink} color={editor.isActive("link") ? "primary" : "default"}><LinkIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="سرتیتر">
+          <IconButton size="small" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} color={editor.isActive("heading", { level: 2 }) ? "primary" : "default"}><TitleIcon /></IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="تراز چپ">
+          <IconButton size="small" onClick={() => editor.chain().focus().setTextAlign("left").run()} color={editor.isActive({ textAlign: "left" }) ? "primary" : "default"}><FormatAlignLeftIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="تراز وسط">
+          <IconButton size="small" onClick={() => editor.chain().focus().setTextAlign("center").run()} color={editor.isActive({ textAlign: "center" }) ? "primary" : "default"}><FormatAlignCenterIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="تراز راست">
+          <IconButton size="small" onClick={() => editor.chain().focus().setTextAlign("right").run()} color={editor.isActive({ textAlign: "right" }) ? "primary" : "default"}><FormatAlignRightIcon /></IconButton>
+        </Tooltip>
+        <Tooltip title="تراز مساوی">
+          <IconButton size="small" onClick={() => editor.chain().focus().setTextAlign("justify").run()} color={editor.isActive({ textAlign: "justify" }) ? "primary" : "default"}><FormatAlignJustifyIcon /></IconButton>
+        </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="رنگ متن">
+          <IconButton size="small" onClick={handleColorClick}>
+            <FormatColorTextIcon />
+            <span
+              style={{
+                display: "inline-block",
+                width: 16,
+                height: 16,
+                borderRadius: "50%",
+                marginLeft: 3,
+                verticalAlign: "middle",
+                border: "1.5px solid #aaa",
+                background: currentColor,
+              }}
+            />
+          </IconButton>
+        </Tooltip>
+        <Popover
+          open={open}
+          anchorEl={anchorEl}
+          onClose={handleColorClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        >
+          <Box sx={{ p: 2 }}>
+            <input
+              type="color"
+              onChange={handleColorChange}
+              value={currentColor}
+              style={{ width: 36, height: 36, border: "none", background: "none" }}
+              autoFocus
+            />
+          </Box>
+        </Popover>
+      </Box>
+      <Box sx={{
+        border: "1px solid #eee",
+        borderRadius: 2,
+        minHeight: 140,
+        p: 1.5,
+        background: "#fff",
+        fontSize: 16,
+        "& .ProseMirror": { outline: "none" }
+      }}>
+        <div dir="auto">
+          <EditorContent editor={editor} />
+        </div>
       </Box>
     </Box>
   );
