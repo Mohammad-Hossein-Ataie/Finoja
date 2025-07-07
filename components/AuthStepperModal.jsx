@@ -67,13 +67,27 @@ export default function AuthStepperModal({ open, onClose }) {
       headers: { "Content-Type": "application/json" },
     });
     setLoading(false);
+    // ... بعد از موفقیت ورود:
     if (res.ok) {
       localStorage.setItem("student_mobile", form.mobile);
+
+      // چک کن آیا onboarding داره یا نه
+      const checkProfile = await fetch("/api/students/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mobile: form.mobile }),
+      });
+      const profile = await checkProfile.json();
       setAlert("ورود موفق! در حال انتقال...");
+
       setTimeout(() => {
         onClose?.();
-        router.replace("/onboarding");
-      }, 1200);
+        if (profile.onboarding) {
+          router.replace("/roadmap");
+        } else {
+          router.replace("/onboarding");
+        }
+      }, 1000);
     } else {
       setAlert("شماره یا رمز عبور اشتباه است");
     }
@@ -260,7 +274,16 @@ export default function AuthStepperModal({ open, onClose }) {
         )}
         {activeStep === 0 ? (
           <form onSubmit={handleLogin}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                mb: 1,
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
               <Lock sx={{ fontSize: 24 }} /> ورود به حساب کاربری
             </Typography>
             <TextField
@@ -318,7 +341,16 @@ export default function AuthStepperModal({ open, onClose }) {
           </form>
         ) : (
           <form onSubmit={stepIndex < 3 ? handleRegisterNext : handleRegister}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{
+                mb: 1,
+                fontWeight: "bold",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
               <PersonAdd sx={{ fontSize: 24 }} /> ثبت‌نام دانش‌آموز جدید
             </Typography>
             {renderRegisterStep()}

@@ -15,28 +15,42 @@ export default function RoadmapPage() {
       router.replace("/");
       return;
     }
-    Promise.all([
-      fetch("/api/courses").then(res => res.json()),
-      fetch("/api/students/learning", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile })
-      }).then(res => res.json())
-    ]).then(([coursesRes, learningRes]) => {
-      setCourses(coursesRes);
-      const map = {};
-      (learningRes.learning || []).forEach((l) => {
-        map[l.courseId] = l;
+
+    // اول چک کن آیا دانش‌آموز onboarding داره یا نه
+    fetch("/api/students/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile })
+    })
+      .then(res => res.json())
+      .then(profile => {
+        if (!profile.onboarding) {
+          router.replace("/onboarding");
+        } else {
+          // اگر onboarding داشت، دیتا رو لود کن
+          Promise.all([
+            fetch("/api/courses").then(res => res.json()),
+            fetch("/api/students/learning", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ mobile })
+            }).then(res => res.json())
+          ]).then(([coursesRes, learningRes]) => {
+            setCourses(Array.isArray(coursesRes) ? coursesRes : []);
+            const map = {};
+            (learningRes.learning || []).forEach((l) => {
+              map[l.courseId] = l;
+            });
+            setStudentLearning(map);
+            setLoading(false);
+          });
+        }
       });
-      setStudentLearning(map);
-      setLoading(false);
-    });
   }, []);
 
   const handleStartCourse = async (courseId, slug) => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) return;
-    // اگه قبلا ثبت نشده اضافه کن
     await fetch("/api/students/learning", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -52,7 +66,12 @@ export default function RoadmapPage() {
     router.push(`/roadmap/${slug}`);
   };
 
-  if (loading) return <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center"><CircularProgress /></Box>;
+  if (loading)
+    return (
+      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
+        <CircularProgress />
+      </Box>
+    );
 
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
@@ -66,7 +85,11 @@ export default function RoadmapPage() {
             ? Math.floor((learn.progress || 0) / course.sections.length * 100)
             : 0;
           return (
-            <Paper elevation={3} sx={{ p: 3, borderRadius: 3, display: "flex", alignItems: "center", gap: 2 }} key={course._id}>
+            <Paper
+              elevation={3}
+              sx={{ p: 3, borderRadius: 3, display: "flex", alignItems: "center", gap: 2 }}
+              key={course._id}
+            >
               <Box flex={1}>
                 <Typography fontWeight="bold" fontSize={19}>{course.title}</Typography>
                 <Typography fontSize={15} color="text.secondary" mt={.5}>{course.description}</Typography>
@@ -78,7 +101,7 @@ export default function RoadmapPage() {
                 color={learn.progress ? "success" : "primary"}
                 size="large"
                 sx={{ minWidth: 100, fontWeight: "bold" }}
-                onClick={() => handleStartCourse(course._id, course._id)} // از slug اگر داری استفاده کن!
+                onClick={() => handleStartCourse(course._id, course._id)}
               >
                 {learn.progress ? "ادامه" : "شروع"}
               </Button>

@@ -60,14 +60,26 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // موبایل را از localStorage بخوان (که در ثبت‌نام ذخیره شده)
     const m = typeof window !== "undefined" ? localStorage.getItem("student_mobile") : "";
     if (!m) {
-      // اگر موبایل نیست، کاربر به صفحه اصلی برگردد
       router.replace("/");
+      return;
     }
-    setMobile(m || "");
-  }, []);
+    setMobile(m);
+
+    // اگر کاربر قبلاً onboarding انجام داده بود ریدایرکت به roadmap
+    fetch("/api/students/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: m }),
+    })
+      .then(res => res.json())
+      .then(profile => {
+        if (profile.onboarding) {
+          router.replace("/roadmap");
+        }
+      });
+  }, [router]);
 
   const handleChange = (e) =>
     setAnswers({ ...answers, [questions[step].name]: e.target.value });
@@ -76,7 +88,6 @@ export default function OnboardingPage() {
     if (step < questions.length - 1) {
       setStep(step + 1);
     } else {
-      // مرحله آخر - ارسال به سرور
       setLoading(true);
       const res = await fetch("/api/onboarding", {
         method: "POST",
