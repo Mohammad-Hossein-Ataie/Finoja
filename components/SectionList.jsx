@@ -1,8 +1,6 @@
 'use client';
 import { useState } from 'react';
-import {
-  Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography
-} from '@mui/material';
+import { Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -13,6 +11,10 @@ export default function SectionList({ course, refreshCourses }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '' });
   const [editing, setEditing] = useState(null);
+
+  // Dialog for delete
+  const [deleteIndex, setDeleteIndex] = useState(null);
+  const [deleteValue, setDeleteValue] = useState('');
 
   const addOrEditSection = async () => {
     let newSections;
@@ -29,7 +31,16 @@ export default function SectionList({ course, refreshCourses }) {
     setShowForm(false); setForm({ title: '' }); setEditing(null); refreshCourses();
   };
 
+  // حذف فقط اگر هیچ یونیت ندارد
   const handleDeleteSection = async (idx) => {
+    setDeleteIndex(idx);
+    setDeleteValue('');
+  };
+
+  const confirmDeleteSection = async () => {
+    const idx = deleteIndex;
+    setDeleteIndex(null);
+    setDeleteValue('');
     const newSections = (course.sections || []).filter((_, i) => i !== idx);
     await fetch(`/api/courses/${course._id}`, {
       method: 'PUT',
@@ -97,8 +108,13 @@ export default function SectionList({ course, refreshCourses }) {
                           <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm({ title: section.title }); }}>
                             <EditIcon fontSize="small" />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleDeleteSection(i)}>
-                            <DeleteIcon fontSize="small" color="error" />
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteSection(i)}
+                            disabled={section.units && section.units.length > 0}
+                            title={section.units && section.units.length > 0 ? "ابتدا همه یونیت‌ها را حذف کنید" : "حذف بخش"}
+                          >
+                            <DeleteIcon fontSize="small" color={section.units && section.units.length > 0 ? undefined : "error"} />
                           </IconButton>
                         </Stack>
                         <UnitList
@@ -117,6 +133,27 @@ export default function SectionList({ course, refreshCourses }) {
           )}
         </Droppable>
       </DragDropContext>
+      {/* دیالوگ تایید حذف */}
+      <Dialog open={deleteIndex !== null} onClose={() => setDeleteIndex(null)}>
+        <DialogTitle color="error.main">تایید حذف بخش</DialogTitle>
+        <DialogContent>
+          <Typography mb={2}>برای حذف این بخش، نام آن را دقیق وارد کنید:</Typography>
+          <Typography mb={1} color="primary">{deleteIndex !== null ? course.sections[deleteIndex]?.title : ""}</Typography>
+          <TextField
+            value={deleteValue}
+            onChange={e => setDeleteValue(e.target.value)}
+            label="نام بخش"
+            autoFocus
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteIndex(null)}>انصراف</Button>
+          <Button color="error" disabled={deleteIndex === null || deleteValue.trim() !== (deleteIndex !== null ? course.sections[deleteIndex]?.title.trim() : "")} onClick={confirmDeleteSection}>
+            حذف
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

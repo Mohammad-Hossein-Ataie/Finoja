@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Card, CardContent, Stack, Box, Typography, IconButton, Chip, Tooltip, Avatar } from '@mui/material';
+import { Card, CardContent, Stack, Box, Typography, IconButton, Chip, Tooltip, Avatar, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -9,6 +9,21 @@ import SectionList from './SectionList';
 
 export default function CourseCard({ course, onEdit, onDelete, refreshCourses, teacherName }) {
   const [showSections, setShowSections] = useState(false);
+
+  // For Delete Modal
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [deleteValue, setDeleteValue] = useState('');
+
+  const canDelete = deleteValue.trim() === course.title.trim();
+  const hasSections = (course.sections && course.sections.length > 0);
+
+  const handleDeleteClick = () => setDeleteDialog(true);
+  const handleCloseDialog = () => { setDeleteDialog(false); setDeleteValue(''); };
+
+  const handleConfirmDelete = async () => {
+    await onDelete();
+    handleCloseDialog();
+  };
 
   return (
     <Card sx={{
@@ -42,10 +57,12 @@ export default function CourseCard({ course, onEdit, onDelete, refreshCourses, t
                 <EditIcon />
               </IconButton>
             </Tooltip>
-            <Tooltip title="حذف دوره">
-              <IconButton onClick={onDelete}>
-                <DeleteIcon color="error" />
-              </IconButton>
+            <Tooltip title={hasSections ? "برای حذف دوره ابتدا همه بخش‌ها را حذف کنید" : "حذف دوره"}>
+              <span>
+                <IconButton onClick={handleDeleteClick} disabled={hasSections}>
+                  <DeleteIcon color={hasSections ? undefined : "error"} />
+                </IconButton>
+              </span>
             </Tooltip>
             <Tooltip title={showSections ? "بستن بخش‌ها" : "مشاهده بخش‌ها"}>
               <IconButton onClick={() => setShowSections(s => !s)}>
@@ -61,6 +78,29 @@ export default function CourseCard({ course, onEdit, onDelete, refreshCourses, t
           <SectionList course={course} refreshCourses={refreshCourses} />
         }
       </CardContent>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialog} onClose={handleCloseDialog}>
+        <DialogTitle fontWeight={900} color="error.main">تایید حذف دوره</DialogTitle>
+        <DialogContent>
+          <Typography fontWeight={600} mb={2}>
+            برای حذف این دوره، لطفاً نام آن را دقیق وارد کنید:
+          </Typography>
+          <Typography mb={1} color="primary">{course.title}</Typography>
+          <TextField
+            value={deleteValue}
+            onChange={e => setDeleteValue(e.target.value)}
+            label="نام دوره"
+            autoFocus
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>انصراف</Button>
+          <Button color="error" variant="contained" disabled={!canDelete} onClick={handleConfirmDelete}>
+            حذف
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 }
