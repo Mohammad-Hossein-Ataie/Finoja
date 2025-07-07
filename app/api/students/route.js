@@ -52,7 +52,7 @@ export async function POST(req) {
     return Response.json({ error: "Student already exists" }, { status: 400 });
 
   // Create Student
-  const student = await Student.create(body);
+  const student = await Student.create({ name, family, mobile, email, password: hashed });
 
   // Create User for student
   const password = randomPassword();

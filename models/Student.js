@@ -1,12 +1,13 @@
-import mongoose from "mongoose";
+// models/Student.js
+import mongoose from 'mongoose';
 
-const studentSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  nationalCode: String,
-  email: String,
-  phone: String,
-  grade: String,    // پایه یا مقطع
-  // ...هر فیلدی که بخواهی اضافه کن
+const StudentSchema = new mongoose.Schema({
+  name: { type: String, required: true },      // نام
+  family: { type: String, required: true },    // نام خانوادگی
+  mobile: { type: String, unique: true, required: true }, // شماره موبایل
+  email: { type: String },
+  password: { type: String, required: true },  // پسورد هش‌شده
+  createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.models.Student || mongoose.model("Student", studentSchema);
+export default mongoose.models.Student || mongoose.model('Student', StudentSchema);

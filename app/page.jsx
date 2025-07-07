@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -10,6 +11,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import AuthStepperModal from '../components/AuthStepperModal'; // مسیر صحیح
 
 const features = [
   {
@@ -38,7 +40,7 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
 }));
 
 export default function LandingPage() {
-  const theme = useTheme();
+  const [authOpen, setAuthOpen] = useState(false);
 
   return (
     <Box sx={{ direction: 'rtl', bgcolor: '#F9FAFB' }}>
@@ -73,6 +75,7 @@ export default function LandingPage() {
                     color: '#fff',
                   },
                 }}
+                onClick={() => setAuthOpen(true)}
               >
                 همین حالا رایگان شروع کن
               </Button>
@@ -150,6 +153,7 @@ export default function LandingPage() {
                 bgcolor: '#D2E7FF',
               },
             }}
+            onClick={() => setAuthOpen(true)}
           >
             ثبت‌نام رایگان
           </Button>
@@ -162,6 +166,9 @@ export default function LandingPage() {
           ساخته شده با ❤️ توسط تیم فینوجا - {new Date().getFullYear()}
         </Typography>
       </Box>
+
+      {/* --- MODAL LOGIN/REGISTER --- */}
+            <AuthStepperModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </Box>
   );
 }
