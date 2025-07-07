@@ -12,25 +12,31 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
+import { useRouter } from "next/navigation";
+import { Lock, Login, PersonAdd } from "@mui/icons-material";
 
-const steps = ["ورود", "ثبت‌نام"];
+const steps = [
+  { label: "ورود", icon: <Login sx={{ verticalAlign: "middle" }} /> },
+  { label: "ثبت‌نام", icon: <PersonAdd sx={{ verticalAlign: "middle" }} /> },
+];
 
 const style = {
   position: "absolute",
   top: "50%",
   left: "50%",
   transform: "translate(-50%, -50%)",
-  width: 380,
+  width: 400,
   bgcolor: "background.paper",
   boxShadow: 24,
   p: 4,
-  borderRadius: 4,
+  borderRadius: 5,
   maxWidth: "90vw",
+  minHeight: 420,
 };
 
 export default function AuthStepperModal({ open, onClose }) {
   const [activeStep, setActiveStep] = useState(0); // 0: ورود، 1: ثبت‌نام
-  const [stepIndex, setStepIndex] = useState(0); // برای فرم ثبت‌نام: 0-نام/خانوادگی, 1-موبایل, 2-رمز/تکرار رمز, 3-ایمیل
+  const [stepIndex, setStepIndex] = useState(0); // ثبت‌نام: مراحل
   const [form, setForm] = useState({
     name: "",
     family: "",
@@ -41,32 +47,40 @@ export default function AuthStepperModal({ open, onClose }) {
   });
   const [alert, setAlert] = useState("");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   // هندلینگ فیلدهای ثبت نام
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  // لاگین
+  // ورود
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setAlert("");
     const res = await fetch("/api/login-student", {
       method: "POST",
-      body: JSON.stringify({ mobile: form.mobile, password: form.password }),
+      body: JSON.stringify({
+        mobile: form.mobile,
+        password: form.password,
+      }),
       headers: { "Content-Type": "application/json" },
     });
+    setLoading(false);
     if (res.ok) {
-      setAlert("ورود موفق!");
-      setTimeout(() => window.location.reload(), 1000);
+      localStorage.setItem("student_mobile", form.mobile);
+      setAlert("ورود موفق! در حال انتقال...");
+      setTimeout(() => {
+        onClose?.();
+        router.replace("/onboarding");
+      }, 1200);
     } else {
       setAlert("شماره یا رمز عبور اشتباه است");
     }
-    setLoading(false);
   };
 
-  // ثبت نام stepper
-  const handleRegisterNext = async (e) => {
+  // مراحل ثبت نام stepper
+  const handleRegisterNext = (e) => {
     e?.preventDefault?.();
     setAlert("");
     if (stepIndex === 0 && (!form.name || !form.family)) {
@@ -89,6 +103,7 @@ export default function AuthStepperModal({ open, onClose }) {
 
   const handleRegisterBack = () => setStepIndex(stepIndex - 1);
 
+  // ثبت نام نهایی
   const handleRegister = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -109,7 +124,6 @@ export default function AuthStepperModal({ open, onClose }) {
       }
     }
     // ثبت نام
-    // وقتی به اینجا رسیدی:
     const res = await fetch("/api/register-student", {
       method: "POST",
       body: JSON.stringify({
@@ -122,15 +136,18 @@ export default function AuthStepperModal({ open, onClose }) {
       headers: { "Content-Type": "application/json" },
     });
 
+    setLoading(false);
     if (res.ok) {
-      setAlert("ثبت نام با موفقیت انجام شد! حالا وارد شوید.");
-      setActiveStep(0);
-      setStepIndex(0);
+      setAlert("ثبت نام با موفقیت انجام شد! در حال انتقال...");
+      localStorage.setItem("student_mobile", form.mobile);
+      setTimeout(() => {
+        onClose?.();
+        router.replace("/onboarding");
+      }, 1200);
     } else {
       const err = await res.json();
       setAlert(err.error || "خطا در ثبت نام");
     }
-    setLoading(false);
   };
 
   // UI Stepper ثبت نام
@@ -138,7 +155,7 @@ export default function AuthStepperModal({ open, onClose }) {
     switch (stepIndex) {
       case 0:
         return (
-          <>
+          <Box>
             <TextField
               name="name"
               label="نام"
@@ -147,6 +164,7 @@ export default function AuthStepperModal({ open, onClose }) {
               value={form.name}
               onChange={handleChange}
               required
+              inputProps={{ maxLength: 24 }}
             />
             <TextField
               name="family"
@@ -156,8 +174,9 @@ export default function AuthStepperModal({ open, onClose }) {
               value={form.family}
               onChange={handleChange}
               required
+              inputProps={{ maxLength: 24 }}
             />
-          </>
+          </Box>
         );
       case 1:
         return (
@@ -185,7 +204,7 @@ export default function AuthStepperModal({ open, onClose }) {
         );
       case 2:
         return (
-          <>
+          <Box>
             <TextField
               name="password"
               label="رمز عبور"
@@ -206,7 +225,7 @@ export default function AuthStepperModal({ open, onClose }) {
               onChange={handleChange}
               required
             />
-          </>
+          </Box>
         );
       case 3:
         return (
@@ -228,21 +247,21 @@ export default function AuthStepperModal({ open, onClose }) {
     <Modal open={open} onClose={onClose}>
       <Box sx={style}>
         <Stepper activeStep={activeStep} sx={{ mb: 3, direction: "ltr" }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
+          {steps.map((step, i) => (
+            <Step key={step.label}>
+              <StepLabel icon={step.icon}>{step.label}</StepLabel>
             </Step>
           ))}
         </Stepper>
         {alert && (
-          <Alert severity="info" sx={{ mb: 2 }}>
+          <Alert severity="info" sx={{ mb: 2, textAlign: "center" }}>
             {alert}
           </Alert>
         )}
         {activeStep === 0 ? (
           <form onSubmit={handleLogin}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-              ورود به حساب کاربری
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+              <Lock sx={{ fontSize: 24 }} /> ورود به حساب کاربری
             </Typography>
             <TextField
               name="mobile"
@@ -279,7 +298,7 @@ export default function AuthStepperModal({ open, onClose }) {
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 2 }}
+              sx={{ mt: 2, height: 48, fontWeight: "bold", fontSize: 16 }}
               disabled={loading}
             >
               {loading ? <CircularProgress size={22} /> : "ورود"}
@@ -299,8 +318,8 @@ export default function AuthStepperModal({ open, onClose }) {
           </form>
         ) : (
           <form onSubmit={stepIndex < 3 ? handleRegisterNext : handleRegister}>
-            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold" }}>
-              ثبت‌نام دانش‌آموز جدید
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: "bold", display: "flex", alignItems: "center", gap: 1 }}>
+              <PersonAdd sx={{ fontSize: 24 }} /> ثبت‌نام دانش‌آموز جدید
             </Typography>
             {renderRegisterStep()}
             <Box display="flex" gap={1} sx={{ mt: 2 }}>
@@ -316,7 +335,7 @@ export default function AuthStepperModal({ open, onClose }) {
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ flex: 2 }}
+                sx={{ flex: 2, height: 44, fontWeight: "bold" }}
                 disabled={loading}
               >
                 {loading ? (

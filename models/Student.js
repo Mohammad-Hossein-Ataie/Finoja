@@ -1,12 +1,21 @@
-// models/Student.js
 import mongoose from 'mongoose';
 
 const StudentSchema = new mongoose.Schema({
-  name: { type: String, required: true },      // نام
-  family: { type: String, required: true },    // نام خانوادگی
-  mobile: { type: String, unique: true, required: true }, // شماره موبایل
+  name: { type: String, required: true },
+  family: { type: String, required: true },
+  mobile: { type: String, unique: true, required: true },
   email: { type: String },
-  password: { type: String, required: true },  // پسورد هش‌شده
+  password: { type: String, required: true },
+  onboarding: { type: Object }, // ذخیره پرسش‌نامه
+  learning: [
+    {
+      courseId: String,
+      progress: { type: Number, default: 0 },
+      correct: [Number],
+      wrong: [Number],
+      finished: { type: Boolean, default: false }
+    }
+  ],
   createdAt: { type: Date, default: Date.now }
 });
 
