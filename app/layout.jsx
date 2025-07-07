@@ -1,6 +1,6 @@
 // بدون use client
 import '../styles/font.css';
-import ThemeRegistry from './ThemeRegistry'; // فایل بعدی
+import ThemeRegistry from './ThemeRegistry';
 
 export const metadata = {
   title: 'فینوجا | یادگیری مالی به سبک دولینگو',
@@ -13,6 +13,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl">
+      <head>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" />
+      </head>
       <body>
         <ThemeRegistry>
           {children}
