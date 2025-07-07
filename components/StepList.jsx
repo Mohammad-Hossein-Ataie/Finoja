@@ -63,14 +63,13 @@ export default function StepList({
   const [form, setForm] = useState(DEFAULT_STEP);
   const [openIndex, setOpenIndex] = useState(null);
 
-  // افزودن/حذف گزینه‌ها برای چندگزینه‌ای و جای‌خالی و چندجوابی
+
   const addOption = () =>
     setForm((f) => ({ ...f, options: [...(f.options || []), ""] }));
   const removeOption = (idx) => {
     setForm((f) => {
       const options = [...(f.options || [])];
       options.splice(idx, 1);
-      // correctIndex/Indexes رو اگر لازم شد اصلاح کن
       let newCorrectIndex = f.correctIndex;
       if (f.correctIndex >= options.length) newCorrectIndex = 0;
       let newCorrectIndexes = f.correctIndexes;
@@ -88,7 +87,6 @@ export default function StepList({
     });
   };
 
-  // برای matching: مدیریت جفت‌ها
   const addMatchingPair = () => {
     setForm((f) => ({
       ...f,
@@ -110,7 +108,6 @@ export default function StepList({
     });
   };
 
-  // Drag & drop for steps
   const onDragEnd = async (result) => {
     if (!result.destination) return;
     const { source, destination } = result;
@@ -179,7 +176,6 @@ export default function StepList({
     setForm({ ...DEFAULT_STEP, type: value });
   };
 
-  // راهنمای گام‌ها
   const StepGuide = (
     <Alert severity="info" sx={{ mb: 1, background: FINOJA_COLORS.secondary }}>
       <b>راهنما:</b>
@@ -188,8 +184,8 @@ export default function StepList({
           برای گام <b>توضیح</b>، فقط متن را بنویسید.
         </li>
         <li>
-          در گام <b>جای‌خالی</b>، جمله و گزینه‌های پیشنهادی را مشخص کنید؛ فقط یک
-          گزینه صحیح است.
+          در گام <b>جای‌خالی</b>، جمله و گزینه‌های پیشنهادی را مشخص کنید؛ فقط
+          یک گزینه صحیح است.
         </li>
         <li>
           در گام <b>چندگزینه‌ای</b>، گزینه صحیح یا گزینه‌های صحیح را مشخص و
@@ -220,6 +216,7 @@ export default function StepList({
       >
         افزودن گام جدید
       </Button>
+
       {showForm && (
         <Box
           mb={2}
@@ -230,7 +227,8 @@ export default function StepList({
           sx={{ background: FINOJA_COLORS.secondary, p: 2, borderRadius: 2 }}
         >
           {StepGuide}
-          {/* عنوان در همه انواع نمایش داده شود */}
+
+          {/* عنوان گام */}
           <TextField
             label="عنوان گام"
             size="small"
@@ -239,6 +237,8 @@ export default function StepList({
             sx={{ background: "#fff" }}
             InputProps={{ sx: { fontSize: 10 } }}
           />
+
+          {/* نوع گام */}
           <FormControl size="small">
             <InputLabel>نوع گام</InputLabel>
             <Select
@@ -250,19 +250,21 @@ export default function StepList({
             >
               <MenuItem value="explanation">توضیح</MenuItem>
               <MenuItem value="multiple-choice">سوال چندگزینه‌ای</MenuItem>
-              <MenuItem value="multi-answer">
-                سوال چندگزینه‌ای چندجوابی
-              </MenuItem>
+              <MenuItem value="multi-answer">سوال چندگزینه‌ای چندجوابی</MenuItem>
               <MenuItem value="fill-in-the-blank">جای‌خالی (با گزینه)</MenuItem>
               <MenuItem value="matching">وصل‌کردنی</MenuItem>
             </Select>
           </FormControl>
+
+          {/* ───── نوع «توضیح» */}
           {form.type === "explanation" && (
             <RichTextEditor
               value={form.content}
               onChange={(val) => setForm((f) => ({ ...f, content: val }))}
             />
           )}
+
+          {/* ───── انواع سؤالی (چندگزینه‌ای، چندجوابی، جای‌خالی) */}
           {(form.type === "multiple-choice" ||
             form.type === "multi-answer" ||
             form.type === "fill-in-the-blank") && (
@@ -274,6 +276,9 @@ export default function StepList({
                     : "متن سوال"
                 }
                 size="small"
+                multiline
+                minRows={3}
+                fullWidth
                 value={form.text}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, text: e.target.value }))
@@ -281,12 +286,15 @@ export default function StepList({
                 sx={{ background: "#fff" }}
                 InputProps={{ sx: { fontSize: 10 } }}
               />
+
               {form.type === "fill-in-the-blank" && (
                 <Typography variant="caption" color="info.main" mb={1}>
                   توجه: جای خالی با <b>-</b> در جمله مشخص شود. مثال: من بهترین
                   حالت را - دارم
                 </Typography>
               )}
+
+              {/* گزینه‌ها */}
               <Stack gap={1}>
                 {(form.options || []).map((option, idx) => (
                   <Stack direction="row" gap={1} alignItems="center" key={idx}>
@@ -331,6 +339,7 @@ export default function StepList({
                     )}
                   </Stack>
                 ))}
+
                 <Button
                   size="small"
                   variant="outlined"
@@ -340,6 +349,8 @@ export default function StepList({
                   افزودن گزینه
                 </Button>
               </Stack>
+
+              {/* انتخاب گزینه صحیح */}
               {(form.type === "multiple-choice" ||
                 form.type === "fill-in-the-blank") && (
                 <FormControl size="small" sx={{ width: 160 }}>
@@ -361,9 +372,13 @@ export default function StepList({
                   </Select>
                 </FormControl>
               )}
+
+              {/* فیدبک و توضیح */}
               <TextField
                 label="توضیح پس از جواب"
                 size="small"
+                multiline
+                minRows={2}
                 value={form.explanation}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, explanation: e.target.value }))
@@ -374,6 +389,8 @@ export default function StepList({
               <TextField
                 label="فیدبک صحیح"
                 size="small"
+                multiline
+                minRows={2}
                 value={form.feedbackCorrect}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, feedbackCorrect: e.target.value }))
@@ -384,6 +401,8 @@ export default function StepList({
               <TextField
                 label="فیدبک غلط"
                 size="small"
+                multiline
+                minRows={2}
                 value={form.feedbackWrong}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, feedbackWrong: e.target.value }))
@@ -393,11 +412,15 @@ export default function StepList({
               />
             </>
           )}
+
+          {/* ───── نوع «وصل‌کردنی» */}
           {form.type === "matching" && (
             <Box>
               <TextField
                 label="عنوان سوال وصل‌کردنی"
                 size="small"
+                multiline
+                minRows={2}
                 value={form.matchingQuestion}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, matchingQuestion: e.target.value }))
@@ -405,6 +428,7 @@ export default function StepList({
                 sx={{ background: "#fff", mb: 1, mr: 1, width: "70%" }}
                 InputProps={{ sx: { fontSize: 10 } }}
               />
+
               {(form.pairs || []).map((pair, idx) => (
                 <Stack
                   direction="row"
@@ -442,6 +466,7 @@ export default function StepList({
                   </IconButton>
                 </Stack>
               ))}
+
               <Button
                 size="small"
                 variant="outlined"
@@ -456,9 +481,12 @@ export default function StepList({
               >
                 افزودن جفت جدید
               </Button>
+
               <TextField
                 label="توضیح پس از جواب"
                 size="small"
+                multiline
+                minRows={2}
                 value={form.explanation}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, explanation: e.target.value }))
@@ -468,6 +496,8 @@ export default function StepList({
               />
             </Box>
           )}
+
+          {/* دکمه‌های ثبت / انصراف */}
           <Stack direction="row" gap={1}>
             <Button
               size="small"
@@ -499,7 +529,7 @@ export default function StepList({
         </Box>
       )}
 
-      {/* نمایش لیست گام‌ها با Drag & Drop */}
+      {/* ───────── لیست گام‌ها (Drag & Drop) ───────── */}
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="steps">
           {(provided) => (
@@ -587,8 +617,9 @@ export default function StepList({
                             </span>
                           </Typography>
                         </Stack>
+
                         <Collapse in={openIndex === i}>
-                          {/* نمایش محتوای گام */}
+                          {/* نمایش محتوای گام (بدون تغییر) */}
                           {s.type === "explanation" && (
                             <Box
                               sx={{ mt: 1 }}
@@ -604,6 +635,7 @@ export default function StepList({
                                   mt: 1,
                                   fontWeight: 700,
                                   color: FINOJA_COLORS.text,
+                                  whiteSpace: "pre-line", // برای نمایش \n
                                 }}
                               >
                                 سوال: {s.text}
