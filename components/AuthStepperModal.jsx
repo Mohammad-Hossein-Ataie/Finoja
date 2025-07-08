@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   Box,
@@ -12,10 +12,17 @@ import {
   Alert,
   CircularProgress,
   IconButton,
-  InputAdornment
+  InputAdornment,
 } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { Lock, Login, PersonAdd, Close, Visibility, VisibilityOff } from "@mui/icons-material";
+import {
+  Lock,
+  Login,
+  PersonAdd,
+  Close,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 
 const steps = [
   { label: "ورود", icon: <Login /> },
@@ -34,11 +41,11 @@ const style = {
   borderRadius: 3,
   maxWidth: "90vw",
   minHeight: 420,
-  border: "2px solid #D2E7FF"
+  border: "2px solid #D2E7FF",
 };
 
-export default function AuthStepperModal({ open, onClose }) {
-  const [activeStep, setActiveStep] = useState(0);
+export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
+  const [activeStep, setActiveStep] = useState(defaultStep);
   const [stepIndex, setStepIndex] = useState(0);
   const [form, setForm] = useState({
     name: "",
@@ -52,6 +59,15 @@ export default function AuthStepperModal({ open, onClose }) {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+
+  // هر بار مدال باز شد یا defaultStep تغییر کرد، اکتیو تب رو ریست کن
+  useEffect(() => {
+    if (open) {
+      setActiveStep(defaultStep);
+      setStepIndex(0);
+      setAlert("");
+    }
+  }, [open, defaultStep]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -230,7 +246,7 @@ export default function AuthStepperModal({ open, onClose }) {
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
-                )
+                ),
               }}
             />
             <TextField
@@ -265,35 +281,14 @@ export default function AuthStepperModal({ open, onClose }) {
     <Modal open={open} onClose={onClose}>
       <Box sx={style}>
         <IconButton
-          sx={{ position: 'absolute', left: 16, top: 16 }}
+          sx={{ position: "absolute", right: 16, top: 16 }}
           onClick={onClose}
         >
           <Close />
         </IconButton>
-        <Stepper 
-          activeStep={activeStep} 
-          sx={{ mb: 4, direction: "ltr" }}
-          alternativeLabel
-        >
-          {steps.map((step, i) => (
-            <Step key={step.label}>
-              <StepLabel 
-                icon={step.icon} 
-                sx={{
-                  '& .MuiStepLabel-label': {
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem'
-                  }
-                }}
-              >
-                {step.label}
-              </StepLabel>
-            </Step>
-          ))}
-        </Stepper>
         {alert && (
-          <Alert 
-            severity={alert.includes("موفق") ? "success" : "error"} 
+          <Alert
+            severity={alert.includes("موفق") ? "success" : "error"}
             sx={{ mb: 3, borderRadius: 2 }}
           >
             {alert}
@@ -309,7 +304,7 @@ export default function AuthStepperModal({ open, onClose }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
-                color: '#2477F3'
+                color: "#2477F3",
               }}
             >
               <Lock sx={{ fontSize: 24 }} /> ورود به حساب کاربری
@@ -354,22 +349,22 @@ export default function AuthStepperModal({ open, onClose }) {
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
                   </InputAdornment>
-                )
+                ),
               }}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ 
-                mt: 3, 
-                height: 48, 
-                fontWeight: "bold", 
+              sx={{
+                mt: 3,
+                height: 48,
+                fontWeight: "bold",
                 fontSize: 16,
-                bgcolor: '#2477F3',
-                '&:hover': {
-                  bgcolor: '#1A56DB'
-                }
+                bgcolor: "#2477F3",
+                "&:hover": {
+                  bgcolor: "#1A56DB",
+                },
               }}
               disabled={loading}
             >
@@ -378,10 +373,10 @@ export default function AuthStepperModal({ open, onClose }) {
             <Button
               fullWidth
               variant="text"
-              sx={{ 
-                mt: 2, 
+              sx={{
+                mt: 2,
                 fontWeight: "bold",
-                color: '#2477F3'
+                color: "#2477F3",
               }}
               onClick={() => {
                 setActiveStep(1);
@@ -402,7 +397,7 @@ export default function AuthStepperModal({ open, onClose }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 1,
-                color: '#66DE93'
+                color: "#66DE93",
               }}
             >
               <PersonAdd sx={{ fontSize: 24 }} /> ثبت‌نام دانش‌آموز جدید
@@ -413,7 +408,7 @@ export default function AuthStepperModal({ open, onClose }) {
                 <Button
                   variant="outlined"
                   onClick={handleRegisterBack}
-                  sx={{ flex: 1, borderColor: '#2477F3', color: '#2477F3' }}
+                  sx={{ flex: 1, borderColor: "#2477F3", color: "#2477F3" }}
                 >
                   بازگشت
                 </Button>
@@ -421,15 +416,15 @@ export default function AuthStepperModal({ open, onClose }) {
               <Button
                 type="submit"
                 variant="contained"
-                sx={{ 
-                  flex: 2, 
-                  height: 48, 
+                sx={{
+                  flex: 2,
+                  height: 48,
                   fontWeight: "bold",
-                  bgcolor: '#66DE93',
-                  color: '#1A2233',
-                  '&:hover': {
-                    bgcolor: '#4dca80'
-                  }
+                  bgcolor: "#66DE93",
+                  color: "#1A2233",
+                  "&:hover": {
+                    bgcolor: "#4dca80",
+                  },
                 }}
                 disabled={loading}
               >
@@ -445,13 +440,14 @@ export default function AuthStepperModal({ open, onClose }) {
             <Button
               fullWidth
               variant="text"
-              sx={{ 
-                mt: 2, 
+              sx={{
+                mt: 2,
                 fontWeight: "bold",
-                color: '#2477F3'
+                color: "#2477F3",
               }}
               onClick={() => {
                 setActiveStep(0);
+                setStepIndex(0);
                 setAlert("");
               }}
             >

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -25,6 +25,7 @@ import DevicesIcon from "@mui/icons-material/Devices";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SecurityIcon from "@mui/icons-material/Security";
 import UpdateIcon from "@mui/icons-material/Update";
+import { motion } from "framer-motion";
 
 const features = [
   {
@@ -107,13 +108,29 @@ const StyledFeatureCard = styled(Paper)(({ theme }) => ({
 }));
 
 export default function LandingPage() {
+  // ------ مدال ورود/ثبت‌نام ------
   const [authOpen, setAuthOpen] = useState(false);
-  const theme = useTheme();
+  const [authTab, setAuthTab] = useState(1); // 0: ورود، 1: ثبت‌نام
 
   const handleLoginClick = () => {
+    setAuthTab(0); // ورود
     setAuthOpen(true);
-    // به صورت پیش‌فرض مودال روی ورود باز شود
   };
+  const handleSignupClick = () => {
+    setAuthTab(1); // ثبت‌نام
+    setAuthOpen(true);
+  };
+
+  const theme = useTheme();
+
+  // ------ انیمیشن کارت‌های How it Works ------
+  const [cardAnimStep, setCardAnimStep] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCardAnimStep((v) => (v + 1) % 5);
+    }, 1200);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <Box sx={{ bgcolor: "#F9FAFB", overflowX: "hidden" }}>
@@ -190,9 +207,7 @@ export default function LandingPage() {
                       maxWidth: 500,
                     }}
                   >
-                    با روشی مشابه دولینگو، مفاهیم پیچیده مالی را به ساده‌ترین
-                    شکل یاد بگیرید. مدرک معتبر دریافت کنید و وارد بازار کار
-                    شوید!
+                    با روشی مشابه دولینگو، مفاهیم پیچیده مالی را به ساده‌ترین شکل یاد بگیرید. مدرک معتبر دریافت کنید و وارد بازار کار شوید!
                   </Typography>
                   <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                     <Button
@@ -211,7 +226,7 @@ export default function LandingPage() {
                           boxShadow: "0 4px 12px rgba(102, 222, 147, 0.4)",
                         },
                       }}
-                      onClick={() => setAuthOpen(true)}
+                      onClick={handleSignupClick}
                     >
                       شروع رایگان
                     </Button>
@@ -304,7 +319,7 @@ export default function LandingPage() {
           >
             یادگیری مالی هرگز به این سادگی نبوده است!
           </Typography>
-          <Grid container spacing={6}>
+          <Grid container spacing={6} justifyContent="center" alignItems="stretch">
             {features.map((feature, i) => (
               <Grid item xs={12} md={4} key={i}>
                 <Fade in timeout={(i + 1) * 300}>
@@ -347,56 +362,189 @@ export default function LandingPage() {
           >
             فقط ۴ مرحله ساده تا تسلط بر مفاهیم مالی
           </Typography>
+
           <Grid
             container
             spacing={4}
             justifyContent="center"
             alignItems="stretch"
+            sx={{ mb: 2 }}
           >
-            {howItWorks.map((step, i) => (
+            {howItWorks.map((step, i) => {
+              // روشن بودن کارت‌ها
+              let isLit =
+                cardAnimStep === 4
+                  ? false
+                  : i <= cardAnimStep;
+
+              return (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={3}
+                  key={i}
+                  sx={{
+                    display: "flex",
+                    alignItems: "stretch",
+                  }}
+                >
+                  <motion.div
+                    animate={{
+                      boxShadow: isLit
+                        ? "0 0 42px 8px #66DE9388"
+                        : "none",
+                      y: isLit ? -6 : 0,
+                      scale: isLit ? 1.04 : 1,
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: 32,
+                      overflow: "visible",
+                      transition: "box-shadow 0.3s, background 0.3s",
+                    }}
+                  >
+                    <Paper
+                      elevation={isLit ? 0 : 3}
+                      sx={{
+                        p: 4,
+                        borderRadius: "32px",
+                        bgcolor: isLit ? "#e8faed" : "white",
+                        textAlign: "center",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        height: "100%",
+                        minHeight: 230,
+                        border: isLit
+                          ? "2.5px solid #66DE93"
+                          : "2.5px solid #E8EAF0",
+                        boxShadow: "none",
+                        position: "relative",
+                        transition: "background 0.3s, border 0.3s",
+                        zIndex: isLit ? 2 : 1,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: "flex",
+                          bgcolor: isLit ? "#66DE93" : "#6AD5B6",
+                          color: "white",
+                          width: 60,
+                          height: 60,
+                          borderRadius: "50%",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          fontSize: "2rem",
+                          fontWeight: "bold",
+                          mb: 2,
+                          boxShadow: isLit
+                            ? "0 0 24px 2px #66DE93bb"
+                            : "0 2px 8px #BFEACB44",
+                          border: isLit
+                            ? "2.5px solid #bfeacb"
+                            : "2.5px solid #d2e7ff",
+                          transition: "background 0.3s, border 0.3s",
+                          zIndex: 2,
+                        }}
+                      >
+                        {step.step}
+                      </Box>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color="#1A2233"
+                        gutterBottom
+                        sx={{
+                          minHeight: 48,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {step.title}
+                      </Typography>
+                      <Typography color="#666" sx={{ fontSize: "1rem", mt: 1 }}>
+                        {step.description}
+                      </Typography>
+                    </Paper>
+                  </motion.div>
+                </Grid>
+              );
+            })}
+          </Grid>
+        </Container>
+      </Box>
+
+      {/* Web App Benefits */}
+      <Box sx={{ py: 10, bgcolor: "white" }}>
+        <Container maxWidth="lg">
+          <Typography
+            variant="h3"
+            fontWeight="bold"
+            textAlign="center"
+            color="#1A2233"
+            sx={{ mb: 2 }}
+          >
+            مزایای وب‌اپلیکیشن فینوجا
+          </Typography>
+          <Typography
+            variant="h6"
+            textAlign="center"
+            color="#666"
+            sx={{ mb: 8, maxWidth: 600, mx: "auto" }}
+          >
+            بدون نیاز به نصب، همیشه در دسترس و به‌روز
+          </Typography>
+          <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+            {webAppBenefits.map((benefit, i) => (
               <Grid
                 item
                 xs={12}
                 sm={6}
                 md={3}
                 key={i}
-                sx={{
-                  display: "flex",
-                  alignItems: "stretch",
-                }}
+                sx={{ display: "flex" }}
               >
-                <Slide in direction="up" timeout={(i + 1) * 300}>
+                <Fade in timeout={(i + 1) * 300}>
                   <Paper
-                    elevation={3}
+                    elevation={4}
                     sx={{
-                      p: 4,
                       borderRadius: 4,
-                      bgcolor: "white",
-                      textAlign: "center",
+                      p: 4,
+                      minHeight: 260,
+                      height: "100%",
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      height: "100%",
-                      minHeight: 230,
+                      textAlign: "center",
+                      boxShadow: "0 6px 32px rgba(36,119,243,0.04)",
+                      transition: "transform 0.2s, box-shadow 0.2s",
+                      "&:hover": {
+                        transform: "translateY(-8px)",
+                        boxShadow: "0 12px 40px rgba(36,119,243,0.10)",
+                      },
                     }}
                   >
                     <Box
                       sx={{
-                        display: "flex",
-                        bgcolor: "#2477F3",
-                        color: "white",
-                        width: 54,
-                        height: 54,
+                        bgcolor: `${benefit.icon.props.sx.color}22`,
                         borderRadius: "50%",
-                        justifyContent: "center",
+                        width: 80,
+                        height: 80,
+                        display: "flex",
                         alignItems: "center",
-                        fontSize: "1.7rem",
-                        fontWeight: "bold",
-                        mb: 2,
-                        boxShadow: 2,
+                        justifyContent: "center",
+                        mb: 3,
                       }}
                     >
-                      {step.step}
+                      {React.cloneElement(benefit.icon, {
+                        sx: {
+                          fontSize: 40,
+                          color: benefit.icon.props.sx.color,
+                        },
+                      })}
                     </Box>
                     <Typography
                       variant="h6"
@@ -404,128 +552,33 @@ export default function LandingPage() {
                       color="#1A2233"
                       gutterBottom
                       sx={{
-                        minHeight: 48,
+                        minHeight: 64,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        width: "100%",
                       }}
                     >
-                      {step.title}
+                      {benefit.title}
                     </Typography>
-                    <Typography color="#666" sx={{ fontSize: "1rem", mt: 1 }}>
-                      {step.description}
+                    <Typography
+                      color="#666"
+                      sx={{
+                        fontSize: "1rem",
+                        lineHeight: 1.8,
+                        width: "100%",
+                      }}
+                    >
+                      {benefit.description}
                     </Typography>
                   </Paper>
-                </Slide>
+                </Fade>
               </Grid>
             ))}
           </Grid>
         </Container>
       </Box>
 
-{/* Web App Benefits */}
-<Box sx={{ py: 10, bgcolor: "white" }}>
-  <Container maxWidth="lg">
-    <Typography
-      variant="h3"
-      fontWeight="bold"
-      textAlign="center"
-      color="#1A2233"
-      sx={{ mb: 2 }}
-    >
-      مزایای وب‌اپلیکیشن فینوجا
-    </Typography>
-    <Typography
-      variant="h6"
-      textAlign="center"
-      color="#666"
-      sx={{ mb: 8, maxWidth: 600, mx: "auto" }}
-    >
-      بدون نیاز به نصب، همیشه در دسترس و به‌روز
-    </Typography>
-    <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-      {webAppBenefits.map((benefit, i) => (
-        <Grid
-          item
-          xs={12}
-          sm={6}
-          md={3}
-          key={i}
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <Fade in timeout={(i + 1) * 300}>
-            <Paper
-              elevation={4}
-              sx={{
-                borderRadius: 4,
-                p: 4,
-                height: '100%',
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                boxShadow: "0 6px 32px rgba(36,119,243,0.04)",
-                transition: "transform 0.2s, box-shadow 0.2s",
-                "&:hover": {
-                  transform: "translateY(-8px)",
-                  boxShadow: "0 12px 40px rgba(36,119,243,0.10)",
-                },
-              }}
-            >
-              <Box
-                sx={{
-                  bgcolor: `${benefit.icon.props.sx.color}22`,
-                  borderRadius: "50%",
-                  width: 80,
-                  height: 80,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mb: 3,
-                }}
-              >
-                {React.cloneElement(benefit.icon, { 
-                  sx: { 
-                    fontSize: 40, 
-                    color: benefit.icon.props.sx.color 
-                  } 
-                })}
-              </Box>
-              <Typography
-                variant="h6"
-                fontWeight="bold"
-                color="#1A2233"
-                gutterBottom
-                sx={{ 
-                  minHeight: 64,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '100%'
-                }}
-              >
-                {benefit.title}
-              </Typography>
-              <Typography 
-                color="#666" 
-                sx={{ 
-                  fontSize: "1rem", 
-                  lineHeight: 1.8,
-                  width: '100%'
-                }}
-              >
-                {benefit.description}
-              </Typography>
-            </Paper>
-          </Fade>
-        </Grid>
-      ))}
-    </Grid>
-  </Container>
-</Box>
       {/* Testimonials */}
       <Box sx={{ py: 10, bgcolor: "#F9FAFB" }}>
         <Container maxWidth="lg">
@@ -538,7 +591,7 @@ export default function LandingPage() {
           >
             نظرات کاربران
           </Typography>
-    <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+          <Grid container spacing={4} justifyContent="center" alignItems="stretch">
             {[1, 2, 3].map((item, i) => (
               <Grid item xs={12} md={4} key={i}>
                 <Fade in timeout={(i + 1) * 300}>
@@ -633,7 +686,7 @@ export default function LandingPage() {
                 boxShadow: "0 8px 24px rgba(102, 222, 147, 0.5)",
               },
             }}
-            onClick={() => setAuthOpen(true)}
+            onClick={handleSignupClick}
           >
             ثبت‌نام رایگان
           </Button>
@@ -748,7 +801,11 @@ export default function LandingPage() {
       </Box>
 
       {/* Auth Modal */}
-      <AuthStepperModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthStepperModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        defaultStep={authTab}
+      />
     </Box>
   );
 }
