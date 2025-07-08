@@ -48,21 +48,26 @@ export default function RoadmapPage() {
       });
   }, []);
 
+  // اگر دانش‌آموز قبلا پیشرفت داشته، همان یادگیری را ادامه بده (یادگیری جدید نساز)
   const handleStartCourse = async (courseId, slug) => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) return;
-    await fetch("/api/students/learning", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mobile,
-        courseId,
-        progress: 0,
-        correct: [],
-        wrong: [],
-        finished: false
-      })
-    });
+    const learn = studentLearning[courseId];
+    if (!learn || typeof learn.progress !== "number") {
+      // اگر اولین بار است
+      await fetch("/api/students/learning", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mobile,
+          courseId,
+          progress: 0,
+          correct: [],
+          wrong: [],
+          finished: false
+        })
+      });
+    }
     router.push(`/roadmap/${slug}`);
   };
 
@@ -73,6 +78,19 @@ export default function RoadmapPage() {
       </Box>
     );
 
+  // محاسبه تعداد کل گام‌های هر دوره
+  const getTotalSteps = (course) =>
+    course.sections
+      ? course.sections.reduce(
+          (sum, section) =>
+            sum +
+            (section.units
+              ? section.units.reduce((usum, unit) => usum + (unit.steps ? unit.steps.length : 0), 0)
+              : 0),
+          0
+        )
+      : 0;
+
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
       <Typography variant="h4" textAlign="center" fontWeight="bold" mb={3}>
@@ -81,8 +99,9 @@ export default function RoadmapPage() {
       <Box display="flex" flexDirection="column" gap={3}>
         {courses.map(course => {
           const learn = studentLearning[course._id] || {};
-          const progress = course.sections?.length
-            ? Math.floor((learn.progress || 0) / course.sections.length * 100)
+          const totalSteps = getTotalSteps(course);
+          const progress = totalSteps
+            ? Math.floor(((learn.progress || 0) / totalSteps) * 100)
             : 0;
           return (
             <Paper

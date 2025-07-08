@@ -6,14 +6,15 @@ const StudentSchema = new mongoose.Schema({
   mobile: { type: String, unique: true, required: true },
   email: { type: String },
   password: { type: String, required: true },
-  onboarding: { type: Object }, // ذخیره پرسش‌نامه
+  onboarding: { type: Object },
   learning: [
     {
       courseId: String,
       progress: { type: Number, default: 0 },
       correct: [Number],
       wrong: [Number],
-      finished: { type: Boolean, default: false }
+      finished: { type: Boolean, default: false },
+      wrongByUnit: { type: Object, default: {} }, // NEW FIELD!
     }
   ],
   createdAt: { type: Date, default: Date.now }

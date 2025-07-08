@@ -65,13 +65,13 @@ export default function CourseRoadmapPage() {
   useEffect(() => {
     const handleScroll = () => {
       const scrollPosition = window.scrollY + 100;
-      
+
       for (const [key, ref] of Object.entries(unitRefs.current)) {
         if (ref) {
           const rect = ref.getBoundingClientRect();
           const offsetTop = rect.top + window.scrollY;
           const offsetBottom = offsetTop + rect.height;
-          
+
           if (scrollPosition >= offsetTop && scrollPosition <= offsetBottom) {
             const [secIdx, unitIdx] = key.split("-").map(Number);
             setCurrentUnit(unitIdx);
@@ -88,14 +88,19 @@ export default function CourseRoadmapPage() {
 
   if (loading)
     return (
-      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
+      <Box
+        minHeight="50vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
         <CircularProgress />
       </Box>
     );
   if (!course) return <Typography>دوره‌ای یافت نشد</Typography>;
 
-  const headerColor = currentUnit !== null ? 
-    getUnitColor(currentUnit) : UNIT_COLORS[0];
+  const headerColor =
+    currentUnit !== null ? getUnitColor(currentUnit) : UNIT_COLORS[0];
 
   let flatStepCounter = 0;
   const stepIndexMap = [];
@@ -123,13 +128,7 @@ export default function CourseRoadmapPage() {
   };
 
   return (
-    <Box
-      maxWidth="sm"
-      mx="auto"
-      mt={6}
-      px={2}
-      sx={{ minHeight: "100vh"}}
-    >
+    <Box maxWidth="sm" mx="auto" mt={6} px={2} sx={{ minHeight: "100vh" }}>
       {/* Sticky Header */}
       <Box
         position="sticky"
@@ -140,24 +139,30 @@ export default function CourseRoadmapPage() {
         py={2}
         px={3}
         boxShadow={2}
-        sx={{ 
+        sx={{
           borderRadius: "12px 12px 12px 12px",
-          transition: "background-color 0.3s ease"
+          transition: "background-color 0.3s ease",
         }}
       >
         <Typography variant="h6" fontWeight="bold" textAlign="center">
-          {currentSection !== null 
-            ? course.sections[currentSection]?.title 
+          {currentSection !== null
+            ? course.sections[currentSection]?.title
             : course.sections[0]?.title}
         </Typography>
         <Typography variant="subtitle1" textAlign="center">
-          {currentUnit !== null 
-            ? course.sections[currentSection]?.units[currentUnit]?.title 
+          {currentUnit !== null
+            ? course.sections[currentSection]?.units[currentUnit]?.title
             : course.sections[0]?.units[0]?.title}
         </Typography>
       </Box>
 
-      <Typography variant="h5" fontWeight="bold" mb={2} textAlign="center" color="#2477F3">
+      <Typography
+        variant="h5"
+        fontWeight="bold"
+        mb={2}
+        textAlign="center"
+        color="#2477F3"
+      >
         {course.title}
       </Typography>
       <Typography color="#1A2233" fontSize={18} mb={4} textAlign="center">
@@ -169,14 +174,14 @@ export default function CourseRoadmapPage() {
           <Typography fontWeight="bold" fontSize={20} mb={2} color="#2477F3">
             {section.title}
           </Typography>
-          
+
           <Box display="flex" flexDirection="column" gap={5}>
             {section.units.map((unit, unitIdx) => {
               const unitColor = getUnitColor(unitIdx);
               return (
                 <Paper
                   key={unit._id}
-                  ref={el => unitRefs.current[`${secIdx}-${unitIdx}`] = el}
+                  ref={(el) => (unitRefs.current[`${secIdx}-${unitIdx}`] = el)}
                   sx={{
                     width: "100%",
                     maxWidth: 400,
@@ -201,12 +206,12 @@ export default function CourseRoadmapPage() {
                     textAlign="center"
                     sx={{
                       letterSpacing: 1.1,
-                      textTransform: "uppercase"
+                      textTransform: "uppercase",
                     }}
                   >
                     {unit.title}
                   </Typography>
-                  
+
                   <Box
                     sx={{
                       display: "flex",
@@ -218,12 +223,16 @@ export default function CourseRoadmapPage() {
                     }}
                   >
                     {unit.steps.map((step, stepIdx) => {
-                      const flatIdx = getFlatStepIndex(secIdx, unitIdx, stepIdx);
+                      const flatIdx = getFlatStepIndex(
+                        secIdx,
+                        unitIdx,
+                        stepIdx
+                      );
                       const isDone = (learning.correct || []).includes(flatIdx);
                       const isLocked = flatIdx > (learning.progress || 0);
                       const isActive = flatIdx === (learning.progress || 0);
                       const isRight = stepIdx % 2 === 0;
-                      
+
                       return (
                         <Box
                           key={step._id || stepIdx}
@@ -235,7 +244,7 @@ export default function CourseRoadmapPage() {
                             alignItems: "center",
                             minHeight: 100,
                             position: "relative",
-                            my: 1
+                            my: 1,
                           }}
                         >
                           {/* Zigzag connector */}
@@ -260,11 +269,11 @@ export default function CourseRoadmapPage() {
                                   height: 16,
                                   borderRadius: "50%",
                                   background: "#e2eafc",
-                                }
+                                },
                               }}
                             />
                           )}
-                          
+
                           <Box
                             sx={{
                               display: "flex",
@@ -285,25 +294,25 @@ export default function CourseRoadmapPage() {
                                 background: isActive
                                   ? unitColor
                                   : isDone
-                                    ? "#66DE93"
-                                    : isLocked
-                                      ? "#F5F9FF"
-                                      : "#fff",
+                                  ? "#66DE93"
+                                  : isLocked
+                                  ? "#F5F9FF"
+                                  : "#fff",
                                 color: isLocked
                                   ? "#90a4ae"
                                   : isActive
-                                    ? "#fff"
-                                    : isDone
-                                      ? "#fff"
-                                      : unitColor,
+                                  ? "#fff"
+                                  : isDone
+                                  ? "#fff"
+                                  : unitColor,
                                 border: `3px solid ${
                                   isLocked ? "#D2E7FF" : unitColor
                                 }`,
                                 boxShadow: isActive
                                   ? `0 0 14px 2px ${unitColor}80`
                                   : isDone
-                                    ? "0 0 10px 1px #5be58455"
-                                    : "none",
+                                  ? "0 0 10px 1px #5be58455"
+                                  : "none",
                                 borderRadius: "50%",
                                 width: 50,
                                 height: 50,
@@ -316,8 +325,8 @@ export default function CourseRoadmapPage() {
                                 p: 0,
                                 "&:hover": !isLocked && {
                                   transform: "scale(1.1)",
-                                  boxShadow: `0 0 15px ${unitColor}80`
-                                }
+                                  boxShadow: `0 0 15px ${unitColor}80`,
+                                },
                               }}
                               disableElevation
                             >
@@ -331,38 +340,38 @@ export default function CourseRoadmapPage() {
                                 <StarIcon sx={{ fontSize: 22 }} />
                               )}
                             </Button>
-                            
+
                             <Typography
                               fontWeight="bold"
                               fontSize={14}
                               color={isLocked ? "#90a4ae" : unitColor}
                               textAlign={isRight ? "right" : "left"}
-                              sx={{ 
+                              sx={{
                                 mt: 1,
                                 minHeight: 40,
-                                maxWidth: 180
+                                maxWidth: 180,
                               }}
                             >
                               {step.title}
                             </Typography>
-                            
-                            <Typography 
-                              fontSize={12} 
-                              color="#6a6a6a" 
+
+                            <Typography
+                              fontSize={12}
+                              color="#6a6a6a"
                               textAlign={isRight ? "right" : "left"}
                               sx={{ maxWidth: 180 }}
                             >
                               {step.type === "explanation"
                                 ? "توضیح"
                                 : step.type === "multiple-choice"
-                                  ? "چندگزینه‌ای"
-                                  : step.type === "multi-answer"
-                                    ? "چندجوابی"
-                                    : step.type === "fill-in-the-blank"
-                                      ? "جای‌خالی"
-                                      : step.type === "matching"
-                                        ? "وصل‌کردنی"
-                                        : ""}
+                                ? "چندگزینه‌ای"
+                                : step.type === "multi-answer"
+                                ? "چندجوابی"
+                                : step.type === "fill-in-the-blank"
+                                ? "جای‌خالی"
+                                : step.type === "matching"
+                                ? "وصل‌کردنی"
+                                : ""}
                             </Typography>
                           </Box>
                         </Box>
@@ -375,7 +384,7 @@ export default function CourseRoadmapPage() {
           </Box>
         </Box>
       ))}
-      
+
       <Box display="flex" justifyContent="center" mt={4} mb={6}>
         <Button
           size="large"
@@ -389,8 +398,8 @@ export default function CourseRoadmapPage() {
             borderRadius: 3,
             "&:hover": {
               background: "#4dca80",
-              boxShadow: "0 4px 12px rgba(102, 222, 147, 0.4)"
-            }
+              boxShadow: "0 4px 12px rgba(102, 222, 147, 0.4)",
+            },
           }}
           onClick={() => router.push("/roadmap")}
         >
