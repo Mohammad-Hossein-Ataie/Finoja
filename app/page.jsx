@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Head from "next/head";
 import {
   Box,
   Typography,
@@ -15,6 +16,7 @@ import {
   IconButton,
   Slide,
   Fade,
+  Skeleton,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import AuthStepperModal from "../components/AuthStepperModal";
@@ -31,6 +33,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/pagination";
 import { Pagination, Autoplay } from "swiper/modules";
+
 /* ---------- داده‌های ثابت ---------- */
 const features = [
   {
@@ -62,37 +65,37 @@ const testimonials = [
   {
     name: "محمد رضایی",
     job: "دانشجوی مدیریت مالی",
-    avatar: "/images/avatar-1.jpg",
+    avatar: "/images/avatar.png",
     text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
   },
   {
     name: "سارا احمدی",
     job: "کارمند حسابداری",
-    avatar: "/images/avatar-2.jpg",
+    avatar: "/images/avatar.png",
     text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
   },
   {
     name: "رضا اکبری",
     job: "کارآفرین",
-    avatar: "/images/avatar-3.jpg",
+    avatar: "/images/avatar.png",
     text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
   },
   {
     name: "محمد رضایی",
     job: "دانشجوی مدیریت مالی",
-    avatar: "/images/avatar-1.jpg",
+    avatar: "/images/avatar.png",
     text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
   },
   {
     name: "سارا احمدی",
     job: "کارمند حسابداری",
-    avatar: "/images/avatar-2.jpg",
+    avatar: "/images/avatar.png",
     text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
   },
   {
     name: "رضا اکبری",
     job: "کارآفرین",
-    avatar: "/images/avatar-3.jpg",
+    avatar: "/images/avatar.png",
     text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
   },
 ];
@@ -159,6 +162,18 @@ const StyledFeatureCard = styled(Paper)(({ theme }) => ({
    Main Component
 ========================================================= */
 export default function LandingPage() {
+  /* حالت لودینگ صفحه */
+  const [isLoaded, setIsLoaded] = useState(false);
+  useEffect(() => {
+    const handleLoad = () => setIsLoaded(true);
+    if (document.readyState === "complete") {
+      handleLoad();
+    } else {
+      window.addEventListener("load", handleLoad);
+      return () => window.removeEventListener("load", handleLoad);
+    }
+  }, []);
+
   /* مودال احراز هویت */
   const [authOpen, setAuthOpen] = useState(false);
   const [authTab, setAuthTab] = useState(1);
@@ -192,83 +207,171 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [heroHeight]);
 
+  /* ---------- Structured data ---------- */
+  const orgSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "فینوجا",
+    url: "https://finooja.ir",
+    logo: "https://finooja.ir/images/logo.png",
+    sameAs: [
+      "https://instagram.com/finooja",
+      "https://t.me/finooja",
+      "https://linkedin.com/company/finooja",
+    ],
+  };
+
+  /* ---------- Meta + Head ---------- */
+  const headContent = (
+    <Head>
+      <title>فینوجا | یادگیری مالی سرگرم‌کننده و موثر</title>
+      <meta
+        name="description"
+        content="با فینوجا مفاهیم پیچیده مالی را به ساده‌ترین و سرگرم‌کننده‌ترین شکل بیاموزید، مدرک معتبر دریافت کنید و برای بازار کار آماده شوید."
+      />
+      <meta
+        name="keywords"
+        content="فینوجا, یادگیری مالی, دوره مالی آنلاین, آموزش مالی, مدرک مالی, بازی‌وارسازی یادگیری"
+      />
+      <meta name="robots" content="index,follow" />
+      <link rel="canonical" href="https://finooja.ir" />
+      {/* Open Graph */}
+      <meta property="og:type" content="website" />
+      <meta
+        property="og:title"
+        content="فینوجا | یادگیری مالی سرگرم‌کننده و موثر"
+      />
+      <meta
+        property="og:description"
+        content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
+      />
+      <meta property="og:url" content="https://finooja.ir" />
+      <meta property="og:image" content="https://finooja.ir/og.png" />
+      {/* Twitter Card */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta
+        name="twitter:title"
+        content="فینوجا | یادگیری مالی سرگرم‌کننده و موثر"
+      />
+      <meta
+        name="twitter:description"
+        content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
+      />
+      <meta name="twitter:image" content="https://finooja.ir/og.png" />
+      {/* Structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+      />
+    </Head>
+  );
+
+  /* ---------- Loading Skeleton ---------- */
+  if (!isLoaded) {
+    return (
+      <>
+        {headContent}
+        <Box sx={{ bgcolor: "#F9FAFB", minHeight: "100vh", py: 8 }}>
+          <Container maxWidth="lg">
+            <Skeleton
+              variant="rectangular"
+              height={80}
+              sx={{ mb: 4, borderRadius: 4 }}
+            />
+            <Skeleton
+              variant="text"
+              height={60}
+              sx={{ mb: 2, borderRadius: 2 }}
+            />
+            <Skeleton variant="rounded" height={400} />
+          </Container>
+        </Box>
+      </>
+    );
+  }
+
+  /* ---------- Main Render ---------- */
   return (
-    <Box sx={{ bgcolor: "#F9FAFB", overflowX: "hidden" }}>
-      {/* نوار بالا */}
-      <AppBar
-        position="fixed"
-        elevation={showCTA ? 4 : 0}
-        sx={{
-          bgcolor: showCTA ? "#D2E7FF" : "#D2E7FF",
-          color: showCTA ? "#1A2233" : "inherit",
-          transition: "background-color 0.3s",
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-        }}
-      >
-    <Container maxWidth="lg">
-        <Toolbar
+    <>
+      {headContent}
+      <Box sx={{ bgcolor: "#F9FAFB", overflowX: "hidden" }}>
+        {/* نوار بالا */}
+        <AppBar
+          position="fixed"
+          elevation={showCTA ? 4 : 0}
           sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: showCTA ? "space-between" : "center",
-            transition: "justify-content 0.3s",
-            minHeight: { xs: 56, sm: 64 },
+            bgcolor: showCTA ? "#D2E7FF" : "#D2E7FF",
+            color: showCTA ? "#1A2233" : "inherit",
+            transition: "background-color 0.3s",
+            zIndex: (theme) => theme.zIndex.drawer + 1,
           }}
         >
-          <Box
-            component="img"
-            src="/images/logo.png"
-            alt="لوگو فینوجا"
-            sx={{ height: { xs: 80, sm: 88 }, width: "auto" }}
-          />
-          {showCTA && (
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleSignupClick}
+          <Container maxWidth="lg">
+            <Toolbar
               sx={{
-                bgcolor: "#66DE93",
-                color: "#1A2233",
-                fontWeight: "bold",
-                borderRadius: 8,
-                px: 4,
-                py: 0.8,
-                minWidth: 140,
-                "&:hover": { bgcolor: "#4dca80" },
+                display: "flex",
+                alignItems: "center",
+                justifyContent: showCTA ? "space-between" : "center",
+                transition: "justify-content 0.3s",
+                minHeight: { xs: 56, sm: 64 },
               }}
             >
-              همین حالا شروع کنید
-            </Button>
-          )}
-        </Toolbar>
-        </Container>
-      </AppBar>
+              <Box
+                component="img"
+                src="/images/logo.png"
+                alt="لوگو فینوجا"
+                loading="eager"
+                sx={{ height: { xs: 80, sm: 88 }, width: "auto" }}
+              />
+              {showCTA && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleSignupClick}
+                  sx={{
+                    bgcolor: "#66DE93",
+                    color: "#1A2233",
+                    fontWeight: "bold",
+                    borderRadius: 8,
+                    px: 4,
+                    py: 0.8,
+                    minWidth: 140,
+                    "&:hover": { bgcolor: "#4dca80" },
+                  }}
+                >
+                  همین حالا شروع کنید
+                </Button>
+              )}
+            </Toolbar>
+          </Container>
+        </AppBar>
 
-      {/* Spacer زیر نوار ثابت */}
-      <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }} />
+        {/* Spacer زیر نوار ثابت */}
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }} />
 
-      {/* سکشن هِرو */}
-      <HeroSection
-        heroRef={heroRef}
-        handleSignupClick={handleSignupClick}
-        handleLoginClick={handleLoginClick}
-      />
+        {/* سکشن هِرو */}
+        <HeroSection
+          heroRef={heroRef}
+          handleSignupClick={handleSignupClick}
+          handleLoginClick={handleLoginClick}
+        />
 
-      {/* سایر سکشن‌ها */}
-      <FeaturesSection />
-      <HowItWorksSection />
-      <BenefitsSection />
-      <TestimonialsSection />
-      <FinalCTASection handleSignupClick={handleSignupClick} />
-      <FooterSection />
+        {/* سایر سکشن‌ها */}
+        <FeaturesSection />
+        <HowItWorksSection />
+        <BenefitsSection />
+        <TestimonialsSection />
+        <FinalCTASection handleSignupClick={handleSignupClick} />
+        <FooterSection />
 
-      {/* مودال احراز هویت */}
-      <AuthStepperModal
-        open={authOpen}
-        onClose={() => setAuthOpen(false)}
-        defaultStep={authTab}
-      />
-    </Box>
+        {/* مودال احراز هویت */}
+        <AuthStepperModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          defaultStep={authTab}
+        />
+      </Box>
+    </>
   );
 }
 
@@ -416,6 +519,7 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
                 component="img"
                 src="/images/banner.png"
                 alt="بنر فینوجا"
+                loading="eager"
                 sx={{
                   width: "100%",
                   maxWidth: 300,
@@ -539,6 +643,7 @@ const FeaturesSection = () => (
                     component="img"
                     src={feature.img}
                     alt={feature.title}
+                    loading="lazy"
                     sx={{
                       width: { xs: 160, sm: 210, md: 250 },
                       maxWidth: "100%",
@@ -703,6 +808,7 @@ const BenefitsSection = () => (
                   component="img"
                   src={benefit.img}
                   alt={benefit.title}
+                  loading="lazy"
                   sx={{
                     width: { xs: 160, sm: 210, md: 250 },
                     maxWidth: "100%",
@@ -978,7 +1084,6 @@ const FooterSection = () => (
   </Box>
 );
 
-/* -------------------- Animated Steps -------------------- */
 /* -------------------- Animated Steps -------------------- */
 const AnimatedSteps = () => {
   const [cardAnimStep, setCardAnimStep] = useState(0);
