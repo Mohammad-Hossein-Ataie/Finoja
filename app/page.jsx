@@ -26,6 +26,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SecurityIcon from "@mui/icons-material/Security";
 import UpdateIcon from "@mui/icons-material/Update";
 import { motion } from "framer-motion";
+import { keyframes } from '@emotion/react';
 
 const features = [
   {
@@ -47,6 +48,24 @@ const features = [
     color: "#FFEBEE",
   },
 ];
+const rotatingBorder = keyframes`
+  0% {
+    border-color: #2477F3;
+    box-shadow: 0 0 10px rgba(36, 119, 243, 0.3);
+  }
+  33% {
+    border-color: #66DE93;
+    box-shadow: 0 0 10px rgba(102, 222, 147, 0.3);
+  }
+  66% {
+    border-color: #F35C4A;
+    box-shadow: 0 0 10px rgba(243, 92, 74, 0.3);
+  }
+  100% {
+    border-color: #2477F3;
+    box-shadow: 0 0 10px rgba(36, 119, 243, 0.3);
+  }
+`;
 
 const howItWorks = [
   {
@@ -282,7 +301,7 @@ export default function LandingPage() {
                 >
                   <Box
                     component="img"
-                    src="/images/logo.png"
+                    src="/images/banner.png"
                     alt="لوگو فینوجا"
                     sx={{
                       width: "100%",
@@ -521,6 +540,7 @@ export default function LandingPage() {
                       textAlign: "center",
                       boxShadow: "0 6px 32px rgba(36,119,243,0.04)",
                       transition: "transform 0.2s, box-shadow 0.2s",
+                      width:"30rem",
                       "&:hover": {
                         transform: "translateY(-8px)",
                         boxShadow: "0 12px 40px rgba(36,119,243,0.10)",
