@@ -82,24 +82,23 @@ const howItWorks = [
 const webAppBenefits = [
   {
     title: "بدون نیاز به نصب",
-    description: "فقط با یک مرورگر به تمام امکانات دسترسی دارید",
-    icon: <DevicesIcon sx={{ fontSize: 48, color: "#2477F3" }} />,
+    description: `فینوجا کاملاً تحت وب است و نیاز به دانلود یا نصب هیچ برنامه‌ای ندارد. فقط کافی است وارد سایت شوید و از هر دستگاهی—موبایل، تبلت یا کامپیوتر—به امکانات دسترسی پیدا کنید. دیگر دغدغه پر شدن حافظه یا دردسرهای نصب و بروزرسانی را نخواهید داشت. همیشه و همه‌جا، تجربه‌ای روان و بی‌دغدغه از یادگیری و استفاده خواهید داشت.`,
+    img: "/images/installation.png",
   },
   {
     title: "همیشه به‌روز",
-    description:
-      "نیازی به آپدیت دستی نیست، همیشه آخرین نسخه را استفاده می‌کنید",
-    icon: <UpdateIcon sx={{ fontSize: 48, color: "#66DE93" }} />,
+    description: `وب‌اپلیکیشن فینوجا به‌صورت خودکار بروزرسانی می‌شود و همیشه آخرین نسخه و جدیدترین قابلیت‌ها در دسترس شماست. هیچ وقت نیاز به بروزرسانی دستی یا دانلود نسخه جدید ندارید. به محض ورود، همه امکانات و ویژگی‌های تازه را تجربه خواهید کرد. این یعنی همیشه یک قدم جلوتر و همراه با تکنولوژی روز دنیا خواهید بود.`,
+    img: "/images/update.png",
   },
   {
     title: "دسترسی سریع",
-    description: "در هر زمان و هر مکان فقط با اینترنت و مرورگر",
-    icon: <AccessTimeIcon sx={{ fontSize: 48, color: "#FF6B6B" }} />,
+    description: `در هر لحظه و هر مکان فقط با داشتن اینترنت و مرورگر، می‌توانید وارد فینوجا شوید. هیچ وابستگی به سیستم‌عامل، نسخه گوشی یا کامپیوتر ندارید و محدودیت‌های سنتی اپلیکیشن‌ها برای شما معنایی ندارد. کافی است آدرس سایت را داشته باشید تا به سادگی و با سرعت بالا از امکانات فینوجا بهره‌مند شوید.`,
+    img: "/images/reachable.png",
   },
   {
     title: "امنیت بالا",
-    description: "اطلاعات شما در سرورهای امن ذخیره می‌شود",
-    icon: <SecurityIcon sx={{ fontSize: 48, color: "#FFC107" }} />,
+    description: `اطلاعات شخصی و داده‌های شما در فینوجا با بالاترین استانداردهای امنیتی ذخیره و محافظت می‌شود. ما از جدیدترین پروتکل‌ها و سرورهای امن استفاده می‌کنیم تا امنیت حساب کاربری و حریم خصوصی شما تضمین شود. با خیال راحت به یادگیری و استفاده بپردازید و نگرانی بابت لو رفتن یا از بین رفتن اطلاعات نداشته باشید.`,
+    img: "/images/security.png",
   },
 ];
 
@@ -578,71 +577,104 @@ const BenefitsSection = () => (
       >
         بدون نیاز به نصب، همیشه در دسترس و به‌روز
       </Typography>
-      <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+
+      <Stack spacing={12}>
         {webAppBenefits.map((benefit, i) => (
-          <Grid key={i} item xs={12} sm={6} md={3} sx={{ display: "flex" }}>
-            <Fade in timeout={(i + 1) * 300}>
-              <Paper
-                elevation={4}
+          <Grid
+            container
+            key={i}
+            alignItems="center"
+            direction={{
+              xs: "column-reverse", // موبایل: عکس بالا
+              md: i % 2 === 0 ? "row-reverse" : "row", // یکی در میان جابه‌جا
+            }}
+            spacing={0}
+            sx={{
+              minHeight: { md: 320 },
+            }}
+          >
+            {/* متن */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                direction: "rtl",
+              }}
+            >
+              <Box
                 sx={{
-                  borderRadius: 4,
-                  p: 4,
-                  minHeight: 260,
+                  width: "100%",
+                  maxWidth: 400,
                   display: "flex",
                   flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
-                  boxShadow: "0 6px 32px rgba(36,119,243,0.04)",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  width: "20rem",
-                  "&:hover": {
-                    transform: "translateY(-8px)",
-                    boxShadow: "0 12px 40px rgba(36,119,243,0.10)",
+                  justifyContent: "center",
+                  height: "100%",
+                  textAlign: { xs: "left", md: "left" },
+                  ml: {
+                    xs: 0,
+                    md: i % 2 === 0 ? "20rem" : "0rem ",
                   },
                 }}
               >
-                <Box
-                  sx={{
-                    bgcolor: `${benefit.icon.props.sx.color}22`,
-                    borderRadius: "50%",
-                    width: 80,
-                    height: 80,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mb: 3,
-                  }}
-                >
-                  {React.cloneElement(benefit.icon, {
-                    sx: { fontSize: 40, color: benefit.icon.props.sx.color },
-                  })}
-                </Box>
                 <Typography
-                  variant="h6"
+                  variant="h4"
                   fontWeight="bold"
                   color="#1A2233"
-                  gutterBottom
-                  sx={{
-                    minHeight: 64,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "100%",
-                  }}
+                  sx={{ mb: 2 }}
                 >
                   {benefit.title}
                 </Typography>
                 <Typography
                   color="#666"
-                  sx={{ fontSize: "1rem", lineHeight: 1.8 }}
+                  sx={{ fontSize: "1.18rem", lineHeight: 2 }}
                 >
                   {benefit.description}
                 </Typography>
-              </Paper>
-            </Fade>
+              </Box>
+            </Grid>
+            {/* عکس */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                ml: {
+                  xs: 0,
+                  md: i % 2 === 0 ? "0rem" : "20rem ",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  alignItems: "center",
+                  height: { xs: 180, md: 280 },
+                  minHeight: 120,
+                  width: "100%",
+                }}
+              >
+                <Box
+                  component="img"
+                  src={benefit.img}
+                  alt={benefit.title}
+                  sx={{
+                    width: { xs: 160, sm: 210, md: 250 },
+                    maxWidth: "100%",
+                    height: "auto",
+                    display: "block",
+                    mx: "auto",
+                    my: { xs: 1, md: 0 },
+                  }}
+                />
+              </Box>
+            </Grid>
           </Grid>
         ))}
-      </Grid>
+      </Stack>
     </Container>
   </Box>
 );
@@ -874,10 +906,14 @@ const FooterSection = () => (
 );
 
 /* -------------------- Animated Steps -------------------- */
+/* -------------------- Animated Steps -------------------- */
 const AnimatedSteps = () => {
   const [cardAnimStep, setCardAnimStep] = useState(0);
+
   useEffect(() => {
-    const timer = setInterval(() => setCardAnimStep((v) => (v + 1) % 5), 1200);
+    const timer = setInterval(() => {
+      setCardAnimStep((v) => (v + 1) % 5);
+    }, 1200);
     return () => clearInterval(timer);
   }, []);
 
@@ -892,6 +928,9 @@ const AnimatedSteps = () => {
       {howItWorks.map((step, i) => {
         // روشن بودن کارت‌ها
         let isLit = cardAnimStep === 4 ? false : i <= cardAnimStep;
+        // مشخص کردن اینکه آیا این مرحله آخر است و باید طلایی شود
+        const isFinalStep = i === 3;
+        const isGolden = isFinalStep && isLit;
 
         return (
           <Grid
@@ -907,7 +946,11 @@ const AnimatedSteps = () => {
           >
             <motion.div
               animate={{
-                boxShadow: isLit ? "0 0 42px 8px #66DE9388" : "none",
+                boxShadow: isGolden
+                  ? "0 0 42px 8px rgba(255, 215, 0, 0.5)"
+                  : isLit
+                  ? "0 0 42px 8px #66DE9388"
+                  : "none",
                 y: isLit ? -6 : 0,
                 scale: isLit ? 1.04 : 1,
               }}
@@ -924,14 +967,18 @@ const AnimatedSteps = () => {
                 sx={{
                   p: 4,
                   borderRadius: "32px",
-                  bgcolor: isLit ? "#e8faed" : "white",
+                  bgcolor: isGolden ? "#FFF9E6" : isLit ? "#e8faed" : "white",
                   textAlign: "center",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
                   height: "100%",
                   minHeight: 230,
-                  border: isLit ? "2.5px solid #66DE93" : "2.5px solid #E8EAF0",
+                  border: isGolden
+                    ? "2.5px solid #FFD700"
+                    : isLit
+                    ? "2.5px solid #66DE93"
+                    : "2.5px solid #E8EAF0",
                   boxShadow: "none",
                   position: "relative",
                   transition: "background 0.3s, border 0.3s",
@@ -941,7 +988,11 @@ const AnimatedSteps = () => {
                 <Box
                   sx={{
                     display: "flex",
-                    bgcolor: isLit ? "#66DE93" : "#6AD5B6",
+                    bgcolor: isGolden
+                      ? "#FFD700"
+                      : isLit
+                      ? "#66DE93"
+                      : "#6AD5B6",
                     color: "white",
                     width: 60,
                     height: 60,
@@ -951,10 +1002,14 @@ const AnimatedSteps = () => {
                     fontSize: "2rem",
                     fontWeight: "bold",
                     mb: 2,
-                    boxShadow: isLit
+                    boxShadow: isGolden
+                      ? "0 0 24px 2px rgba(255, 215, 0, 0.7)"
+                      : isLit
                       ? "0 0 24px 2px #66DE93bb"
                       : "0 2px 8px #BFEACB44",
-                    border: isLit
+                    border: isGolden
+                      ? "2.5px solid #FFF0B3"
+                      : isLit
                       ? "2.5px solid #bfeacb"
                       : "2.5px solid #d2e7ff",
                     transition: "background 0.3s, border 0.3s",
@@ -966,7 +1021,7 @@ const AnimatedSteps = () => {
                 <Typography
                   variant="h6"
                   fontWeight="bold"
-                  color="#1A2233"
+                  color={isGolden ? "#8B7500" : "#1A2233"}
                   gutterBottom
                   sx={{
                     minHeight: 48,
@@ -977,7 +1032,10 @@ const AnimatedSteps = () => {
                 >
                   {step.title}
                 </Typography>
-                <Typography color="#666" sx={{ fontSize: "1rem", mt: 1 }}>
+                <Typography
+                  color={isGolden ? "#8B7500" : "#666"}
+                  sx={{ fontSize: "1rem", mt: 1 }}
+                >
                   {step.description}
                 </Typography>
               </Paper>
