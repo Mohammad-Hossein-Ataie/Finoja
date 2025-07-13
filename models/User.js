@@ -7,10 +7,10 @@ const userSchema = new mongoose.Schema({
   role: { 
     type: String, 
     enum: ["admin", "teacher", "student"], 
-    default: "student" // پیش‌فرض دانش‌آموز است
+    default: "student" // پیش‌فرض یادگیرنده است
   },
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: "Teacher" }, // اگر استاد باشد
-  student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" }, // اگر دانش‌آموز باشد
+  student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" }, // اگر یادگیرنده باشد
 });
 
 userSchema.pre("save", async function(next) {

@@ -29,7 +29,7 @@ export async function POST(req) {
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
-  // اجازه بده admin و teacher بتواند دانش‌آموز بسازد
+  // اجازه بده admin و teacher بتواند یادگیرنده بسازد
   if (!payload || (payload.role !== "admin" && payload.role !== "teacher"))
     return Response.json({ error: "Unauthorized" }, { status: 401 });
 

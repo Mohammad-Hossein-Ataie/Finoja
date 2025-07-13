@@ -34,7 +34,11 @@ const style = {
   maxWidth: "90vw",
   minHeight: 420,
   border: "2px solid #D2E7FF",
+  display: "flex", // اضافه شود
+  flexDirection: "column", // اضافه شود
+  justifyContent: "center", // اضافه شود
 };
+
 
 export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
   const [activeStep, setActiveStep] = useState(defaultStep); // 0:login  1:register
@@ -283,7 +287,7 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
       return (
         <>
           <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
-            ثبت‌نام دانش‌آموز جدید
+            ثبت‌نام یادگیرنده جدید
           </Typography>
           <TextField
             label="شماره موبایل"
@@ -307,13 +311,14 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
           <Button
             fullWidth
             variant="text"
+            sx={{mt:2}}
             onClick={() => {
               setActiveStep(0);
               setRegisterStep(0);
               setAlert("");
             }}
           >
-            بازگشت
+            قبلاً ثبت‌نام کرده‌ام!
           </Button>
         </>
       );
@@ -640,7 +645,7 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
                 setAlert("");
               }}
             >
-              ثبت‌نام دانش‌آموز جدید
+              ثبت‌نام یادگیرنده جدید
             </Button>
             <Button
               fullWidth

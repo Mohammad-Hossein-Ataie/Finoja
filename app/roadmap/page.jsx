@@ -16,7 +16,7 @@ export default function RoadmapPage() {
       return;
     }
 
-    // اول چک کن آیا دانش‌آموز onboarding داره یا نه
+    // اول چک کن آیا یادگیرنده onboarding داره یا نه
     fetch("/api/students/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,7 +48,7 @@ export default function RoadmapPage() {
       });
   }, []);
 
-  // اگر دانش‌آموز قبلا پیشرفت داشته، همان یادگیری را ادامه بده (یادگیری جدید نساز)
+  // اگر یادگیرنده قبلا پیشرفت داشته، همان یادگیری را ادامه بده (یادگیری جدید نساز)
   const handleStartCourse = async (courseId, slug) => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) return;

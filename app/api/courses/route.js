@@ -23,7 +23,7 @@ export async function GET() {
     const courses = await Course.find({ teacher: payload.teacher }).populate("teacher");
     return Response.json(courses);
   }
-  // دانش‌آموز/مهمان: همه دوره‌ها
+  // یادگیرنده/مهمان: همه دوره‌ها
   const courses = await Course.find().populate("teacher");
   return Response.json(courses);
 }
