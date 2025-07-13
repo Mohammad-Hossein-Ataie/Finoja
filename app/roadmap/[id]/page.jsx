@@ -192,7 +192,7 @@ export default function CourseRoadmapPage() {
                   mb: 0.1,
                   transition: "all 0.2s",
                   cursor: isLocked ? "not-allowed" : "pointer",
-                  opacity: isLocked ? 0.85 : 1,
+                  opacity: isLocked ? 0.1 : 1,
                   "&:hover": !isLocked && {
                     transform: "scale(1.1)",
                     boxShadow: `

@@ -192,11 +192,13 @@ export default function LandingPage() {
   const [showCTA, setShowCTA] = useState(false);
 
   useEffect(() => {
+    if (!isLoaded) return;
     const measure = () => setHeroHeight(heroRef.current?.offsetHeight || 0);
+
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, []);
+  }, [isLoaded]);
 
   useEffect(() => {
     const handleScroll = () => {
