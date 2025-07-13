@@ -113,7 +113,7 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
       setAlert("ورود موفق! در حال انتقال...");
       setTimeout(() => {
         onClose?.();
-        router.replace("/roadmap");
+        router.replace("/student");
       }, 1200);
     } else {
       setAlert("شماره یا رمز عبور اشتباه است");

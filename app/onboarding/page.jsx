@@ -76,7 +76,7 @@ export default function OnboardingPage() {
       .then(res => res.json())
       .then(profile => {
         if (profile.onboarding) {
-          router.replace("/roadmap");
+          router.replace("/student");
         }
       });
   }, [router]);
@@ -96,7 +96,7 @@ export default function OnboardingPage() {
       });
       setLoading(false);
       if (res.ok) {
-        router.replace("/roadmap");
+        router.replace("/student");
       } else {
         alert("خطا در ثبت اطلاعات. دوباره تلاش کنید.");
       }
