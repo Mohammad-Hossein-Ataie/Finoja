@@ -205,6 +205,7 @@ export default function LandingPage() {
           zIndex: (theme) => theme.zIndex.drawer + 1,
         }}
       >
+    <Container maxWidth="lg">
         <Toolbar
           sx={{
             display: "flex",
@@ -240,6 +241,7 @@ export default function LandingPage() {
             </Button>
           )}
         </Toolbar>
+        </Container>
       </AppBar>
 
       {/* Spacer زیر نوار ثابت */}
@@ -728,7 +730,7 @@ const TestimonialsSection = () => (
         fontWeight="bold"
         textAlign="center"
         color="#1A2233"
-        sx={{ mb: 8 }}
+        sx={{ mb: 2 }}
       >
         نظرات کاربران
       </Typography>
