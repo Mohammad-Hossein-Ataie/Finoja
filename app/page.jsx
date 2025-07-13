@@ -574,13 +574,13 @@ const FeaturesSection = () => (
 
 /* -------------------- How it Works -------------------- */
 const HowItWorksSection = () => (
-  <Box sx={{ py: 10, bgcolor: "#F9FAFB" }}>
+  <Box sx={{ py: 10, bgcolor: "#1A2233" }}>
     <Container maxWidth="lg">
       <Typography
         variant="h3"
         fontWeight="bold"
         textAlign="center"
-        color="#1A2233"
+        color="#fff"
         sx={{ mb: 2 }}
       >
         چگونه کار می‌کند؟
@@ -588,7 +588,7 @@ const HowItWorksSection = () => (
       <Typography
         variant="h6"
         textAlign="center"
-        color="#666"
+        color="#fefefe"
         sx={{ mb: 8, maxWidth: 600, mx: "auto" }}
       >
         فقط ۴ مرحله ساده تا تسلط بر مفاهیم مالی
