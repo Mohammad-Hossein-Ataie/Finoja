@@ -27,7 +27,10 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import SecurityIcon from "@mui/icons-material/Security";
 import UpdateIcon from "@mui/icons-material/Update";
 import { motion } from "framer-motion";
-
+import { Swiper, SwiperSlide } from "swiper/react";
+import "swiper/css";
+import "swiper/css/pagination";
+import { Pagination, Autoplay } from "swiper/modules";
 /* ---------- داده‌های ثابت ---------- */
 const features = [
   {
@@ -55,7 +58,44 @@ const features = [
     img: "/images/work.png",
   },
 ];
-
+const testimonials = [
+  {
+    name: "محمد رضایی",
+    job: "دانشجوی مدیریت مالی",
+    avatar: "/images/avatar-1.jpg",
+    text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
+  },
+  {
+    name: "سارا احمدی",
+    job: "کارمند حسابداری",
+    avatar: "/images/avatar-2.jpg",
+    text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
+  },
+  {
+    name: "رضا اکبری",
+    job: "کارآفرین",
+    avatar: "/images/avatar-3.jpg",
+    text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
+  },
+  {
+    name: "محمد رضایی",
+    job: "دانشجوی مدیریت مالی",
+    avatar: "/images/avatar-1.jpg",
+    text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
+  },
+  {
+    name: "سارا احمدی",
+    job: "کارمند حسابداری",
+    avatar: "/images/avatar-2.jpg",
+    text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
+  },
+  {
+    name: "رضا اکبری",
+    job: "کارآفرین",
+    avatar: "/images/avatar-3.jpg",
+    text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
+  },
+];
 const howItWorks = [
   {
     step: "۱",
@@ -692,40 +732,71 @@ const TestimonialsSection = () => (
       >
         نظرات کاربران
       </Typography>
-      <Grid container spacing={4} justifyContent="center" alignItems="stretch">
-        {[1, 2, 3].map((_, i) => (
-          <Grid key={i} item xs={12} md={4}>
-            <Fade in timeout={(i + 1) * 300}>
-              <Paper sx={{ p: 4, borderRadius: 4, height: "100%" }}>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-                  <Avatar
-                    src={`/images/avatar-${i + 1}.jpg`}
-                    sx={{ width: 60, height: 60, mr: 2 }}
-                  />
-                  <Box>
-                    <Typography fontWeight="bold">محمد رضایی</Typography>
-                    <Typography variant="body2" color="#666">
-                      دانشجوی مدیریت مالی
-                    </Typography>
+      <Swiper
+        modules={[Pagination, Autoplay]}
+        spaceBetween={24}
+        slidesPerView={1}
+        pagination={{ clickable: true }}
+        autoplay={{ delay: 4000 }}
+        breakpoints={{
+          600: { slidesPerView: 1 },
+          900: { slidesPerView: 2 },
+          1200: { slidesPerView: 3 },
+        }}
+        style={{ paddingBottom: "64px", paddingTop: "32px" }}
+      >
+        {testimonials.map((item, i) => (
+          <SwiperSlide key={i} style={{ height: "100%" }}>
+            <Paper
+              sx={{
+                p: 4,
+                borderRadius: 6,
+                height: "100%",
+                boxShadow: "0 4px 32px rgba(36,119,243,0.08)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-start",
+                transition: "transform 0.3s, box-shadow 0.3s",
+                "&:hover": {
+                  transform: "translateY(-8px) scale(1.03)",
+                  boxShadow: "0 8px 48px rgba(36,119,243,0.13)",
+                },
+                minHeight: { xs: 300, sm: 340, md: 380 }, // برای ظاهر یکنواخت‌تر
+              }}
+            >
+              <Avatar src={item.avatar} sx={{ width: 70, height: 70, mb: 2 }} />
+              <Typography fontWeight="bold" fontSize="1.08rem" sx={{ mb: 0.2 }}>
+                {item.name}
+              </Typography>
+              <Typography variant="body2" color="#888" sx={{ mb: 2 }}>
+                {item.job}
+              </Typography>
+              <Typography
+                color="#666"
+                sx={{
+                  lineHeight: 2,
+                  mb: 2,
+                  flex: 1, // این باعث میشه متن فضای وسط رو بگیره و بقیه پایین باشه
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                }}
+              >
+                {`"${item.text}"`}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 0.3 }}>
+                {[...Array(5)].map((_, star) => (
+                  <Box key={star} sx={{ color: "#FFD700", fontSize: 22 }}>
+                    ★
                   </Box>
-                </Box>
-                <Typography color="#666" sx={{ lineHeight: 2 }}>
-                  "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با
-                  روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد
-                  بگیرم."
-                </Typography>
-                <Box sx={{ display: "flex", mt: 2 }}>
-                  {[...Array(5)].map((__, star) => (
-                    <Box key={star} sx={{ color: "#FFD700", fontSize: 20 }}>
-                      ★
-                    </Box>
-                  ))}
-                </Box>
-              </Paper>
-            </Fade>
-          </Grid>
+                ))}
+              </Box>
+            </Paper>
+          </SwiperSlide>
         ))}
-      </Grid>
+      </Swiper>
     </Container>
   </Box>
 );
