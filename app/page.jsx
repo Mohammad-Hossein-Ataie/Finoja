@@ -32,21 +32,27 @@ import { motion } from "framer-motion";
 const features = [
   {
     title: "آموزش تعاملی",
-    description: "مینی‌گیم‌ها و تمرین‌های روزانه برای یادگیری بهتر مفاهیم مالی",
+    description:
+      "یادگیری مالی با فینوجا یک تجربه متفاوت است! با مینی‌گیم‌های سرگرم‌کننده و تمرین‌های روزانه، مفاهیم پیچیده مالی را به ساده‌ترین شکل ممکن و بدون خستگی یاد می‌گیرید. هر درس طوری طراحی شده که علاوه بر جذابیت، تمرکز شما را حفظ کند و انگیزه ادامه مسیر را بالا ببرد. هر روز با چالش‌های جدید روبرو شوید، امتیاز بگیرید و پیشرفت واقعی خود را لمس کنید.",
     icon: <PlayCircleOutlineIcon sx={{ fontSize: 48, color: "#2477F3" }} />,
     color: "#D2E7FF",
+    img: "/images/learning.png",
   },
   {
     title: "مدرک معتبر",
-    description: "دریافت مدرک رسمی و توصیه‌نامه حرفه‌ای پس از اتمام دوره",
+    description:
+      "بعد از اتمام دوره‌ها، علاوه بر یادگیری مهارت‌های کاربردی، یک مدرک رسمی از فینوجا دریافت می‌کنید که قابل ارائه در رزومه و مصاحبه‌های شغلی است. همچنین امکان دریافت توصیه‌نامه حرفه‌ای برای ورود به بازار کار وجود دارد. مدارک فینوجا اعتبارسنجی شده و می‌توانند در مسیر حرفه‌ای شما تأثیرگذار باشند. آینده شغلی خود را با یک مدرک ارزشمند تضمین کنید!",
     icon: <SchoolIcon sx={{ fontSize: 48, color: "#66DE93" }} />,
     color: "#E1F5E4",
+    img: "/images/certificate.png",
   },
   {
     title: "مسیر شغلی",
-    description: "مسیر یادگیری شخصی‌سازی شده بر اساس هدف و سطح شما",
+    description:
+      "در فینوجا، شما یک مسیر یادگیری شخصی‌سازی‌شده بر اساس هدف و سطح فعلی خود دریافت می‌کنید. از تعیین سطح اولیه تا پیشنهاد دوره‌های مناسب و پروژه‌های عملی، همه چیز به گونه‌ای طراحی شده تا دقیقا مطابق نیازها و رویاهای شغلی شما باشد. با ما، نه تنها مفاهیم مالی را یاد می‌گیرید، بلکه برای بازار کار آماده می‌شوید و قدم به قدم تا موفقیت همراهتان هستیم.",
     icon: <TrendingUpIcon sx={{ fontSize: 48, color: "#FF6B6B" }} />,
     color: "#FFEBEE",
+    img: "/images/work.png",
   },
 ];
 
@@ -405,26 +411,122 @@ const FeaturesSection = () => (
       >
         یادگیری مالی هرگز به این سادگی نبوده است!
       </Typography>
-      <Grid container spacing={6} justifyContent="center" alignItems="stretch">
+
+      <Stack spacing={12}>
         {features.map((feature, i) => (
-          <Grid key={i} item xs={12} md={4}>
-            <Fade in timeout={(i + 1) * 300}>
-              <StyledFeatureCard sx={{ bgcolor: feature.color }}>
-                <Box sx={{ mb: 3 }}>{feature.icon}</Box>
+          <Grid
+            container
+            key={i}
+            alignItems="center"
+            direction={{
+              xs: "column-reverse", // موبایل: عکس بالا، متن پایین
+              md: i % 2 === 0 ? "row-reverse" : "row", // دسکتاپ: یکی در میان
+            }}
+            spacing={0}
+            sx={{
+              minHeight: { md: 320 },
+            }}
+          >
+            {/* متن */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              key={i}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                direction: "rtl",
+              }}
+            >
+              <Box
+                sx={{
+                  width: "100%",
+                  maxWidth: 400,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  height: "100%",
+                  textAlign: { xs: "left", md: "left" },
+                  ml: {
+                    xs: 0, // موبایل: عکس بالا، متن پایین
+                    md: i % 2 === 0 ? "20rem" : "0rem ",
+                  },
+                }}
+              >
                 <Typography
-                  variant="h5"
+                  variant="h4"
                   fontWeight="bold"
                   color="#1A2233"
-                  gutterBottom
+                  sx={{ mb: 2 }}
                 >
                   {feature.title}
                 </Typography>
-                <Typography color="#666">{feature.description}</Typography>
-              </StyledFeatureCard>
-            </Fade>
+                <Typography
+                  color="#666"
+                  sx={{ fontSize: "1.18rem", lineHeight: 2 }}
+                >
+                  {feature.description}
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* عکس/آیکن */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                ml: {
+                  xs: 0, // موبایل: عکس بالا، متن پایین
+                  md: i % 2 === 0 ? "0rem" : "20rem ",
+                },
+              }}
+            >
+              <Box
+                sx={{
+                  alignItems: "center",
+                  height: { xs: 180, md: 280 },
+                  minHeight: 120,
+                  width: "100%",
+                }}
+              >
+                {feature.img ? (
+                  <Box
+                    component="img"
+                    src={feature.img}
+                    alt={feature.title}
+                    sx={{
+                      width: { xs: 160, sm: 210, md: 250 },
+                      maxWidth: "100%",
+                      height: "auto",
+                      display: "block",
+                      mx: "auto",
+                      my: { xs: 1, md: 0 },
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      bgcolor: feature.color,
+                      borderRadius: "50%",
+                      width: 120,
+                      height: 120,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {feature.icon}
+                  </Box>
+                )}
+              </Box>
+            </Grid>
           </Grid>
         ))}
-      </Grid>
+      </Stack>
     </Container>
   </Box>
 );
