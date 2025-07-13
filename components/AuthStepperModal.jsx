@@ -6,9 +6,6 @@ import {
   Typography,
   Button,
   TextField,
-  Stepper,
-  Step,
-  StepLabel,
   Alert,
   CircularProgress,
   IconButton,
@@ -23,11 +20,6 @@ import {
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
-
-const steps = [
-  { label: "ورود", icon: <Login /> },
-  { label: "ثبت‌نام", icon: <PersonAdd /> },
-];
 
 const style = {
   position: "absolute",
@@ -45,8 +37,7 @@ const style = {
 };
 
 export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
-  const [activeStep, setActiveStep] = useState(defaultStep);
-  const [stepIndex, setStepIndex] = useState(0);
+  const [activeStep, setActiveStep] = useState(defaultStep); // 0:login  1:register
   const [form, setForm] = useState({
     name: "",
     family: "",
@@ -58,20 +49,48 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
   const [alert, setAlert] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // بخش ریست پسورد
+  const [forgotStep, setForgotStep] = useState(null);
+  const [forgotMobile, setForgotMobile] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotPass, setForgotPass] = useState({ password: "", confirm: "" });
+
+  // بخش ثبت‌نام جدید (OTP)
+  const [registerStep, setRegisterStep] = useState(0); // 0:mobile, 1:otp, 2:form
+  const [registerMobile, setRegisterMobile] = useState("");
+  const [registerOtp, setRegisterOtp] = useState("");
+  const [otpVerified, setOtpVerified] = useState(false);
+
   const router = useRouter();
 
-  // هر بار مدال باز شد یا defaultStep تغییر کرد، اکتیو تب رو ریست کن
   useEffect(() => {
     if (open) {
       setActiveStep(defaultStep);
-      setStepIndex(0);
       setAlert("");
+      setForgotStep(null);
+      setForgotMobile("");
+      setForgotOtp("");
+      setForgotPass({ password: "", confirm: "" });
+      setRegisterStep(0);
+      setRegisterMobile("");
+      setRegisterOtp("");
+      setOtpVerified(false);
+      setForm({
+        name: "",
+        family: "",
+        mobile: "",
+        password: "",
+        confirm: "",
+        email: "",
+      });
     }
   }, [open, defaultStep]);
 
   const handleChange = (e) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
+  // Login
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -87,73 +106,85 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
     setLoading(false);
     if (res.ok) {
       localStorage.setItem("student_mobile", form.mobile);
-      const checkProfile = await fetch("/api/students/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile: form.mobile }),
-      });
-      const profile = await checkProfile.json();
       setAlert("ورود موفق! در حال انتقال...");
       setTimeout(() => {
         onClose?.();
-        if (profile.onboarding) {
-          router.replace("/roadmap");
-        } else {
-          router.replace("/onboarding");
-        }
-      }, 1000);
+        router.replace("/roadmap");
+      }, 1200);
     } else {
       setAlert("شماره یا رمز عبور اشتباه است");
     }
   };
 
-  const handleRegisterNext = (e) => {
-    e?.preventDefault?.();
+  // ثبت‌نام OTP
+  const handleRegisterSendOtp = async () => {
+    setLoading(true);
     setAlert("");
-    if (stepIndex === 0 && (!form.name || !form.family)) {
-      setAlert("نام و نام خانوادگی الزامی است");
-      return;
+    const res = await fetch("/api/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ mobile: registerMobile, type: "register" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    setLoading(false);
+    if (res.ok) {
+      setRegisterStep(1);
+      setAlert("کد تایید ارسال شد");
+    } else {
+      setAlert("خطا در ارسال کد!");
     }
-    if (stepIndex === 1 && !/^09\d{9}$/.test(form.mobile)) {
-      setAlert("شماره موبایل معتبر وارد کنید");
-      return;
-    }
-    if (
-      stepIndex === 2 &&
-      (form.password.length < 4 || form.password !== form.confirm)
-    ) {
-      setAlert("رمز باید حداقل ۴ کاراکتر باشد و با تکرار آن یکسان باشد.");
-      return;
-    }
-    setStepIndex(stepIndex + 1);
   };
 
-  const handleRegisterBack = () => setStepIndex(stepIndex - 1);
+  const handleRegisterVerifyOtp = async () => {
+    setLoading(true);
+    setAlert("");
+    const res = await fetch("/api/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        mobile: registerMobile,
+        code: registerOtp,
+        type: "register",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    setLoading(false);
+    if (res.ok) {
+      setRegisterStep(2);
+      setOtpVerified(true);
+      setForm((f) => ({ ...f, mobile: registerMobile }));
+      setAlert("");
+    } else {
+      setAlert("کد اشتباه یا منقضی شده!");
+    }
+  };
 
-  const handleRegister = async (e) => {
+  const handleRegisterForm = async (e) => {
     e.preventDefault();
     setLoading(true);
     setAlert("");
     const checkRes = await fetch("/api/check-user", {
       method: "POST",
-      body: JSON.stringify({ mobile: form.mobile }),
+      body: JSON.stringify({ mobile: registerMobile }),
       headers: { "Content-Type": "application/json" },
     });
     if (checkRes.ok) {
       const { exists } = await checkRes.json();
       if (exists) {
-        setAlert("این شماره قبلاً ثبت شده، وارد شوید.");
-        setActiveStep(0);
+        setAlert("این شماره قبلاً ثبت شده است.");
         setLoading(false);
         return;
       }
+    }
+    if (form.password.length < 4 || form.password !== form.confirm) {
+      setAlert("رمز معتبر نیست.");
+      setLoading(false);
+      return;
     }
     const res = await fetch("/api/register-student", {
       method: "POST",
       body: JSON.stringify({
         name: form.name,
         family: form.family,
-        mobile: form.mobile,
+        mobile: registerMobile,
         email: form.email,
         password: form.password,
       }),
@@ -162,7 +193,6 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
     setLoading(false);
     if (res.ok) {
       setAlert("ثبت نام با موفقیت انجام شد! در حال انتقال...");
-      localStorage.setItem("student_mobile", form.mobile);
       setTimeout(() => {
         onClose?.();
         router.replace("/onboarding");
@@ -173,96 +203,176 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
     }
   };
 
+  // Forgot Password Flow
+  const handleForgotSendOtp = async () => {
+    setLoading(true);
+    setAlert("");
+    const res = await fetch("/api/send-otp", {
+      method: "POST",
+      body: JSON.stringify({ mobile: forgotMobile, type: "forget" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    setLoading(false);
+    if (res.ok) {
+      setForgotStep("otp");
+      setAlert("کد تایید ارسال شد.");
+    } else {
+      setAlert("خطا در ارسال کد! شماره معتبر است؟");
+    }
+  };
+
+  const handleForgotVerifyOtp = async () => {
+    setLoading(true);
+    setAlert("");
+    const res = await fetch("/api/verify-otp", {
+      method: "POST",
+      body: JSON.stringify({
+        mobile: forgotMobile,
+        code: forgotOtp,
+        type: "forget",
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    setLoading(false);
+    if (res.ok) {
+      setForgotStep("setpass");
+      setAlert("");
+    } else {
+      setAlert("کد اشتباه است یا منقضی شده.");
+    }
+  };
+
+  const handleForgotSetPassword = async () => {
+    setLoading(true);
+    setAlert("");
+    if (
+      forgotPass.password.length < 4 ||
+      forgotPass.password !== forgotPass.confirm
+    ) {
+      setAlert("رمز باید حداقل ۴ کاراکتر و با تکرار یکی باشد.");
+      setLoading(false);
+      return;
+    }
+    const res = await fetch("/api/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        mobile: forgotMobile,
+        password: forgotPass.password,
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    setLoading(false);
+    if (res.ok) {
+      setAlert("رمز جدید با موفقیت ثبت شد!");
+      setTimeout(() => {
+        setForgotStep(null);
+        setForgotMobile("");
+        setForgotOtp("");
+        setForgotPass({ password: "", confirm: "" });
+        setActiveStep(0);
+        setAlert("");
+      }, 1400);
+    } else {
+      setAlert("خطا در تغییر رمز!");
+    }
+  };
+
+  // UI
   const renderRegisterStep = () => {
-    switch (stepIndex) {
-      case 0:
-        return (
-          <Box>
-            <TextField
-              name="name"
-              label="نام"
-              fullWidth
-              margin="normal"
-              value={form.name}
-              onChange={handleChange}
-              required
-              inputProps={{ maxLength: 24 }}
-            />
-            <TextField
-              name="family"
-              label="نام خانوادگی"
-              fullWidth
-              margin="normal"
-              value={form.family}
-              onChange={handleChange}
-              required
-              inputProps={{ maxLength: 24 }}
-            />
-          </Box>
-        );
-      case 1:
-        return (
+    if (registerStep === 0) {
+      return (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            ثبت‌نام دانش‌آموز جدید
+          </Typography>
           <TextField
-            name="mobile"
             label="شماره موبایل"
             fullWidth
-            margin="normal"
-            value={form.mobile}
+            value={registerMobile}
             onChange={(e) =>
-              handleChange({
-                target: {
-                  name: "mobile",
-                  value: e.target.value.replace(/\D/g, "").slice(0, 11),
-                },
-              })
+              setRegisterMobile(e.target.value.replace(/\D/g, "").slice(0, 11))
             }
-            inputProps={{
-              inputMode: "numeric",
-              pattern: "[0-9]*",
-              maxLength: 11,
+            inputProps={{ maxLength: 11 }}
+            margin="normal"
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading || !/^09\d{9}$/.test(registerMobile)}
+            onClick={handleRegisterSendOtp}
+          >
+            {loading ? <CircularProgress size={24} /> : "ارسال کد تایید"}
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={() => {
+              setActiveStep(0);
+              setRegisterStep(0);
+              setAlert("");
             }}
+          >
+            بازگشت
+          </Button>
+        </>
+      );
+    }
+    if (registerStep === 1) {
+      return (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            کد تایید ثبت‌نام
+          </Typography>
+          <TextField
+            label="کد تایید"
+            fullWidth
+            value={registerOtp}
+            onChange={(e) =>
+              setRegisterOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            margin="normal"
+            inputProps={{ maxLength: 6 }}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading || registerOtp.length !== 6}
+            onClick={handleRegisterVerifyOtp}
+          >
+            {loading ? <CircularProgress size={24} /> : "تایید کد"}
+          </Button>
+          <Button fullWidth variant="text" onClick={() => setRegisterStep(0)}>
+            ویرایش شماره
+          </Button>
+        </>
+      );
+    }
+    if (registerStep === 2 && otpVerified) {
+      return (
+        <form onSubmit={handleRegisterForm}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            اطلاعات تکمیلی
+          </Typography>
+          <TextField
+            name="name"
+            label="نام"
+            fullWidth
+            margin="normal"
+            value={form.name}
+            onChange={handleChange}
             required
           />
-        );
-      case 2:
-        return (
-          <Box>
-            <TextField
-              name="password"
-              label="رمز عبور"
-              type={showPassword ? "text" : "password"}
-              fullWidth
-              margin="normal"
-              value={form.password}
-              onChange={handleChange}
-              required
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <TextField
-              name="confirm"
-              label="تکرار رمز عبور"
-              type={showPassword ? "text" : "password"}
-              fullWidth
-              margin="normal"
-              value={form.confirm}
-              onChange={handleChange}
-              required
-            />
-          </Box>
-        );
-      case 3:
-        return (
+          <TextField
+            name="family"
+            label="نام خانوادگی"
+            fullWidth
+            margin="normal"
+            value={form.family}
+            onChange={handleChange}
+            required
+          />
           <TextField
             name="email"
             label="ایمیل (اختیاری)"
@@ -271,10 +381,153 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
             value={form.email}
             onChange={handleChange}
           />
-        );
-      default:
-        return null;
+          <TextField
+            name="password"
+            label="رمز عبور"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+          <TextField
+            name="confirm"
+            label="تکرار رمز"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={form.confirm}
+            onChange={handleChange}
+            required
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading}
+            type="submit"
+          >
+            {loading ? <CircularProgress size={24} /> : "ثبت‌نام نهایی"}
+          </Button>
+        </form>
+      );
     }
+    return null;
+  };
+
+  const renderForgotStep = () => {
+    if (forgotStep === "mobile" || !forgotStep) {
+      return (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            فراموشی رمز عبور
+          </Typography>
+          <TextField
+            label="شماره موبایل"
+            fullWidth
+            value={forgotMobile}
+            onChange={(e) =>
+              setForgotMobile(e.target.value.replace(/\D/g, "").slice(0, 11))
+            }
+            inputProps={{ maxLength: 11 }}
+            margin="normal"
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading || !/^09\d{9}$/.test(forgotMobile)}
+            onClick={handleForgotSendOtp}
+          >
+            {loading ? <CircularProgress size={24} /> : "ارسال کد تایید"}
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            sx={{ mt: 1 }}
+            onClick={() => setForgotStep(null)}
+          >
+            بازگشت
+          </Button>
+        </>
+      );
+    }
+    if (forgotStep === "otp") {
+      return (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            کد تایید پیامک
+          </Typography>
+          <TextField
+            label="کد تایید"
+            fullWidth
+            value={forgotOtp}
+            onChange={(e) =>
+              setForgotOtp(e.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+            margin="normal"
+            inputProps={{ maxLength: 6 }}
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading || forgotOtp.length !== 6}
+            onClick={handleForgotVerifyOtp}
+          >
+            {loading ? <CircularProgress size={24} /> : "تایید کد"}
+          </Button>
+          <Button
+            fullWidth
+            variant="text"
+            sx={{ mt: 1 }}
+            onClick={() => setForgotStep("mobile")}
+          >
+            بازگشت
+          </Button>
+        </>
+      );
+    }
+    if (forgotStep === "setpass") {
+      return (
+        <>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+            تعیین رمز جدید
+          </Typography>
+          <TextField
+            label="رمز جدید"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={forgotPass.password}
+            onChange={(e) =>
+              setForgotPass((f) => ({ ...f, password: e.target.value }))
+            }
+          />
+          <TextField
+            label="تکرار رمز جدید"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={forgotPass.confirm}
+            onChange={(e) =>
+              setForgotPass((f) => ({ ...f, confirm: e.target.value }))
+            }
+          />
+          <Button
+            fullWidth
+            variant="contained"
+            sx={{ mt: 2 }}
+            disabled={loading}
+            onClick={handleForgotSetPassword}
+          >
+            {loading ? <CircularProgress size={24} /> : "ذخیره رمز جدید"}
+          </Button>
+        </>
+      );
+    }
+    return null;
   };
 
   return (
@@ -294,7 +547,10 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
             {alert}
           </Alert>
         )}
-        {activeStep === 0 ? (
+        {/* فراموشی رمز عبور */}
+        {forgotStep !== null ? (
+          renderForgotStep()
+        ) : activeStep === 0 ? (
           <form onSubmit={handleLogin}>
             <Typography
               variant="h6"
@@ -380,80 +636,25 @@ export default function AuthStepperModal({ open, onClose, defaultStep = 0 }) {
               }}
               onClick={() => {
                 setActiveStep(1);
-                setStepIndex(0);
+                setRegisterStep(0);
                 setAlert("");
               }}
             >
               ثبت‌نام دانش‌آموز جدید
             </Button>
-          </form>
-        ) : (
-          <form onSubmit={stepIndex < 3 ? handleRegisterNext : handleRegister}>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 3,
-                fontWeight: "bold",
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                color: "#66DE93",
-              }}
-            >
-              <PersonAdd sx={{ fontSize: 24 }} /> ثبت‌نام دانش‌آموز جدید
-            </Typography>
-            {renderRegisterStep()}
-            <Box display="flex" gap={2} sx={{ mt: 4 }}>
-              {stepIndex > 0 && (
-                <Button
-                  variant="outlined"
-                  onClick={handleRegisterBack}
-                  sx={{ flex: 1, borderColor: "#2477F3", color: "#2477F3" }}
-                >
-                  بازگشت
-                </Button>
-              )}
-              <Button
-                type="submit"
-                variant="contained"
-                sx={{
-                  flex: 2,
-                  height: 48,
-                  fontWeight: "bold",
-                  bgcolor: "#66DE93",
-                  color: "#1A2233",
-                  "&:hover": {
-                    bgcolor: "#4dca80",
-                  },
-                }}
-                disabled={loading}
-              >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : stepIndex < 3 ? (
-                  "مرحله بعد"
-                ) : (
-                  "ثبت‌نام نهایی"
-                )}
-              </Button>
-            </Box>
             <Button
               fullWidth
               variant="text"
-              sx={{
-                mt: 2,
-                fontWeight: "bold",
-                color: "#2477F3",
-              }}
               onClick={() => {
-                setActiveStep(0);
-                setStepIndex(0);
+                setForgotStep("mobile");
                 setAlert("");
               }}
             >
-              بازگشت به ورود
+              فراموشی رمز عبور
             </Button>
           </form>
+        ) : (
+          renderRegisterStep()
         )}
       </Box>
     </Modal>
