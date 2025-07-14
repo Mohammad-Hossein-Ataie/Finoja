@@ -1,23 +1,34 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
+/** ───────── Sub-schema وضعیت یادگیری یک دوره ───────── */
+const learningSchema = new mongoose.Schema(
+  {
+    courseId: { type: String, required: true }, // همان ObjectId رشته‌ای
+    progress: { type: Number, default: 0 },     // بزرگ‌ترین flatStepIdx آزاد
+    xp: { type: Number, default: 0 },           // امتیاز همین دوره
+    correct: { type: [Number], default: [] },   // پرسش‌های حل شده
+    wrongByUnit: { type: Object, default: {} }, // { unitGlobalIdx: [stepIdx, …] }
+    reviewQueue: { type: [Number], default: [] }, // صف بازبینی پایان یونیت
+    finished: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
+/** ───────── مدل Student ───────── */
 const StudentSchema = new mongoose.Schema({
   name: { type: String, required: true },
   family: { type: String, required: true },
   mobile: { type: String, unique: true, required: true },
-  email: { type: String },
+  email: String,
   password: { type: String, required: true },
-  onboarding: { type: Object },
-  learning: [
-    {
-      courseId: String,
-      progress: { type: Number, default: 0 },
-      correct: [Number],
-      wrong: [Number],
-      finished: { type: Boolean, default: false },
-      wrongByUnit: { type: Object, default: {} }, // NEW FIELD!
-    }
-  ],
-  createdAt: { type: Date, default: Date.now }
+
+  onboarding: Object,
+
+  learning: { type: [learningSchema], default: [] }, // یک سند برای هر دوره
+  totalXp: { type: Number, default: 0 },             // مجموع XP همهٔ دوره‌ها
+
+  createdAt: { type: Date, default: Date.now },
 });
 
-export default mongoose.models.Student || mongoose.model('Student', StudentSchema);
+export default mongoose.models.Student ||
+  mongoose.model("Student", StudentSchema);
