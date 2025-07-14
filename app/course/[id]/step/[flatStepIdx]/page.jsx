@@ -12,472 +12,338 @@ import {
   Select,
   MenuItem,
   FormControl,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material";
 
-/* ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────── */
 export default function StepPage() {
-  const params = useParams();
-  const router = useRouter();
-  const courseId = params.id;
-  const flatStepIdx = Number(params.flatStepIdx);
+  /* ----- routing params ----- */
+  const { id: courseId, flatStepIdx: idx } = useParams();
+  const flatStepIdx = Number(idx);
+  const router      = useRouter();
 
-  /* ───── States */
-  const [course, setCourse] = useState(null);
-  const [step, setStep] = useState(null);
-  const [stepMeta, setStepMeta] = useState({});
+  /* ----- states ----- */
+  const [course , setCourse ] = useState(null);
+  const [step   , setStep   ] = useState(null);
+  const [meta   , setMeta   ] = useState({});
   const [learning, setLearning] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading , setLoading ] = useState(true);
 
-  const [answer, setAnswer] = useState("");                // برای MC & fill & multi
-  const [matchMap, setMatchMap] = useState({});            // برای matching
+  const [answer   , setAnswer   ] = useState("");
+  const [matchMap , setMatchMap ] = useState({});
   const [showResult, setShowResult] = useState(false);
-  const [isCorrect, setIsCorrect] = useState(null);
-  const redirected = useRef(false);
+  const [isCorrect , setIsCorrect ] = useState(null);
 
-  /* ───── fetch course + learning */
+  const [reviewModal, setReviewModal] = useState(false);
+  const pendingQueue  = useRef([]);
+  const redirected    = useRef(false);
+
+  /* ---------- fetch course + learning ----------- */
   useEffect(() => {
     const mobile = localStorage.getItem("student_mobile");
-    if (!mobile) {
-      router.replace("/");
-      return;
-    }
+    if (!mobile) { router.replace("/"); return; }
 
     Promise.all([
       fetch(`/api/courses/${courseId}`).then((r) => r.json()),
       fetch("/api/students/learning", {
-        method: "POST",
+        method : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mobile }),
+        body   : JSON.stringify({ mobile }),
       }).then((r) => r.json()),
-    ]).then(([courseRes, learningRes]) => {
-      setCourse(courseRes);
+    ]).then(([c , lRes]) => {
+      setCourse(c);
 
-      const l =
-        (learningRes.learning || []).find((lr) => lr.courseId === courseId) ||
-        {
-          courseId,
-          progress: 0,
-          correct: [],
-          wrongByUnit: {},
-          reviewQueue: [],
-          xp: 0,
-        };
+      const l = (lRes.learning || []).find((v) => v.courseId === courseId) || {
+        courseId, progress : 0, correct: [], wrongByUnit: {}, reviewQueue: [], xp: 0,
+      };
       setLearning(l);
 
-      /* ← ریدایرکت به اولین آیتم صف مرور */
-      if (
-        l.reviewQueue?.length &&
-        l.reviewQueue[0] !== flatStepIdx &&
-        !redirected.current
-      ) {
+      /* اگر در صف مرور هستیم ولی روی سؤال دیگری، ریدایرکت کن */
+      if (l.reviewQueue?.length && l.reviewQueue[0] !== flatStepIdx && !redirected.current) {
         redirected.current = true;
         router.replace(`/course/${courseId}/step/${l.reviewQueue[0]}`);
         return;
       }
 
-      /* پیدا کردن گام جاری + متادیتا */
-      let counter = 0,
-        found = null,
-        meta = {};
-      courseRes.sections.forEach((section, secIdx) => {
-        section.units.forEach((unit, unitIdx) => {
-          unit.steps.forEach((st, stepIdx) => {
+      /* یافتن گام و متادیتا */
+      let counter = 0, found = null, m = {};
+      c.sections.forEach((sec, sIdx) =>
+        sec.units.forEach((u, uIdx) =>
+          u.steps.forEach((st, stIdx) => {
             if (counter === flatStepIdx) {
               found = st;
-              meta = { secIdx, unitIdx, stepIdx, unit, section };
+              m = { sIdx, uIdx, stIdx, unit: u };
             }
             counter++;
-          });
-        });
-      });
+          })
+        )
+      );
       setStep(found);
-      setStepMeta(meta);
+      setMeta(m);
       setLoading(false);
     });
   }, [courseId, flatStepIdx, router]);
 
-  /* ───── Helpers */
-  const unitTotal = stepMeta?.unit?.steps?.length || 1;
-  const inUnitIdx = stepMeta.stepIdx || 0;
-  const unitProgress = Math.floor((inUnitIdx / unitTotal) * 100);
+  /* ---------- helpers ---------- */
+  const unitTotal   = meta.unit?.steps?.length || 1;
+  const inUnitIdx   = meta.stIdx || 0;
+  const unitProgress= Math.floor((inUnitIdx / unitTotal) * 100);
 
-  const totalSteps =
+  const totalSteps  =
     course?.sections.reduce(
-      (acc, s) => acc + s.units.reduce((a, u) => a + u.steps.length, 0),
+      (a, s) => a + s.units.reduce((b, u) => b + u.steps.length, 0),
       0
     ) ?? 0;
 
-  const isLastStep = flatStepIdx === totalSteps - 1;
-  const isLastOfUnit = inUnitIdx === unitTotal - 1;
-  const unitKey = `${stepMeta.secIdx}-${stepMeta.unitIdx}`;
+  const isLastStep   = flatStepIdx === totalSteps - 1;
+  const isLastOfUnit = inUnitIdx   === unitTotal - 1;
+  const unitKey      = `${meta.sIdx}-${meta.uIdx}`;
 
-  const persistLearning = async (payload) => {
-    const mobile = localStorage.getItem("student_mobile");
-    await fetch("/api/students/learning", {
-      method: "PUT",
+  /* ---------- API helper ---------- */
+  const persist = (payload) =>
+    fetch("/api/students/learning", {
+      method : "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mobile, courseId, ...payload }),
+      body   : JSON.stringify({
+        mobile : localStorage.getItem("student_mobile"),
+        courseId,
+        ...payload,
+      }),
     });
-  };
 
-  /* ───── Guards */
-  if (loading)
-    return (
-      <Box
-        minHeight="60vh"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
-        <CircularProgress />
-      </Box>
-    );
+  /* ---------- modal auto-close ---------- */
+  useEffect(() => {
+    if (!reviewModal) return;
+    const t = setTimeout(() => {
+      setReviewModal(false);
+      if (pendingQueue.current.length)
+        router.replace(`/course/${courseId}/step/${pendingQueue.current[0]}`);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [reviewModal, courseId]);
 
-  if (!step)
-    return (
-      <Box p={4}>
-        <Typography color="error" fontWeight="bold">
-          گام یافت نشد
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => router.replace(`/roadmap/${courseId}`)}
-        >
-          بازگشت
-        </Button>
-      </Box>
-    );
-
-  if ((learning?.progress ?? 0) < flatStepIdx) {
-    return (
-      <Box p={4}>
-        <Typography color="warning.main" fontWeight="bold">
-          هنوز به این گام دسترسی ندارید
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => router.replace(`/roadmap/${courseId}`)}
-        >
-          بازگشت
-        </Button>
-      </Box>
-    );
-  }
-
-  /* ───── Navigation after each step */
-  const goNext = (reviewQueue) => {
-    if (reviewQueue.length) {
-      router.replace(`/course/${courseId}/step/${reviewQueue[0]}`);
-    } else if (!isLastStep) {
-      router.replace(`/course/${courseId}/step/${flatStepIdx + 1}`);
+  /* ---------- navigation ---------- */
+  const goToNext = (queue) => {
+    if (queue.length) {
+      router.replace(`/course/${courseId}/step/${queue[0]}`);
+    } else if (learning.progress < totalSteps) {
+      router.replace(`/course/${courseId}/step/${learning.progress}`);
     } else {
       router.replace(`/roadmap/${courseId}`);
     }
   };
 
-  /* ───── ذخیره + منطق درست/غلط مشترک */
-  const handleEvaluation = async (isAnswerCorrect) => {
-    let correctArr = [...(learning.correct || [])];
-    let wrongByUnit = { ...(learning.wrongByUnit || {}) };
-    let reviewQueue = [...(learning.reviewQueue || [])];
-    let xp = learning.xp || 0;
+  /* ---------- evaluation & save ---------- */
+  const evaluate = async ({ ok, awardXp }) => {
+    let { correct = [], wrongByUnit = {}, reviewQueue = [], progress } = learning;
+    const inReview = reviewQueue.includes(flatStepIdx);
 
-    if (isAnswerCorrect) {
-      if (wrongByUnit[unitKey])
-        wrongByUnit[unitKey] = wrongByUnit[unitKey].filter(
-          (idx) => idx !== flatStepIdx
-        );
-      reviewQueue = reviewQueue.filter((idx) => idx !== flatStepIdx);
-      if (!correctArr.includes(flatStepIdx)) correctArr.push(flatStepIdx);
-    } else {
+    if (ok) {
+      wrongByUnit[unitKey] = (wrongByUnit[unitKey] || []).filter((i) => i !== flatStepIdx);
+      reviewQueue          = reviewQueue.filter((i) => i !== flatStepIdx);
+      if (!correct.includes(flatStepIdx)) correct.push(flatStepIdx);
+    } else if (!inReview) {
       wrongByUnit[unitKey] = wrongByUnit[unitKey] || [];
       if (!wrongByUnit[unitKey].includes(flatStepIdx))
         wrongByUnit[unitKey].push(flatStepIdx);
     }
 
-    /* پایان یونیت ⇒ انتقال باقیمانده‌ها به صف مرور */
-    if (isLastOfUnit) {
-      const wrongOfUnit = wrongByUnit[unitKey] || [];
-      reviewQueue = [...reviewQueue, ...wrongOfUnit];
-      wrongByUnit[unitKey] = [];
-    }
-
-    const deltaXp = isAnswerCorrect ? 1 : 0;
-    xp += deltaXp;
-
-    await persistLearning({
-      progress: Math.max(learning.progress, flatStepIdx + 1),
-      correct: correctArr,
-      wrongByUnit,
-      reviewQueue,
-      deltaXp,
-      finished: isLastStep,
-    });
-
-    return reviewQueue;
-  };
-
-  /* ───── Submit handlers for kinds */
-  const handleSubmitChoice = async () => {
-    let correct = false;
-    if (step.type === "multiple-choice" || step.type === "fill-in-the-blank")
-      correct =
-        String(step.correctIndex) === answer ||
-        step.options?.[step.correctIndex] === answer;
-    else if (step.type === "multi-answer")
-      correct = (step.correctIndexes || []).map(String).includes(answer);
-
-    setShowResult(true);
-    setIsCorrect(correct);
-    const newQueue = await handleEvaluation(correct);
-
-    /* ← اگر درست بود بعد از وقفه برو جلو */
-    if (correct) setTimeout(() => goNext(newQueue), 900);
-  };
-
-  const handleSubmitMatching = async () => {
-    const pairs = step.pairs || [];
-    let allCorrect = true;
-    pairs.forEach((p, idx) => {
-      if (String(matchMap[idx] ?? "") !== String(p.right)) allCorrect = false;
-    });
-
-    setShowResult(true);
-    setIsCorrect(allCorrect);
-    const newQueue = await handleEvaluation(allCorrect);
-
-    if (allCorrect) setTimeout(() => goNext(newQueue), 900);
-  };
-
-  /* ───── توضیحِ غیرسؤالی */
-  const handleExplanationNext = async () => {
-    let wrongByUnit = { ...(learning.wrongByUnit || {}) };
-    let reviewQueue = [...(learning.reviewQueue || [])];
-
-    if (isLastOfUnit) {
+    /* انتقال باقیمانده‌ها به صف مرور در پایان یونیت */
+    if (isLastOfUnit && !inReview) {
       reviewQueue = [...reviewQueue, ...(wrongByUnit[unitKey] || [])];
       wrongByUnit[unitKey] = [];
+      if (reviewQueue.length) { pendingQueue.current = reviewQueue; setReviewModal(true); }
     }
 
-    await persistLearning({
-      progress: Math.max(learning.progress, flatStepIdx + 1),
+    /* پیشرفت */
+    const newProgress = inReview ? progress : Math.max(progress, flatStepIdx + 1);
+
+    await persist({
+      progress   : newProgress,
+      correct,
       wrongByUnit,
       reviewQueue,
-      finished: isLastStep,
+      deltaXp    : awardXp ? 1 : 0,   // 👈 تنها وقتی awardXp=true
+      finished   : isLastStep,
     });
 
-    goNext(reviewQueue);
+    learning.progress   = newProgress;   // به‌روز برای ناوبری بعدی
+    learning.reviewQueue= reviewQueue;
   };
 
-  /* ───── UI */
+  /* ---------- submit handlers ---------- */
+  const submitChoice = async () => {
+    const ok =
+      step.type === "multi-answer"
+        ? (step.correctIndexes || []).map(String).includes(answer)
+        : String(step.correctIndex) === answer ||
+          step.options?.[step.correctIndex] === answer;
+
+    setShowResult(true);
+    setIsCorrect(ok);
+    await evaluate({ ok, awardXp: ok });          // توضیحی نیست؛ فقط پاسخ صحیح
+    if (ok) setTimeout(() => goToNext(learning.reviewQueue), 800);
+  };
+
+  const submitMatch = async () => {
+    const ok = (step.pairs || []).every(
+      (p, i) => String(matchMap[i] ?? "") === String(p.right)
+    );
+    setShowResult(true);
+    setIsCorrect(ok);
+    await evaluate({ ok, awardXp: ok });
+    if (ok) setTimeout(() => goToNext(learning.reviewQueue), 800);
+  };
+
+  const nextExplanation = async () => {
+    await evaluate({ ok: true, awardXp: false }); // 👈 بدون XP
+    goToNext(learning.reviewQueue);
+  };
+
+  /* ---------- guards ---------- */
+  if (loading) return (
+    <Box minHeight="60vh" display="flex" alignItems="center" justifyContent="center">
+      <CircularProgress />
+    </Box>
+  );
+
+  /* ---------- UI ---------- */
   return (
     <Box maxWidth="sm" mx="auto" mt={5}>
-      {/* نوار پیشرفت یونیت */}
+      {/* progress bar */}
       <Box mb={2}>
         <LinearProgress
           variant="determinate"
           value={unitProgress}
-          sx={{
-            height: 10,
-            borderRadius: 5,
-            "& .MuiLinearProgress-bar": { borderRadius: 5 },
-          }}
+          sx={{ height: 10, borderRadius: 5, "& .MuiLinearProgress-bar": { borderRadius: 5 } }}
         />
-        <Typography
-          variant="caption"
-          fontWeight="bold"
-          display="block"
-          textAlign="center"
-          mt={0.5}
-        >
+        <Typography variant="caption" textAlign="center" display="block" fontWeight="bold" mt={0.5}>
           {unitProgress}% از یونیت
         </Typography>
       </Box>
 
-      {/* کارت گام */}
+      {/* card */}
       <Paper sx={{ p: 4, borderRadius: 4 }}>
-        <Typography variant="h6" mb={2} color="#2477F3" fontWeight="bold">
+        <Typography variant="h6" mb={2} fontWeight="bold" color="#2477F3">
           {step.title}
         </Typography>
 
-        {/* ───── گام توضیحی */}
+        {/* explanation */}
         {step.type === "explanation" && (
-          <Box>
+          <>
             <div dangerouslySetInnerHTML={{ __html: step.content || "" }} />
-            <Button
-              variant="contained"
-              sx={{ mt: 3, fontWeight: "bold" }}
-              onClick={handleExplanationNext}
-            >
+            <Button variant="contained" sx={{ mt: 3, fontWeight: "bold" }} onClick={nextExplanation}>
               {isLastStep ? "پایان دوره" : "مرحله بعد"}
             </Button>
-          </Box>
+          </>
         )}
 
-        {/* ───── MC / fill-in / multi-answer */}
-        {["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
-          step.type
-        ) && (
-          <Box>
-            {step.text && (
-              <Typography fontSize={17} mb={2}>
-                {step.text}
-              </Typography>
-            )}
+        {/* choice / fill / multi */}
+        {["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(step.type) && (
+          <>
+            {step.text && <Typography fontSize={17} mb={2}>{step.text}</Typography>}
             <Box display="flex" flexDirection="column" gap={1}>
-              {(step.options || []).map((opt, idx) => (
+              {(step.options || []).map((opt, i) => (
                 <Button
-                  key={idx}
-                  variant={answer === String(idx) ? "contained" : "outlined"}
-                  color="primary"
-                  onClick={() => setAnswer(String(idx))}
+                  key={i}
+                  variant={answer === String(i) ? "contained" : "outlined"}
                   disabled={showResult}
+                  onClick={() => setAnswer(String(i))}
                   sx={{ justifyContent: "flex-end", fontWeight: "bold" }}
                 >
                   {opt}
                 </Button>
               ))}
             </Box>
-
             {!showResult && (
               <Button
                 variant="contained"
                 color="success"
                 sx={{ mt: 2, fontWeight: "bold" }}
                 disabled={answer === ""}
-                onClick={handleSubmitChoice}
+                onClick={submitChoice}
               >
                 ثبت پاسخ
               </Button>
             )}
-
             {showResult && (
-              <Box mt={2}>
-                <Typography
-                  color={isCorrect ? "success.main" : "error"}
-                  fontWeight="bold"
-                >
-                  {isCorrect
-                    ? step.feedbackCorrect || "پاسخ صحیح!"
-                    : step.feedbackWrong || "پاسخ اشتباه"}
+              <>
+                <Typography mt={2} fontWeight="bold" color={isCorrect ? "success.main" : "error"}>
+                  {isCorrect ? step.feedbackCorrect || "پاسخ صحیح!" : step.feedbackWrong || "پاسخ اشتباه"}
                 </Typography>
-
-                {/* دکمه جلو رفتن برای پاسخ غلط */}
                 {!isCorrect && (
-                  <Button
-                    variant="contained"
-                    sx={{ mt: 2 }}
-                    onClick={() =>
-                      goNext(
-                        learning.reviewQueue?.length
-                          ? learning.reviewQueue
-                          : []
-                      )
-                    }
-                  >
+                  <Button variant="contained" sx={{ mt: 2 }} onClick={() => goToNext(learning.reviewQueue)}>
                     مرحله بعد
                   </Button>
                 )}
-              </Box>
+              </>
             )}
-          </Box>
+          </>
         )}
 
-        {/* ───── گام «matching» */}
+        {/* matching */}
         {step.type === "matching" && (
-          <Box>
-            {step.matchingQuestion && (
-              <Typography fontSize={17} mb={2}>
-                {step.matchingQuestion}
-              </Typography>
-            )}
-
-            {/* ستون راست: left items */}
-            {(step.pairs || []).map((p, idx) => (
-              <Stack
-                key={idx}
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                mb={1.5}
-              >
-                <Typography sx={{ minWidth: 140, fontWeight: "bold" }}>
-                  {p.left}
-                </Typography>
-                <FormControl size="small" fullWidth>
+          <>
+            {step.matchingQuestion && <Typography fontSize={17} mb={2}>{step.matchingQuestion}</Typography>}
+            {(step.pairs || []).map((p, i) => (
+              <Stack key={i} direction="row" spacing={1} alignItems="center" mb={1.5}>
+                <Typography sx={{ minWidth: 140, fontWeight: "bold" }}>{p.left}</Typography>
+                <FormControl fullWidth size="small">
                   <Select
-                    value={matchMap[idx] ?? ""}
-                    onChange={(e) =>
-                      setMatchMap((m) => ({ ...m, [idx]: e.target.value }))
-                    }
+                    value={matchMap[i] ?? ""}
                     disabled={showResult}
+                    onChange={(e) => setMatchMap((m) => ({ ...m, [i]: e.target.value }))}
                   >
                     {(step.pairs || []).map((pr, j) => (
-                      <MenuItem key={j} value={pr.right}>
-                        {pr.right}
-                      </MenuItem>
+                      <MenuItem key={j} value={pr.right}>{pr.right}</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
               </Stack>
             ))}
-
             {!showResult && (
               <Button
                 variant="contained"
                 color="success"
                 sx={{ mt: 2, fontWeight: "bold" }}
-                disabled={
-                  Object.keys(matchMap).length !== (step.pairs || []).length
-                }
-                onClick={handleSubmitMatching}
+                disabled={Object.keys(matchMap).length !== (step.pairs || []).length}
+                onClick={submitMatch}
               >
                 ثبت تطبیق
               </Button>
             )}
-
             {showResult && (
-              <Box mt={2}>
-                <Typography
-                  color={isCorrect ? "success.main" : "error"}
-                  fontWeight="bold"
-                >
-                  {isCorrect
-                    ? step.feedbackCorrect || "عالی! همه جفت‌ها درست بود."
-                    : step.feedbackWrong || "برخی تطبیق‌ها نادرست بود."}
+              <>
+                <Typography mt={2} fontWeight="bold" color={isCorrect ? "success.main" : "error"}>
+                  {isCorrect ? "عالی! همه جفت‌ها درست بود." : "برخی تطبیق‌ها نادرست است."}
                 </Typography>
-
                 {!isCorrect && (
-                  <Button
-                    variant="contained"
-                    sx={{ mt: 2 }}
-                    onClick={() =>
-                      goNext(
-                        learning.reviewQueue?.length
-                          ? learning.reviewQueue
-                          : []
-                      )
-                    }
-                  >
+                  <Button variant="contained" sx={{ mt: 2 }} onClick={() => goToNext(learning.reviewQueue)}>
                     مرحله بعد
                   </Button>
                 )}
-              </Box>
+              </>
             )}
-          </Box>
+          </>
         )}
       </Paper>
 
-      {/* بازگشت به نقشه دوره */}
+      {/* roadmap link */}
       <Box mt={2} textAlign="center">
-        <Button
-          variant="text"
-          color="info"
-          onClick={() => router.replace(`/roadmap/${courseId}`)}
-        >
+        <Button variant="text" onClick={() => router.replace(`/roadmap/${courseId}`)}>
           بازگشت به نقشه راه
         </Button>
       </Box>
+
+      {/* review modal */}
+      <Dialog open={reviewModal}>
+        <DialogTitle fontWeight={900}>مرور اشتباهات</DialogTitle>
+        <DialogContent>
+          <Typography>یونیت تمام شد؛ بریم سراغ سؤال‌های اشتباه 🤓</Typography>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
