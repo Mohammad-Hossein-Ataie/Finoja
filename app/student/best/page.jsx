@@ -16,17 +16,16 @@ import {
   TableBody,
   Stack,
   Avatar,
-  LinearProgress,
   useTheme,
 } from "@mui/material";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 
-// Function to generate color from name
+// ... stringToColor و stringAvatar عوض نشده
+
 function stringToColor(string) {
-  let hash = 0;
-  let i;
+  let hash = 0, i;
   for (i = 0; i < string.length; i += 1) {
     hash = string.charCodeAt(i) + ((hash << 5) - hash);
   }
@@ -37,8 +36,6 @@ function stringToColor(string) {
   }
   return color;
 }
-
-// Function to generate initials
 function stringAvatar(name, family) {
   return {
     sx: {
@@ -58,7 +55,6 @@ export default function BestStudentsPage() {
   const [leaders, setLeaders] = useState([]);
   const theme = useTheme();
 
-  /* ---------- Load courses ---------- */
   useEffect(() => {
     fetch("/api/courses")
       .then((r) => r.json())
@@ -69,7 +65,6 @@ export default function BestStudentsPage() {
       });
   }, []);
 
-  /* ---------- Load leaderboard ---------- */
   useEffect(() => {
     if (!courseId) return;
     setLeaders([]);
@@ -90,11 +85,9 @@ export default function BestStudentsPage() {
       </Box>
     );
 
-  const topXP = leaders.length > 0 ? Math.max(...leaders.map(s => s.xp)) : 0;
-
   return (
     <Box maxWidth="md" mx="auto" mt={2} px={2}>
-      {/* Header with gradient */}
+      {/* Header */}
       <Box
         sx={{
           background: "linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)",
@@ -119,7 +112,7 @@ export default function BestStudentsPage() {
           </Typography>
         </Stack>
         <Typography variant="body1" mt={1} sx={{ opacity: 0.9 }}>
-          برترین‌های دوره را در جدول رده‌بندی مشاهده کنید
+          برترین‌های هر دوره را در جدول رده‌بندی مشاهده کنید
         </Typography>
       </Box>
 
@@ -134,7 +127,7 @@ export default function BestStudentsPage() {
           onChange={(e) => setCourseId(e.target.value)}
           sx={{
             bgcolor: "background.paper",
-            borderRadius: 2,
+            borderRadius: 3,
             "& .MuiOutlinedInput-notchedOutline": {
               borderWidth: 2,
               borderColor: theme.palette.divider,
@@ -153,7 +146,7 @@ export default function BestStudentsPage() {
       <Paper
         elevation={4}
         sx={{
-          borderRadius: 4,
+          borderRadius: 3,
           overflow: "hidden",
           border: `1px solid ${theme.palette.divider}`,
         }}
@@ -172,15 +165,12 @@ export default function BestStudentsPage() {
               <TableCell align="center" sx={{ fontWeight: 800, fontSize: 16 }}>
                 امتیاز
               </TableCell>
-              <TableCell sx={{ width: "35%", fontWeight: 800, fontSize: 16 }}>
-                پیشرفت
-              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {leaders.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={3} align="center" sx={{ py: 4 }}>
                   <Typography variant="body1" color="textSecondary">
                     هنوز هیچ امتیازی ثبت نشده است!
                   </Typography>
@@ -201,61 +191,25 @@ export default function BestStudentsPage() {
                 }}
               >
                 {/* Rank */}
-                <TableCell align="center" sx={{ position: "relative" }}>
-                  {idx === 0 && (
-                    <WhatshotIcon
-                      sx={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#FFD700",
-                        fontSize: 28,
-                      }}
-                    />
-                  )}
-                  {idx === 1 && (
-                    <MilitaryTechIcon
-                      sx={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#C0C0C0",
-                        fontSize: 28,
-                      }}
-                    />
-                  )}
-                  {idx === 2 && (
-                    <MilitaryTechIcon
-                      sx={{
-                        position: "absolute",
-                        left: 8,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "#CD7F32",
-                        fontSize: 28,
-                      }}
-                    />
-                  )}
+                <TableCell align="center" sx={{ position: "relative", width: 88 }}>
                   <Box
                     sx={{
                       display: "inline-flex",
-                      justifyContent: "center",
                       alignItems: "center",
-                      width: 32,
-                      height: 32,
+                      justifyContent: "center",
+                      width: 36,
+                      height: 36,
                       borderRadius: "50%",
+                      fontWeight: 700,
+                      fontSize: 16,
                       bgcolor:
                         idx === 0
                           ? "rgba(255, 215, 0, 0.2)"
                           : idx === 1
                           ? "rgba(192, 192, 192, 0.2)"
                           : idx === 2
-                          ? "rgba(205, 127, 50, 0.2)"
+                          ? "rgba(205, 127, 50, 0.17)"
                           : "transparent",
-                      fontWeight: 700,
-                      fontSize: idx < 3 ? 18 : 16,
                       color:
                         idx === 0
                           ? "#FFD700"
@@ -266,7 +220,15 @@ export default function BestStudentsPage() {
                           : "inherit",
                     }}
                   >
-                    {idx + 1}
+                    {idx === 0 ? (
+                      <WhatshotIcon sx={{ fontSize: 24, color: "#FFD700" }} />
+                    ) : idx === 1 ? (
+                      <MilitaryTechIcon sx={{ fontSize: 22, color: "#C0C0C0" }} />
+                    ) : idx === 2 ? (
+                      <MilitaryTechIcon sx={{ fontSize: 22, color: "#CD7F32" }} />
+                    ) : (
+                      idx + 1
+                    )}
                   </Box>
                 </TableCell>
 
@@ -292,35 +254,14 @@ export default function BestStudentsPage() {
                       borderRadius: 20,
                       fontWeight: 700,
                       color: theme.palette.primary.contrastText,
+                      minWidth: 86,
+                      justifyContent: "center",
+                      gap: 1,
                     }}
                   >
                     <EmojiEventsIcon sx={{ fontSize: 18, mr: 1 }} />
-                    {s.xp} XP
+                    <span>{s.xp} XP</span>
                   </Box>
-                </TableCell>
-
-                {/* Progress */}
-                <TableCell>
-                  <Stack direction="row" alignItems="center" spacing={2}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={topXP ? (s.xp / topXP) * 100 : 0}
-                      sx={{
-                        height: 10,
-                        borderRadius: 5,
-                        flexGrow: 1,
-                        bgcolor:
-                          theme.palette.mode === "dark" ? "#333" : "#e0e0e0",
-                        "& .MuiLinearProgress-bar": {
-                          borderRadius: 5,
-                          background: "linear-gradient(90deg, #6a11cb 0%, #2575fc 100%)",
-                        },
-                      }}
-                    />
-                    <Typography variant="body2" color="textSecondary">
-                      {topXP ? Math.round((s.xp / topXP) * 100) : 0}%
-                    </Typography>
-                  </Stack>
                 </TableCell>
               </TableRow>
             ))}

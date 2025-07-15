@@ -177,7 +177,7 @@ export default function RoadmapPage() {
                   fontWeight="bold"
                   color={colors.primary}
                 >
-                  {progress}%
+                  {progress.toLocaleString("fa-IR")}%
                 </Typography>
               </Box>
             )}
