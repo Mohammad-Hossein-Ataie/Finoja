@@ -16,6 +16,43 @@ function getUnitColor(index) {
 }
 const positions = ["flex-start", "center", "flex-end", "center"];
 
+// کامپوننت جداکننده واحدها
+function UnitSeparator({ unitTitle, color }) {
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        my: 2
+      }}
+    >
+      <Typography 
+        variant="body1" 
+        fontWeight="bold" 
+        sx={{ 
+          color: color, 
+          mb: 1,
+          px: 2,
+          borderRadius: 2,
+          zIndex: 10
+        }}
+      >
+        {unitTitle}
+      </Typography>
+      <Box 
+        sx={{ 
+          width: '100%', 
+          height: 2, 
+          background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+          my: 1
+        }} 
+      />
+    </Box>
+  );
+}
+
 export default function CourseRoadmapPage() {
   const params = useParams();
   const courseId = params.id;
@@ -23,7 +60,6 @@ export default function CourseRoadmapPage() {
   const [course, setCourse] = useState(null);
   const [learning, setLearning] = useState({});
   const [loading, setLoading] = useState(true);
-
   const [activeStepIdx, setActiveStepIdx] = useState(0);
   const stepRefs = useRef([]);
 
@@ -50,23 +86,56 @@ export default function CourseRoadmapPage() {
     });
   }, [courseId]);
 
-  let steps = [];
-  if (course)
+  // محاسبه totalSteps و ساختار roadmapItems
+  let totalSteps = 0;
+  let roadmapItems = [];
+  
+  if (course) {
+    // محاسبه تعداد کل گام‌ها
+    totalSteps = course.sections.reduce((total, section) => 
+      total + section.units.reduce((unitTotal, unit) => 
+        unitTotal + unit.steps.length, 0), 0);
+
+    // ساختار roadmapItems با جداکننده‌های واحد
+    let globalStepIndex = 0;
+    const totalSections = course.sections.length;
+    
     course.sections.forEach((section, secIdx) => {
+      const totalUnitsInSection = section.units.length;
+      
       section.units.forEach((unit, unitIdx) => {
-        unit.steps.forEach((step, stepIdx) => {
-          steps.push({
+        // افزودن گام‌های واحد فعلی
+        unit.steps.forEach((step, stepIdxInUnit) => {
+          roadmapItems.push({
             ...step,
             secIdx,
             unitIdx,
-            stepIdx,
+            stepIdx: stepIdxInUnit,
             unitTitle: unit.title,
             sectionTitle: section.title,
             color: getUnitColor(unitIdx),
+            type: 'step',
+            globalStepIndex: globalStepIndex
           });
+          globalStepIndex++;
         });
+
+        // افزودن جداکننده بعد از هر واحد (به جز آخرین واحد)
+        const isLastUnit = (secIdx === totalSections - 1) && 
+                          (unitIdx === totalUnitsInSection - 1);
+        
+        if (!isLastUnit) {
+          roadmapItems.push({
+            type: 'unit-separator',
+            unitIdx,
+            unitTitle: unit.title,
+            color: getUnitColor(unitIdx),
+            key: `separator-${secIdx}-${unitIdx}`
+          });
+        }
       });
     });
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -86,11 +155,12 @@ export default function CourseRoadmapPage() {
     window.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [steps.length]);
+  }, [totalSteps]); // وابستگی به totalSteps
 
   const progress = learning.progress || 0;
-  const currentStep =
-    steps[Math.max(activeStepIdx, progress)] || steps[0] || {};
+  const currentStep = roadmapItems.find(item => 
+    item.type === 'step' && item.globalStepIndex === Math.max(activeStepIdx, progress)
+  ) || {};
   const headerColor = currentStep.color || UNIT_COLORS[0];
 
   if (loading)
@@ -142,80 +212,90 @@ export default function CourseRoadmapPage() {
         </Typography>
       </Box>
 
-      {/* رودمپ سینوسی */}
+      {/* رودمپ سینوسی با جداکننده‌های واحد */}
       <Box margin="auto" maxWidth="18rem" display="flex" flexDirection="column" gap={0.3} alignItems="stretch">
-        {steps.map((step, i) => {
-          const isDone = (learning.correct || []).includes(i);
-          const isLocked = i > progress;
-          const isActive = i === progress;
-          const alignSelf = positions[i % positions.length];
+        {roadmapItems.map((item, idx) => {
+          if (item.type === 'step') {
+            const isDone = (learning.correct || []).includes(item.globalStepIndex);
+            const isLocked = item.globalStepIndex > progress;
+            const isActive = item.globalStepIndex === progress;
+            const alignSelf = positions[item.globalStepIndex % positions.length];
 
-          return (
-            <Box
-              key={step._id || i}
-              display="flex"
-              flexDirection="column"
-              alignItems={alignSelf}
-              sx={{ width: "100%" }}
-              mb={0.1}
-              ref={el => (stepRefs.current[i] = el)}
-            >
-              <Button
-                onClick={() =>
-                  !isLocked && router.push(`/course/${course._id}/step/${i}`)
-                }
-                sx={{
-                  background: step.color,
-                  color: "#fff",
-                  // حالت سه بعدی با سایه‌های داخلی
-                  boxShadow: `
-                    inset 0 -4px 6px rgba(0,0,0,0.15),
-                    inset 0 4px 6px rgba(255,255,255,0.3),
-                    ${isActive ? `0 0 18px 6px ${step.color}88` : 
-                     isDone ? "0 0 13px 4px #66DE9370" : 
-                     isLocked ? `0 0 10px 3px ${step.color}66` : "none"}
-                  `,
-                  border: isActive
-                    ? `3px solid #fff`
-                    : isDone
-                    ? `3px solid #66DE93`
-                    : isLocked
-                    ? `3px solid ${step.color}99` // شفافیت بیشتر برای قفل‌ها
-                    : `3px solid ${step.color}`,
-                  borderRadius: "50%",
-                  width: 60,
-                  height: 60,
-                  minWidth: 60,
-                  fontWeight: 700,
-                  fontSize: 17,
-                  p: 0,
-                  mb: 0.1,
-                  transition: "all 0.2s",
-                  cursor: isLocked ? "not-allowed" : "pointer",
-                  opacity: isLocked ? 0.1 : 1,
-                  "&:hover": !isLocked && {
-                    transform: "scale(1.1)",
+            return (
+              <Box
+                key={`${item.secIdx}-${item.unitIdx}-${item.stepIdx}`}
+                display="flex"
+                flexDirection="column"
+                alignItems={alignSelf}
+                sx={{ width: "100%" }}
+                mb={0.1}
+                ref={el => (stepRefs.current[item.globalStepIndex] = el)}
+              >
+                <Button
+                  onClick={() =>
+                    !isLocked && router.push(`/course/${course._id}/step/${item.globalStepIndex}`)
+                  }
+                  sx={{
+                    background: item.color,
+                    color: "#fff",
                     boxShadow: `
                       inset 0 -4px 6px rgba(0,0,0,0.15),
                       inset 0 4px 6px rgba(255,255,255,0.3),
-                      0 0 22px ${step.color}B0
-                    `
-                  }
-                }}
-                disableElevation
-              >
-                {isDone ? (
-                  <CheckCircleIcon sx={{ fontSize: 31 }} />
-                ) : isLocked ? (
-                  <LockIcon sx={{ fontSize: 29, color: "#eee" }} />
-                ) : isActive ? (
-                  <PlayArrowIcon sx={{ fontSize: 30 }} />
-                ) : (
-                  <StarIcon sx={{ fontSize: 26 }} />
-                )}
-              </Button>
-            </Box>
-          );
+                      ${isActive ? `0 0 18px 6px ${item.color}88` : 
+                       isDone ? "0 0 13px 4px #66DE9370" : 
+                       isLocked ? `0 0 10px 3px ${item.color}66` : "none"}
+                    `,
+                    border: isActive
+                      ? `3px solid #fff`
+                      : isDone
+                      ? `3px solid #66DE93`
+                      : isLocked
+                      ? `3px solid ${item.color}99`
+                      : `3px solid ${item.color}`,
+                    borderRadius: "50%",
+                    width: 60,
+                    height: 60,
+                    minWidth: 60,
+                    fontWeight: 700,
+                    fontSize: 17,
+                    p: 0,
+                    mb: 0.1,
+                    transition: "all 0.2s",
+                    cursor: isLocked ? "not-allowed" : "pointer",
+                    opacity: isLocked ? 0.3 : 1,
+                    "&:hover": !isLocked && {
+                      transform: "scale(1.1)",
+                      boxShadow: `
+                        inset 0 -4px 6px rgba(0,0,0,0.15),
+                        inset 0 4px 6px rgba(255,255,255,0.3),
+                        0 0 22px ${item.color}B0
+                      `
+                    }
+                  }}
+                  disableElevation
+                >
+                  {isDone ? (
+                    <CheckCircleIcon sx={{ fontSize: 31 }} />
+                  ) : isLocked ? (
+                    <LockIcon sx={{ fontSize: 29, color: "#eee" }} />
+                  ) : isActive ? (
+                    <PlayArrowIcon sx={{ fontSize: 30 }} />
+                  ) : (
+                    <StarIcon sx={{ fontSize: 26 }} />
+                  )}
+                </Button>
+              </Box>
+            );
+          } else if (item.type === 'unit-separator') {
+            return (
+              <UnitSeparator 
+                key={item.key} 
+                unitTitle={item.unitTitle} 
+                color={item.color} 
+              />
+            );
+          }
+          return null;
         })}
       </Box>
 
