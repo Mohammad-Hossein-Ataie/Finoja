@@ -42,7 +42,7 @@ const features = [
       "یادگیری مالی با فینوجا یک تجربه متفاوت است! با مینی‌گیم‌های سرگرم‌کننده و تمرین‌های روزانه، مفاهیم پیچیده مالی را به ساده‌ترین شکل ممکن و بدون خستگی یاد می‌گیرید. هر درس طوری طراحی شده که علاوه بر جذابیت، تمرکز شما را حفظ کند و انگیزه ادامه مسیر را بالا ببرد. هر روز با چالش‌های جدید روبرو شوید، امتیاز بگیرید و پیشرفت واقعی خود را لمس کنید.",
     icon: <PlayCircleOutlineIcon sx={{ fontSize: 48, color: "#2477F3" }} />,
     color: "#D2E7FF",
-    img: "/images/learning.png",
+    img: "/images/learning.webp",
   },
   {
     title: "مدرک معتبر",
@@ -50,7 +50,7 @@ const features = [
       "بعد از اتمام دوره‌ها، علاوه بر یادگیری مهارت‌های کاربردی، یک مدرک رسمی از فینوجا دریافت می‌کنید که قابل ارائه در رزومه و مصاحبه‌های شغلی است. همچنین امکان دریافت توصیه‌نامه حرفه‌ای برای ورود به بازار کار وجود دارد. مدارک فینوجا اعتبارسنجی شده و می‌توانند در مسیر حرفه‌ای شما تأثیرگذار باشند. آینده شغلی خود را با یک مدرک ارزشمند تضمین کنید!",
     icon: <SchoolIcon sx={{ fontSize: 48, color: "#66DE93" }} />,
     color: "#E1F5E4",
-    img: "/images/certificate.png",
+    img: "/images/certificate.webp",
   },
   {
     title: "مسیر شغلی",
@@ -58,44 +58,44 @@ const features = [
       "در فینوجا، شما یک مسیر یادگیری شخصی‌سازی‌شده بر اساس هدف و سطح فعلی خود دریافت می‌کنید. از تعیین سطح اولیه تا پیشنهاد دوره‌های مناسب و پروژه‌های عملی، همه چیز به گونه‌ای طراحی شده تا دقیقا مطابق نیازها و رویاهای شغلی شما باشد. با ما، نه تنها مفاهیم مالی را یاد می‌گیرید، بلکه برای بازار کار آماده می‌شوید و قدم به قدم تا موفقیت همراهتان هستیم.",
     icon: <TrendingUpIcon sx={{ fontSize: 48, color: "#FF6B6B" }} />,
     color: "#FFEBEE",
-    img: "/images/work.png",
+    img: "/images/work.webp",
   },
 ];
 const testimonials = [
   {
     name: "محمد رضایی",
     job: "دانشجوی مدیریت مالی",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
   },
   {
     name: "سارا احمدی",
     job: "کارمند حسابداری",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
   },
   {
     name: "رضا اکبری",
     job: "کارآفرین",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
   },
   {
     name: "محمد رضایی",
     job: "دانشجوی مدیریت مالی",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
   },
   {
     name: "سارا احمدی",
     job: "کارمند حسابداری",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
   },
   {
     name: "رضا اکبری",
     job: "کارآفرین",
-    avatar: "/images/avatar.png",
+    avatar: "/images/avatar.webp",
     text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
   },
 ];
@@ -126,22 +126,22 @@ const webAppBenefits = [
   {
     title: "بدون نیاز به نصب",
     description: `فینوجا کاملاً تحت وب است و نیاز به دانلود یا نصب هیچ برنامه‌ای ندارد. فقط کافی است وارد سایت شوید و از هر دستگاهی—موبایل، تبلت یا کامپیوتر—به امکانات دسترسی پیدا کنید. دیگر دغدغه پر شدن حافظه یا دردسرهای نصب و بروزرسانی را نخواهید داشت. همیشه و همه‌جا، تجربه‌ای روان و بی‌دغدغه از یادگیری و استفاده خواهید داشت.`,
-    img: "/images/installation.png",
+    img: "/images/installation.webp",
   },
   {
     title: "همیشه به‌روز",
     description: `وب‌اپلیکیشن فینوجا به‌صورت خودکار بروزرسانی می‌شود و همیشه آخرین نسخه و جدیدترین قابلیت‌ها در دسترس شماست. هیچ وقت نیاز به بروزرسانی دستی یا دانلود نسخه جدید ندارید. به محض ورود، همه امکانات و ویژگی‌های تازه را تجربه خواهید کرد. این یعنی همیشه یک قدم جلوتر و همراه با تکنولوژی روز دنیا خواهید بود.`,
-    img: "/images/update.png",
+    img: "/images/update.webp",
   },
   {
     title: "دسترسی سریع",
     description: `در هر لحظه و هر مکان فقط با داشتن اینترنت و مرورگر، می‌توانید وارد فینوجا شوید. هیچ وابستگی به سیستم‌عامل، نسخه گوشی یا کامپیوتر ندارید و محدودیت‌های سنتی اپلیکیشن‌ها برای شما معنایی ندارد. کافی است آدرس سایت را داشته باشید تا به سادگی و با سرعت بالا از امکانات فینوجا بهره‌مند شوید.`,
-    img: "/images/reachable.png",
+    img: "/images/reachable.webp",
   },
   {
     title: "امنیت بالا",
     description: `اطلاعات شخصی و داده‌های شما در فینوجا با بالاترین استانداردهای امنیتی ذخیره و محافظت می‌شود. ما از جدیدترین پروتکل‌ها و سرورهای امن استفاده می‌کنیم تا امنیت حساب کاربری و حریم خصوصی شما تضمین شود. با خیال راحت به یادگیری و استفاده بپردازید و نگرانی بابت لو رفتن یا از بین رفتن اطلاعات نداشته باشید.`,
-    img: "/images/security.png",
+    img: "/images/security.webp",
   },
 ];
 
@@ -215,7 +215,7 @@ export default function LandingPage() {
     "@type": "Organization",
     name: "فینوجا",
     url: "https://finoja.ir",
-    logo: "https://finoja.ir/images/logo.png",
+    logo: "https://finoja.ir/images/logo.webp",
     sameAs: [
       "https://instagram.com/finoja",
       "https://t.me/finoja",
@@ -248,7 +248,7 @@ export default function LandingPage() {
         content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
       />
       <meta property="og:url" content="https://finoja.ir" />
-      <meta property="og:image" content="https://finoja.ir/og.png" />
+      <meta property="og:image" content="https://finoja.ir/og.webp" />
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta
@@ -259,7 +259,7 @@ export default function LandingPage() {
         name="twitter:description"
         content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
       />
-      <meta name="twitter:image" content="https://finoja.ir/og.png" />
+      <meta name="twitter:image" content="https://finoja.ir/og.webp" />
       {/* Structured data */}
       <script
         type="application/ld+json"
@@ -320,7 +320,7 @@ export default function LandingPage() {
             >
               <Box
                 component="img"
-                src="/images/logo.png"
+                src="/images/logo.webp"
                 alt="لوگو فینوجا"
                 loading="eager"
                 sx={{ height: { xs: 80, sm: 88 }, width: "auto" }}
@@ -519,7 +519,7 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
             >
               <Box
                 component="img"
-                src="/images/banner.png"
+                src="/images/banner.webp"
                 alt="بنر فینوجا"
                 loading="eager"
                 sx={{

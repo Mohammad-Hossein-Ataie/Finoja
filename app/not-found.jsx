@@ -19,10 +19,10 @@ export default function NotFound() {
         py: 6,
       }}
     >
-      {/* عکس 404، فرض بر این که آدرسش public/images/404.png است */}
+      {/* عکس 404، فرض بر این که آدرسش public/images/404.webp است */}
       <Box sx={{ maxWidth: 400, mb: 3 }}>
         <Image
-          src="/images/404.png"
+          src="/images/404.webp"
           alt="404 - صفحه پیدا نشد"
           width={400}
           height={320}
