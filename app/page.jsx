@@ -214,12 +214,12 @@ export default function LandingPage() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "فینوجا",
-    url: "https://finooja.ir",
-    logo: "https://finooja.ir/images/logo.png",
+    url: "https://finoja.ir",
+    logo: "https://finoja.ir/images/logo.png",
     sameAs: [
-      "https://instagram.com/finooja",
-      "https://t.me/finooja",
-      "https://linkedin.com/company/finooja",
+      "https://instagram.com/finoja",
+      "https://t.me/finoja",
+      "https://linkedin.com/company/finoja",
     ],
   };
 
@@ -236,7 +236,7 @@ export default function LandingPage() {
         content="فینوجا, یادگیری مالی, دوره مالی آنلاین, آموزش مالی, مدرک مالی, بازی‌وارسازی یادگیری"
       />
       <meta name="robots" content="index,follow" />
-      <link rel="canonical" href="https://finooja.ir" />
+      <link rel="canonical" href="https://finoja.ir" />
       {/* Open Graph */}
       <meta property="og:type" content="website" />
       <meta
@@ -247,8 +247,8 @@ export default function LandingPage() {
         property="og:description"
         content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
       />
-      <meta property="og:url" content="https://finooja.ir" />
-      <meta property="og:image" content="https://finooja.ir/og.png" />
+      <meta property="og:url" content="https://finoja.ir" />
+      <meta property="og:image" content="https://finoja.ir/og.png" />
       {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta
@@ -259,7 +259,7 @@ export default function LandingPage() {
         name="twitter:description"
         content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک معتبر دریافت کنید."
       />
-      <meta name="twitter:image" content="https://finooja.ir/og.png" />
+      <meta name="twitter:image" content="https://finoja.ir/og.png" />
       {/* Structured data */}
       <script
         type="application/ld+json"
