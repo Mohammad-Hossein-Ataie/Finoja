@@ -4,7 +4,7 @@ import ThemeRegistry from './ThemeRegistry';
 
 export const metadata = {
   title: 'فینوجا | یادگیری مالی به سبک دولینگو',
-  description: 'آموزش مالی، مدرک، توصیه‌نامه. یادگیری تعاملی و حرفه‌ای.',
+  description: 'فینوجا یک وب‌اپلیکیشن تعاملی آموزش مالی است که با بازی‌وارسازی، یادگیری اصول مالی، مدیریت هزینه و سرمایه‌گذاری را برای همه آسان و جذاب می‌کند. همین حالا شروع کنید، مدرک معتبر بگیرید و آماده ورود به بازار کار شوید!',
   icons: {
     icon: '/favicon/android-chrome-192x192.png',
   },
@@ -24,6 +24,11 @@ export default function RootLayout({ children }) {
         <link rel="icon" type="image/png" sizes="16x16" href="/favicon/favicon-16x16.png" />
         <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
         <link rel="manifest" href="/favicon/site.webmanifest" />
+        {/* SEO Meta */}
+        <meta
+          name="description"
+          content="فینوجا یک وب‌اپلیکیشن تعاملی آموزش مالی است که با بازی‌وارسازی، یادگیری اصول مالی، مدیریت هزینه و سرمایه‌گذاری را برای همه آسان و جذاب می‌کند. همین حالا شروع کنید، مدرک معتبر بگیرید و آماده ورود به بازار کار شوید!"
+        />
       </head>
       <body>
         <ThemeRegistry>
