@@ -68,7 +68,7 @@ export default function CoursesPanel() {
   if (loading || !user) return null;
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto", mt: { xs: 2, md: 4 }, px: 1 }}>
+    <Box sx={{ maxWidth: 1200, mx: "auto", mt: { xs: 2, md: 4 }, px: 1 }}>
       <Typography variant="h4" mb={3} fontWeight={900} sx={{ textAlign: "center", letterSpacing: 2 }}>
         دوره‌های من
       </Typography>
@@ -105,6 +105,7 @@ export default function CoursesPanel() {
             boxShadow: 1,
             borderRadius: 4,
             minHeight: 240,
+            width:"100%"
           }}
         >
           <SchoolIcon color="primary" sx={{ fontSize: 60, mb: 2 }} />
