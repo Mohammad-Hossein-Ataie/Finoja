@@ -51,14 +51,14 @@ const modalBoxStyle = {
 
 // کارت صفحه کامل
 const pageWrapStyle = {
-  minHeight: "100vh",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+  minHeight: "100svh",
+  display: "grid",
+  placeItems: "center",
   background:
     "linear-gradient(135deg, rgba(210,231,255,0.35) 0%, rgba(255,255,255,0.7) 100%)",
   padding: "24px 16px",
 };
+
 const pageCardStyle = {
   width: "100%",
   maxWidth: 480,
@@ -66,6 +66,7 @@ const pageCardStyle = {
   borderRadius: 3,
   p: 4,
   border: "2px solid #D2E7FF",
+  marginInline: "auto",
 };
 
 export default function AuthStepperModal({
