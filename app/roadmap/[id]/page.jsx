@@ -1,3 +1,4 @@
+// app/roadmap/[id]/page.jsx
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
@@ -7,56 +8,78 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StarIcon from "@mui/icons-material/Star";
 
-const UNIT_COLORS = [
-  "#2477F3", "#66DE93", "#FDA949", "#AC7FF4",
-  "#F35C4A", "#5DC6EE", "#F9C846"
-];
-function getUnitColor(index) {
-  return UNIT_COLORS[index % UNIT_COLORS.length];
-}
-const positions = ["flex-start", "center", "flex-end", "center"];
+// آیکن‌های نوع گام
+import HelpCenterOutlinedIcon from "@mui/icons-material/HelpCenterOutlined"; // explanation
+import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined"; // multiple-choice
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; // multi-answer
+import ShortTextOutlinedIcon from "@mui/icons-material/ShortTextOutlined"; // fill-in-the-blank
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined"; // matching
 
-// کامپوننت جداکننده واحدها
+const UNIT_COLORS = [
+  "#2477F3",
+  "#66DE93",
+  "#FDA949",
+  "#AC7FF4",
+  "#F35C4A",
+  "#5DC6EE",
+  "#F9C846",
+];
+const positions = ["flex-start", "center", "flex-end", "center"];
+const getUnitColor = (i) => UNIT_COLORS[i % UNIT_COLORS.length];
+
+// آیکن متناسب با نوع گام
+const typeIcon = (stepType, sx = {}) => {
+  switch (stepType) {
+    case "explanation":
+      return <HelpCenterOutlinedIcon sx={sx} />;
+    case "multiple-choice":
+      return <QuizOutlinedIcon sx={sx} />;
+    case "multi-answer":
+      return <FactCheckOutlinedIcon sx={sx} />;
+    case "fill-in-the-blank":
+      return <ShortTextOutlinedIcon sx={sx} />;
+    case "matching":
+      return <LinkOutlinedIcon sx={sx} />;
+    default:
+      return <StarIcon sx={sx} />;
+  }
+};
+
+// جداکننده واحدها
 function UnitSeparator({ unitTitle, color }) {
   return (
     <Box
       sx={{
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        my: 2
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        my: 2,
       }}
     >
-      <Typography 
-        variant="body1" 
-        fontWeight="bold" 
-        sx={{ 
-          color: color, 
-          mb: 1,
-          px: 2,
-          borderRadius: 2,
-          zIndex: 10
-        }}
+      <Typography
+        variant="body1"
+        fontWeight="bold"
+        sx={{ color, mb: 1, px: 2, borderRadius: 2, zIndex: 10 }}
       >
         {unitTitle}
       </Typography>
-      <Box 
-        sx={{ 
-          width: '100%', 
-          height: 2, 
+      <Box
+        sx={{
+          width: "100%",
+          height: 2,
           background: `linear-gradient(to right, transparent, ${color}, transparent)`,
-          my: 1
-        }} 
+          my: 1,
+        }}
       />
     </Box>
   );
 }
 
 export default function CourseRoadmapPage() {
-  const params = useParams();
-  const courseId = params.id;
+  const { id: courseId } = useParams();
   const router = useRouter();
+
   const [course, setCourse] = useState(null);
   const [learning, setLearning] = useState({});
   const [loading, setLoading] = useState(true);
@@ -84,57 +107,50 @@ export default function CourseRoadmapPage() {
       setLearning(l);
       setLoading(false);
     });
-  }, [courseId]);
+  }, [courseId, router]);
 
-  // محاسبه totalSteps و ساختار roadmapItems
+  // ساخت آیتم‌ها
   let totalSteps = 0;
   let roadmapItems = [];
-  
   if (course) {
-    // محاسبه تعداد کل گام‌ها
-    totalSteps = course.sections.reduce((total, section) => 
-      total + section.units.reduce((unitTotal, unit) => 
-        unitTotal + unit.steps.length, 0), 0);
-
-    // ساختار roadmapItems با جداکننده‌های واحد
-    let globalStepIndex = 0;
+    let g = 0;
     const totalSections = course.sections.length;
-    
+
     course.sections.forEach((section, secIdx) => {
       const totalUnitsInSection = section.units.length;
-      
+
       section.units.forEach((unit, unitIdx) => {
-        // افزودن گام‌های واحد فعلی
-        unit.steps.forEach((step, stepIdxInUnit) => {
+        unit.steps.forEach((st, stepIdxInUnit) => {
           roadmapItems.push({
-            ...step,
+            ...st,
+            stepType: st.type, // نوع واقعی گام را نگه می‌داریم
+            kind: "step", // نوع آیتم
             secIdx,
             unitIdx,
             stepIdx: stepIdxInUnit,
             unitTitle: unit.title,
             sectionTitle: section.title,
             color: getUnitColor(unitIdx),
-            type: 'step',
-            globalStepIndex: globalStepIndex
+            globalStepIndex: g,
           });
-          globalStepIndex++;
+          g++;
         });
 
-        // افزودن جداکننده بعد از هر واحد (به جز آخرین واحد)
-        const isLastUnit = (secIdx === totalSections - 1) && 
-                          (unitIdx === totalUnitsInSection - 1);
-        
+        const isLastUnit =
+          secIdx === totalSections - 1 && unitIdx === totalUnitsInSection - 1;
         if (!isLastUnit) {
           roadmapItems.push({
-            type: 'unit-separator',
+            kind: "unit-separator",
             unitIdx,
             unitTitle: unit.title,
             color: getUnitColor(unitIdx),
-            key: `separator-${secIdx}-${unitIdx}`
+            key: `separator-${secIdx}-${unitIdx}`,
           });
         }
       });
     });
+
+    totalSteps = g;
   }
 
   useEffect(() => {
@@ -155,17 +171,25 @@ export default function CourseRoadmapPage() {
     window.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [totalSteps]); // وابستگی به totalSteps
+  }, [totalSteps]);
 
   const progress = learning.progress || 0;
-  const currentStep = roadmapItems.find(item => 
-    item.type === 'step' && item.globalStepIndex === Math.max(activeStepIdx, progress)
-  ) || {};
+  const currentStep =
+    roadmapItems.find(
+      (it) =>
+        it.kind === "step" &&
+        it.globalStepIndex === Math.max(activeStepIdx, progress)
+    ) || {};
   const headerColor = currentStep.color || UNIT_COLORS[0];
 
   if (loading)
     return (
-      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
+      <Box
+        minHeight="50vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
         <CircularProgress />
       </Box>
     );
@@ -173,7 +197,7 @@ export default function CourseRoadmapPage() {
 
   return (
     <Box maxWidth="40rem" mx="auto" mt={6} px={2} sx={{ minHeight: "100vh" }}>
-      {/* استیکی باکس بزرگ و رنگی */}
+      {/* هدر چسبان */}
       <Box
         position="sticky"
         top={12}
@@ -191,15 +215,10 @@ export default function CourseRoadmapPage() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          transition: "background-color 0.3s"
+          transition: "background-color 0.3s",
         }}
       >
-        <Typography
-          variant="h5"
-          fontWeight="bold"
-          textAlign="center"
-          sx={{ letterSpacing: "1px" }}
-        >
+        <Typography variant="h5" fontWeight="bold" textAlign="center">
           {currentStep.sectionTitle || ""}
         </Typography>
         <Typography
@@ -212,14 +231,33 @@ export default function CourseRoadmapPage() {
         </Typography>
       </Box>
 
-      {/* رودمپ سینوسی با جداکننده‌های واحد */}
-      <Box margin="auto" maxWidth="18rem" display="flex" flexDirection="column" gap={0.3} alignItems="stretch">
+      {/* مسیر سینوسی */}
+      <Box
+        margin="auto"
+        maxWidth="18rem"
+        display="flex"
+        flexDirection="column"
+        gap={0.3}
+        alignItems="stretch"
+      >
         {roadmapItems.map((item, idx) => {
-          if (item.type === 'step') {
-            const isDone = (learning.correct || []).includes(item.globalStepIndex);
+          if (item.kind === "step") {
+            const isDone = (learning.correct || []).includes(
+              item.globalStepIndex
+            );
             const isLocked = item.globalStepIndex > progress;
             const isActive = item.globalStepIndex === progress;
-            const alignSelf = positions[item.globalStepIndex % positions.length];
+            const alignSelf =
+              positions[item.globalStepIndex % positions.length];
+
+            // آیکن قابل نمایش داخل دایره
+            const iconEl = isDone ? (
+              <CheckCircleIcon sx={{ fontSize: 31 }} />
+            ) : isActive ? (
+              <PlayArrowIcon sx={{ fontSize: 30 }} />
+            ) : (
+              typeIcon(item.stepType, { fontSize: 26 })
+            ); // <-- حتی وقتی قفل است
 
             return (
               <Box
@@ -229,11 +267,14 @@ export default function CourseRoadmapPage() {
                 alignItems={alignSelf}
                 sx={{ width: "100%" }}
                 mb={0.1}
-                ref={el => (stepRefs.current[item.globalStepIndex] = el)}
+                ref={(el) => (stepRefs.current[item.globalStepIndex] = el)}
               >
                 <Button
                   onClick={() =>
-                    !isLocked && router.push(`/course/${course._id}/step/${item.globalStepIndex}`)
+                    !isLocked &&
+                    router.push(
+                      `/course/${course._id}/step/${item.globalStepIndex}`
+                    )
                   }
                   sx={{
                     background: item.color,
@@ -241,9 +282,15 @@ export default function CourseRoadmapPage() {
                     boxShadow: `
                       inset 0 -4px 6px rgba(0,0,0,0.15),
                       inset 0 4px 6px rgba(255,255,255,0.3),
-                      ${isActive ? `0 0 18px 6px ${item.color}88` : 
-                       isDone ? "0 0 13px 4px #66DE9370" : 
-                       isLocked ? `0 0 10px 3px ${item.color}66` : "none"}
+                      ${
+                        isActive
+                          ? `0 0 18px 6px ${item.color}88`
+                          : isDone
+                          ? "0 0 13px 4px #66DE9370"
+                          : isLocked
+                          ? `0 0 10px 3px ${item.color}66`
+                          : "none"
+                      }
                     `,
                     border: isActive
                       ? `3px solid #fff`
@@ -262,36 +309,26 @@ export default function CourseRoadmapPage() {
                     mb: 0.1,
                     transition: "all 0.2s",
                     cursor: isLocked ? "not-allowed" : "pointer",
-                    opacity: isLocked ? 0.3 : 1,
+                    opacity: isLocked ? 0.35 : 1, // قفل فقط با دیسِیبل/شفافیت مشخص می‌شود
                     "&:hover": !isLocked && {
                       transform: "scale(1.1)",
-                      boxShadow: `
-                        inset 0 -4px 6px rgba(0,0,0,0.15),
-                        inset 0 4px 6px rgba(255,255,255,0.3),
-                        0 0 22px ${item.color}B0
-                      `
-                    }
+                      boxShadow: `0 0 22px ${item.color}B0`,
+                    },
                   }}
                   disableElevation
                 >
-                  {isDone ? (
-                    <CheckCircleIcon sx={{ fontSize: 31 }} />
-                  ) : isLocked ? (
-                    <LockIcon sx={{ fontSize: 29, color: "#eee" }} />
-                  ) : isActive ? (
-                    <PlayArrowIcon sx={{ fontSize: 30 }} />
-                  ) : (
-                    <StarIcon sx={{ fontSize: 26 }} />
-                  )}
+                  {iconEl}
                 </Button>
               </Box>
             );
-          } else if (item.type === 'unit-separator') {
+          }
+
+          if (item.kind === "unit-separator") {
             return (
-              <UnitSeparator 
-                key={item.key} 
-                unitTitle={item.unitTitle} 
-                color={item.color} 
+              <UnitSeparator
+                key={item.key}
+                unitTitle={item.unitTitle}
+                color={item.color}
               />
             );
           }
@@ -299,7 +336,7 @@ export default function CourseRoadmapPage() {
         })}
       </Box>
 
-      {/* دکمه برگشت */}
+      {/* بازگشت */}
       <Box display="flex" justifyContent="center" mt={7} mb={8}>
         <Button
           size="large"
@@ -318,8 +355,8 @@ export default function CourseRoadmapPage() {
             "&:hover": {
               background: "#222",
               color: headerColor,
-              boxShadow: `0 0 30px 4px ${headerColor}80`
-            }
+              boxShadow: `0 0 30px 4px ${headerColor}80`,
+            },
           }}
           onClick={() => router.push("/roadmap")}
         >
