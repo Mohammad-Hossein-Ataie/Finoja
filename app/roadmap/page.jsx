@@ -110,9 +110,11 @@ export default function RoadmapPage() {
   const CourseCard = ({ course }) => {
     const learn = learningMap[course._id] || {};
     const total = getTotalSteps(course);
-    const progress = total ? Math.floor(((learn.progress || 0) / total) * 100) : 0;
+    const progress = total
+      ? Math.floor(((learn.progress || 0) / total) * 100)
+      : 0;
     const isDone = !!learn.finished;
-    const isInProgress = !isDone && !!learn.progress;
+    const isInProgress = !!learn && !isDone;
 
     return (
       <Paper
@@ -135,8 +137,13 @@ export default function RoadmapPage() {
             alignItems="center"
             justifyContent="center"
             sx={{
-              bgcolor: `${isDone ? colors.accent : isInProgress ? colors.primary : colors.text
-                }22`,
+              bgcolor: `${
+                isDone
+                  ? colors.accent
+                  : isInProgress
+                  ? colors.primary
+                  : colors.text
+              }22`,
             }}
           >
             {isDone ? (
@@ -222,7 +229,12 @@ export default function RoadmapPage() {
   /* ---------- Loading ---------- */
   if (loading) {
     return (
-      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
+      <Box
+        minHeight="50vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
         <CircularProgress />
       </Box>
     );
@@ -230,10 +242,11 @@ export default function RoadmapPage() {
 
   /* ---------- تقسیم‌بندی دوره‌ها ---------- */
   const doneCourses = courses.filter((c) => learningMap[c._id]?.finished);
-  const working = courses.filter(
-    (c) => learningMap[c._id]?.progress && !learningMap[c._id]?.finished
-  );
-  const fresh = courses.filter((c) => !learningMap[c._id]);
+  const working = courses.filter((c) => {
+    const l = learningMap[c._id];
+    return l && !l.finished; // وجود رکورد کافی‌ست
+  });
+  const fresh = courses.filter((c) => !learningMap[c._id]); // فقط بدون رکورد
 
   /* ---------- UI ---------- */
   return (
@@ -245,12 +258,25 @@ export default function RoadmapPage() {
       }}
     >
       {/* تیتر اصلی */}
-      <Stack mb={3} sx={{justifyContent:"center", display:"flex", alignItems:"center", spacing:10, mt: 2 }}>
+      <Stack
+        mb={3}
+        sx={{
+          justifyContent: "center",
+          display: "flex",
+          alignItems: "center",
+          spacing: 10,
+          mt: 2,
+        }}
+      >
         <Typography variant="h4" fontWeight="bold" color={colors.text}>
           نقشه یادگیری شما
         </Typography>
         {profile && (
-          <Typography variant="subtitle2" color={colors.text} sx={{ opacity: 0.8, mt:1 }}>
+          <Typography
+            variant="subtitle2"
+            color={colors.text}
+            sx={{ opacity: 0.8, mt: 1 }}
+          >
             سلام {profile.name} عزیز! بیا ادامه بدیم
           </Typography>
         )}
