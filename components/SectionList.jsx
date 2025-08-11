@@ -1,6 +1,9 @@
 'use client';
 import { useState } from 'react';
-import { Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import {
+  Box, Button, Card, CardContent, Stack, TextField, IconButton, Typography, Dialog,
+  DialogTitle, DialogContent, DialogActions, Tooltip, Snackbar, Alert
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
@@ -11,10 +14,11 @@ export default function SectionList({ course, refreshCourses }) {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '' });
   const [editing, setEditing] = useState(null);
-
-  // Dialog for delete
   const [deleteIndex, setDeleteIndex] = useState(null);
   const [deleteValue, setDeleteValue] = useState('');
+  const [toast, setToast] = useState({ open: false, msg: "", sev: "success" });
+
+  const notify = (msg, sev = "success") => setToast({ open: true, msg, sev });
 
   const addOrEditSection = async () => {
     let newSections;
@@ -29,18 +33,12 @@ export default function SectionList({ course, refreshCourses }) {
       headers: { 'Content-Type': 'application/json' },
     });
     setShowForm(false); setForm({ title: '' }); setEditing(null); refreshCourses();
-  };
-
-  // حذف فقط اگر هیچ یونیت ندارد
-  const handleDeleteSection = async (idx) => {
-    setDeleteIndex(idx);
-    setDeleteValue('');
+    notify(editing !== null ? "بخش ویرایش شد" : "بخش اضافه شد");
   };
 
   const confirmDeleteSection = async () => {
     const idx = deleteIndex;
-    setDeleteIndex(null);
-    setDeleteValue('');
+    setDeleteIndex(null); setDeleteValue('');
     const newSections = (course.sections || []).filter((_, i) => i !== idx);
     await fetch(`/api/courses/${course._id}`, {
       method: 'PUT',
@@ -48,9 +46,9 @@ export default function SectionList({ course, refreshCourses }) {
       headers: { 'Content-Type': 'application/json' },
     });
     refreshCourses();
+    notify("بخش حذف شد");
   };
 
-  // Drag and drop section reorder
   const onDragEnd = async (result) => {
     if (!result.destination) return;
     const { source, destination } = result;
@@ -64,26 +62,23 @@ export default function SectionList({ course, refreshCourses }) {
       headers: { 'Content-Type': 'application/json' },
     });
     refreshCourses();
+    notify("ترتیب بخش‌ها تغییر کرد");
   };
 
   return (
     <Box sx={{ mt: 2, pl: 3 }}>
-      <Button
-        variant="outlined"
-        size="small"
-        sx={{ mb: 1 }}
-        onClick={() => { setShowForm(true); setEditing(null); }}>
+      <Button variant="outlined" size="small" sx={{ mb: 1 }} onClick={() => { setShowForm(true); setEditing(null); }}>
         افزودن بخش
       </Button>
+
       {showForm &&
         <Box mb={2} mt={1} display="flex" alignItems="center" gap={1}>
-          <TextField label="عنوان بخش" size="small"
-            value={form.title}
-            onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+          <TextField label="عنوان بخش" size="small" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
           <Button size="small" onClick={addOrEditSection} variant="contained">ثبت</Button>
           <Button size="small" color="error" onClick={() => { setShowForm(false); setEditing(null); setForm({ title: '' }); }}>انصراف</Button>
         </Box>
       }
+
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="sections">
           {provided => (
@@ -91,14 +86,8 @@ export default function SectionList({ course, refreshCourses }) {
               {(course.sections || []).map((section, i) => (
                 <Draggable key={i} draggableId={`section-${i}`} index={i}>
                   {prov => (
-                    <Card
-                      ref={prov.innerRef}
-                      {...prov.draggableProps}
-                      sx={{
-                        mb: 1, pl: 2, background: "#fafbfc", transition: "box-shadow 0.15s",
-                        boxShadow: 1, borderRadius: 3, ':hover': { boxShadow: 4 }
-                      }}
-                    >
+                    <Card ref={prov.innerRef} {...prov.draggableProps}
+                      sx={{ mb: 1, pl: 2, background: "#fafbfc", transition: "box-shadow 0.15s", boxShadow: 1, borderRadius: 3, ':hover': { boxShadow: 4 } }}>
                       <CardContent sx={{ pb: 1 }}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <span {...prov.dragHandleProps}>
@@ -108,21 +97,19 @@ export default function SectionList({ course, refreshCourses }) {
                           <IconButton size="small" onClick={() => { setShowForm(true); setEditing(i); setForm({ title: section.title }); }}>
                             <EditIcon fontSize="small" />
                           </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteSection(i)}
-                            disabled={section.units && section.units.length > 0}
-                            title={section.units && section.units.length > 0 ? "ابتدا همه یونیت‌ها را حذف کنید" : "حذف بخش"}
-                          >
-                            <DeleteIcon fontSize="small" color={section.units && section.units.length > 0 ? undefined : "error"} />
-                          </IconButton>
+                          <Tooltip title={(section.units && section.units.length > 0) ? "ابتدا همه یونیت‌ها را حذف کنید" : "حذف بخش"}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                onClick={() => setDeleteIndex(i)}
+                                disabled={section.units && section.units.length > 0}
+                              >
+                                <DeleteIcon fontSize="small" color={(section.units && section.units.length > 0) ? undefined : "error"} />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         </Stack>
-                        <UnitList
-                          course={course}
-                          section={section}
-                          sectionIndex={i}
-                          refreshCourses={refreshCourses}
-                        />
+                        <UnitList course={course} section={section} sectionIndex={i} refreshCourses={refreshCourses} />
                       </CardContent>
                     </Card>
                   )}
@@ -133,19 +120,13 @@ export default function SectionList({ course, refreshCourses }) {
           )}
         </Droppable>
       </DragDropContext>
-      {/* دیالوگ تایید حذف */}
+
       <Dialog open={deleteIndex !== null} onClose={() => setDeleteIndex(null)}>
         <DialogTitle color="error.main">تایید حذف بخش</DialogTitle>
         <DialogContent>
           <Typography mb={2}>برای حذف این بخش، نام آن را دقیق وارد کنید:</Typography>
           <Typography mb={1} color="primary">{deleteIndex !== null ? course.sections[deleteIndex]?.title : ""}</Typography>
-          <TextField
-            value={deleteValue}
-            onChange={e => setDeleteValue(e.target.value)}
-            label="نام بخش"
-            autoFocus
-            fullWidth
-          />
+          <TextField value={deleteValue} onChange={e => setDeleteValue(e.target.value)} label="نام بخش" autoFocus fullWidth />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteIndex(null)}>انصراف</Button>
@@ -154,6 +135,12 @@ export default function SectionList({ course, refreshCourses }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar open={toast.open} autoHideDuration={2000} onClose={() => setToast(s => ({ ...s, open: false }))}>
+        <Alert severity={toast.sev} variant="filled" sx={{ width: "100%" }}>
+          {toast.msg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

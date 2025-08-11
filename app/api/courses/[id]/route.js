@@ -10,7 +10,7 @@ export async function GET(_req, context) {
 
   let payload = null;
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
     if (token) payload = await verifyJwt(token);
   } catch (e) {}
@@ -27,7 +27,7 @@ export async function PUT(req, context) {
   const { params } = await context;
   await dbConnect();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
@@ -55,7 +55,7 @@ export async function DELETE(_req, context) {
   const { params } = await context;
   await dbConnect();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 

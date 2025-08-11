@@ -8,7 +8,7 @@ export async function GET() {
   await dbConnect();
   let payload = null;
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
     if (token) payload = await verifyJwt(token);
   } catch (e) {}
@@ -31,7 +31,7 @@ export async function GET() {
 export async function POST(req) {
   await dbConnect();
 
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get("token")?.value;
   const payload = await verifyJwt(token);
 
