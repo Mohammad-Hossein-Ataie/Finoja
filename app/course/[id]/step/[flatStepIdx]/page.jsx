@@ -851,6 +851,7 @@ export default function StepPage() {
               onChange={(e) => setIssueReason(e.target.value)}
             >
               <MenuItem value="اشتباه محتوایی">اشتباه محتوایی</MenuItem>
+              <MenuItem value="پیشنهاد محتوایی">پیشنهاد محتوایی</MenuItem>
               <MenuItem value="ابهام در صورت سؤال">ابهام در صورت سؤال</MenuItem>
               <MenuItem value="پاسخ صحیح اشتباه">پاسخ صحیح اشتباه</MenuItem>
               <MenuItem value="مشکل فنی/نمایش">مشکل فنی/نمایش</MenuItem>

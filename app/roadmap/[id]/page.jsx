@@ -14,23 +14,50 @@ import {
   ListSubheader,
   ListItemButton,
   Divider,
+  Tooltip,
+  IconButton,
 } from "@mui/material";
 
-// آیکن‌های وضعیت و نوع گام
+// آیکن‌ها
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StarIcon from "@mui/icons-material/Star";
-import HelpCenterOutlinedIcon from "@mui/icons-material/HelpCenterOutlined";   // explanation
-import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";               // multiple-choice
-import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";     // multi-answer
-import ShortTextOutlinedIcon from "@mui/icons-material/ShortTextOutlined";     // fill-in-the-blank
-import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";               // matching
+import HelpCenterOutlinedIcon from "@mui/icons-material/HelpCenterOutlined"; // explanation
+import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined"; // multiple-choice
+import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined"; // multi-answer
+import ShortTextOutlinedIcon from "@mui/icons-material/ShortTextOutlined"; // fill-in-the-blank
+import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined"; // matching
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined"; // آیکن دفترچه/فهرست
 
-const UNIT_COLORS = ["#2477F3", "#66DE93", "#FDA949", "#AC7FF4", "#F35C4A", "#5DC6EE", "#F9C846"];
+const UNIT_COLORS = [
+  "#2477F3",
+  "#66DE93",
+  "#FDA949",
+  "#AC7FF4",
+  "#F35C4A",
+  "#5DC6EE",
+  "#F9C846",
+];
 const positions = ["flex-start", "center", "flex-end", "center"];
 const getUnitColor = (i) => UNIT_COLORS[i % UNIT_COLORS.length];
 
-// آیکن متناسب با نوع گام
+// اسم فارسی نوع گام + آیکن
+const typeFa = (t) => {
+  switch (t) {
+    case "explanation":
+      return "توضیح";
+    case "multiple-choice":
+      return "چهارجوابی";
+    case "multi-answer":
+      return "چندپاسخی";
+    case "fill-in-the-blank":
+      return "جای‌خالی";
+    case "matching":
+      return "تطبیق";
+    default:
+      return "گام";
+  }
+};
 const typeIcon = (t, sx) => {
   switch (t) {
     case "explanation":
@@ -48,11 +75,23 @@ const typeIcon = (t, sx) => {
   }
 };
 
-// جداکنندهٔ یونیت
+// جداکنندهٔ یونیت (عنوان در ابتدای یونیت)
 function UnitSeparator({ unitTitle, color }) {
   return (
-    <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", my: 2 }}>
-      <Typography variant="body1" fontWeight="bold" sx={{ color, mb: 1, px: 2, borderRadius: 2 }}>
+    <Box
+      sx={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        my: 2,
+      }}
+    >
+      <Typography
+        variant="body1"
+        fontWeight="bold"
+        sx={{ color, mb: 1, px: 2, borderRadius: 2 }}
+      >
         {unitTitle}
       </Typography>
       <Box
@@ -77,7 +116,6 @@ export default function CourseRoadmapPage() {
   const [activeStepIdx, setActiveStepIdx] = useState(0);
   const stepRefs = useRef([]);
   const unitAnchorIndex = useRef({}); // {'sec-unit': firstGlobalStepIndex}
-
   const [unitPickerOpen, setUnitPickerOpen] = useState(false);
 
   /* -------- Fetch course + learning -------- */
@@ -96,7 +134,8 @@ export default function CourseRoadmapPage() {
       }).then((r) => r.json()),
     ]).then(([c, lRes]) => {
       setCourse(c);
-      const l = (lRes.learning || []).find((lr) => lr.courseId === courseId) || {};
+      const l =
+        (lRes.learning || []).find((lr) => lr.courseId === courseId) || {};
       setLearning(l || {});
       setLoading(false);
     });
@@ -109,19 +148,25 @@ export default function CourseRoadmapPage() {
 
     if (!course) return { items, totalSteps: 0 };
 
-    const totalSections = course.sections.length;
-
     course.sections.forEach((section, secIdx) => {
-      const totalUnitsInSection = section.units.length;
-
       section.units.forEach((unit, unitIdx) => {
-        // اولین گام این یونیت (برای اسکرول در مدال انتخاب یونیت)
+        // جداکننده را «قبلِ» گام‌های یونیت اضافه می‌کنیم
+        items.push({
+          kind: "unit-separator",
+          key: `separator-${secIdx}-${unitIdx}`,
+          unitIdx,
+          unitTitle: unit.title,
+          color: getUnitColor(unitIdx),
+        });
+
+        // اولین گام این یونیت برای پرش سریع
         unitAnchorIndex.current[`${secIdx}-${unitIdx}`] = g;
 
         unit.steps.forEach((st, stepIdxInUnit) => {
           items.push({
             kind: "step",
             stepType: st.type,
+            stepTitle: st.title || "",
             secIdx,
             unitIdx,
             stepIdx: stepIdxInUnit,
@@ -132,17 +177,6 @@ export default function CourseRoadmapPage() {
           });
           g++;
         });
-
-        const isLastUnit = secIdx === totalSections - 1 && unitIdx === totalUnitsInSection - 1;
-        if (!isLastUnit) {
-          items.push({
-            kind: "unit-separator",
-            unitIdx,
-            unitTitle: unit.title,
-            color: getUnitColor(unitIdx),
-            key: `separator-${secIdx}-${unitIdx}`,
-          });
-        }
       });
     });
 
@@ -174,7 +208,9 @@ export default function CourseRoadmapPage() {
 
   const currentStep =
     roadmapItems.find(
-      (it) => it.kind === "step" && it.globalStepIndex === Math.max(activeStepIdx, progress)
+      (it) =>
+        it.kind === "step" &&
+        it.globalStepIndex === Math.max(activeStepIdx, progress)
     ) || {};
 
   const headerColor = currentStep.color || UNIT_COLORS[0];
@@ -184,8 +220,10 @@ export default function CourseRoadmapPage() {
     const firstIdx = unitAnchorIndex.current[`${secIdx}-${unitIdx}`];
     if (typeof firstIdx === "number" && stepRefs.current[firstIdx]) {
       setUnitPickerOpen(false);
-      stepRefs.current[firstIdx].scrollIntoView({ behavior: "smooth", block: "center" });
-      // بعد از اسکرول کمی هایلایت لطیف
+      stepRefs.current[firstIdx].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
       stepRefs.current[firstIdx].animate(
         [{ filter: "brightness(1.2)" }, { filter: "brightness(1)" }],
         { duration: 800, easing: "ease-out" }
@@ -196,7 +234,12 @@ export default function CourseRoadmapPage() {
   /* -------- UI -------- */
   if (loading) {
     return (
-      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
+      <Box
+        minHeight="50vh"
+        display="flex"
+        alignItems="center"
+        justifyContent="center"
+      >
         <CircularProgress />
       </Box>
     );
@@ -205,7 +248,7 @@ export default function CourseRoadmapPage() {
 
   return (
     <Box maxWidth="40rem" mx="auto" mt={6} px={2} sx={{ minHeight: "100vh" }}>
-      {/* هدر چسبان (کلیک = باز شدن مدال انتخاب یونیت/سکشن) */}
+      {/* هدر چسبان: کلیک = نمایش فهرست؛ آیکن دفترچه سمت راست برای راهنمایی کاربر */}
       <Box
         role="button"
         aria-label="نمایش سکشن‌ها و یونیت‌ها"
@@ -223,7 +266,6 @@ export default function CourseRoadmapPage() {
           mb: 6,
           minHeight: 94,
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
           alignItems: "center",
           justifyContent: "space-between",
           gap: 1.5,
@@ -231,16 +273,39 @@ export default function CourseRoadmapPage() {
           cursor: "pointer",
         }}
       >
+        {/* آیکن دفترچه (هم کلیک روی هدر عمل می‌کند، هم خود آیکن) */}
+        <Tooltip title="فهرست سکشن‌ها و یونیت‌ها">
+          <IconButton
+            onClick={(e) => {
+              e.stopPropagation();
+              setUnitPickerOpen(true);
+            }}
+            sx={{
+              color: "#fff",
+              bgcolor: "rgba(255,255,255,.18)",
+              "&:hover": { bgcolor: "rgba(255,255,255,.28)" },
+              mr: 1,
+            }}
+            aria-label="باز کردن فهرست یونیت‌ها"
+          >
+            <MenuBookOutlinedIcon />
+          </IconButton>
+        </Tooltip>
+        {/* عنوان‌ها: «یونیت» اول، بعد «سکشن» */}
         <Box sx={{ textAlign: "center", flex: 1 }}>
-          <Typography variant="h5" fontWeight="bold">
-            {currentStep.sectionTitle || ""}
-          </Typography>
-          <Typography variant="h6" fontWeight="bold" sx={{ mt: 0.5, opacity: 0.95 }}>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            sx={{ mt: 0.5, opacity: 0.95 }}
+          >
             {currentStep.unitTitle || ""}
+          </Typography>
+          <Typography variant="subtitle1" fontWeight="bold">
+            {currentStep.sectionTitle || ""}
           </Typography>
         </Box>
 
-        {/* دکمه بازگشت به لیست دوره‌ها – کلیک روی آن نباید مدال را باز کند */}
+        {/* بازگشت به لیست دوره‌ها (نباید مدال را باز کند) */}
         <Button
           size="small"
           variant="outlined"
@@ -252,7 +317,10 @@ export default function CourseRoadmapPage() {
             color: "#fff",
             borderColor: "#fff",
             px: 2.2,
-            "&:hover": { borderColor: "#fff", background: "rgba(255,255,255,.15)" },
+            "&:hover": {
+              borderColor: "#fff",
+              background: "rgba(255,255,255,.15)",
+            },
             display: "inline-flex",
             alignItems: "center",
             gap: 0.5,
@@ -264,72 +332,104 @@ export default function CourseRoadmapPage() {
       </Box>
 
       {/* مسیر سینوسی */}
-      <Box margin="auto" maxWidth="18rem" display="flex" flexDirection="column" gap={0.3} alignItems="stretch">
+      <Box
+        margin="auto"
+        maxWidth="18rem"
+        display="flex"
+        flexDirection="column"
+        gap={0.3}
+        alignItems="stretch"
+      >
         {roadmapItems.map((item) => {
-          if (item.kind === "step") {
-            const isDone = (learning.correct || []).includes(item.globalStepIndex);
-            const isLocked = item.globalStepIndex > progress;
-            const isActive = item.globalStepIndex === progress;
-            const alignSelf = positions[item.globalStepIndex % positions.length];
-
-            // آیکن داخل دایره: همیشه آیکن نوع گام، فقط استایل تغییر می‌کند
-            const innerIcon = isActive ? (
-              <PlayArrowIcon sx={{ fontSize: 30 }} />
-            ) : (
-              typeIcon(item.stepType, { fontSize: 26 })
-            );
-
+          if (item.kind === "unit-separator") {
             return (
-              <Box
-                key={`${item.secIdx}-${item.unitIdx}-${item.stepIdx}`}
-                display="flex"
-                flexDirection="column"
-                alignItems={alignSelf}
-                sx={{ width: "100%" }}
-                mb={0.1}
-                ref={(el) => (stepRefs.current[item.globalStepIndex] = el)}
-              >
-                <Button
-                  onClick={() =>
-                    !isLocked && router.push(`/course/${course._id}/step/${item.globalStepIndex}`)
-                  }
-                  sx={{
-                    background: item.color,
-                    color: "#fff",
-                    borderRadius: "50%",
-                    width: 60,
-                    height: 60,
-                    minWidth: 60,
-                    p: 0,
-                    mb: 0.1,
-                    transition: "transform .2s, box-shadow .2s, opacity .2s, border-color .2s",
-                    cursor: isLocked ? "not-allowed" : "pointer",
-                    opacity: isLocked ? 0.35 : 1,
-                    // حلقه‌ها / درخشش‌ها
-                    boxShadow: `
-                      inset 0 -4px 6px rgba(0,0,0,0.15),
-                      inset 0  4px 6px rgba(255,255,255,0.3),
-                      ${isActive ? `0 0 18px 6px ${item.color}88` : "none"}
-                    `,
-                    border: `3px solid ${
-                      isActive ? "#fff" : isDone ? "#66DE93" : isLocked ? `${item.color}99` : item.color
-                    }`,
-                    "&:hover": !isLocked && {
-                      transform: "scale(1.1)",
-                      boxShadow: `0 0 22px ${item.color}B0`,
-                    },
-                  }}
-                  disableElevation
-                >
-                  {innerIcon}
-                </Button>
-              </Box>
+              <UnitSeparator
+                key={item.key}
+                unitTitle={item.unitTitle}
+                color={item.color}
+              />
             );
           }
 
-          // جداکننده
+          // گام‌ها
+          const isDone = (learning.correct || []).includes(
+            item.globalStepIndex
+          );
+          const isLocked = item.globalStepIndex > progress;
+          const isActive = item.globalStepIndex === progress;
+          const alignSelf = positions[item.globalStepIndex % positions.length];
+
+          const innerIcon = isActive ? (
+            <PlayArrowIcon sx={{ fontSize: 30 }} />
+          ) : (
+            typeIcon(item.stepType, { fontSize: 26 })
+          );
+
+          const tooltipText = `${typeFa(item.stepType)}${
+            item.stepTitle ? " — " + item.stepTitle : ""
+          }`;
+
           return (
-            <UnitSeparator key={item.key} unitTitle={item.unitTitle} color={item.color} />
+            <Box
+              key={`${item.secIdx}-${item.unitIdx}-${item.stepIdx}`}
+              display="flex"
+              flexDirection="column"
+              alignItems={alignSelf}
+              sx={{ width: "100%" }}
+              mb={0.1}
+              ref={(el) => (stepRefs.current[item.globalStepIndex] = el)}
+            >
+              <Tooltip title={tooltipText}>
+                <span>
+                  {/* span برای اینکه Tooltip با دکمهٔ disabled هم کار کند */}
+                  <Button
+                    onClick={() =>
+                      !isLocked &&
+                      router.push(
+                        `/course/${course._id}/step/${item.globalStepIndex}`
+                      )
+                    }
+                    sx={{
+                      background: item.color,
+                      color: "#fff",
+                      borderRadius: "50%",
+                      width: 60,
+                      height: 60,
+                      minWidth: 60,
+                      p: 0,
+                      mb: 0.1,
+                      transition:
+                        "transform .2s, box-shadow .2s, opacity .2s, border-color .2s",
+                      cursor: isLocked ? "not-allowed" : "pointer",
+                      opacity: isLocked ? 0.35 : 1,
+                      boxShadow: `
+                        inset 0 -4px 6px rgba(0,0,0,0.15),
+                        inset 0  4px 6px rgba(255,255,255,0.3),
+                        ${isActive ? `0 0 18px 6px ${item.color}88` : "none"}
+                      `,
+                      border: `3px solid ${
+                        isActive
+                          ? "#fff"
+                          : isDone
+                          ? "#66DE93"
+                          : isLocked
+                          ? `${item.color}99`
+                          : item.color
+                      }`,
+                      "&:hover": !isLocked && {
+                        transform: "scale(1.1)",
+                        boxShadow: `0 0 22px ${item.color}B0`,
+                      },
+                    }}
+                    disableElevation
+                    disabled={isLocked}
+                    aria-label={tooltipText}
+                  >
+                    {innerIcon}
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
           );
         })}
       </Box>
@@ -341,14 +441,21 @@ export default function CourseRoadmapPage() {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>پرش سریع به یونیت</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
+          پرش سریع به یونیت
+        </DialogTitle>
         <DialogContent dividers>
           <List dense sx={{ width: "100%" }}>
             {course.sections.map((sec, sIdx) => (
               <Box key={sIdx}>
                 <ListSubheader
                   disableSticky
-                  sx={{ bgcolor: "transparent", color: "text.primary", fontWeight: 800, px: 0 }}
+                  sx={{
+                    bgcolor: "transparent",
+                    color: "text.primary",
+                    fontWeight: 800,
+                    px: 0,
+                  }}
                 >
                   {sec.title}
                 </ListSubheader>
@@ -361,7 +468,9 @@ export default function CourseRoadmapPage() {
                     {u.title}
                   </ListItemButton>
                 ))}
-                {sIdx !== course.sections.length - 1 && <Divider sx={{ my: 1 }} />}
+                {sIdx !== course.sections.length - 1 && (
+                  <Divider sx={{ my: 1 }} />
+                )}
               </Box>
             ))}
           </List>
