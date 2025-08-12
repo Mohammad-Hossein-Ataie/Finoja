@@ -25,7 +25,7 @@ import {
 } from "@mui/material";
 import BugReportOutlinedIcon from "@mui/icons-material/BugReportOutlined";
 
-/* ───────── helpers ───────── */
+/* ========== shuffle/choices ========== */
 const shuffle = (arr) => {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -34,7 +34,6 @@ const shuffle = (arr) => {
   }
   return a;
 };
-
 const makeShuffledOptions = (options = []) => {
   const idxs = options.map((_, i) => i);
   const shuffledIdxs = shuffle(idxs);
@@ -47,93 +46,241 @@ const makeShuffledOptions = (options = []) => {
   };
 };
 
-const parseMedia = (str = "") => {
-  const urls = Array.from(
-    new Set(
-      (str.match(/https?:\/\/[^\s"'<>]+/g) || []).map((u) =>
-        u.replace(/[),.;]+$/, "")
-      )
-    )
+/* ========== media helpers (inline) ========== */
+const URL_RE = /(https?:\/\/[^\s"'<>]+)/g;
+
+const isMediaUrl = (u = "") => {
+  const low = u.toLowerCase();
+  return (
+    low.includes("youtube.com/watch?v=") ||
+    low.includes("youtu.be/") ||
+    low.includes("aparat.com/v/") ||
+    /\.(mp3|wav|ogg|mp4|webm|ogv)(\?|#|$)/i.test(low)
   );
-  const items = [];
-  urls.forEach((u) => {
-    const low = u.toLowerCase();
-    if (low.includes("youtube.com/watch?v=") || low.includes("youtu.be/")) {
-      let id = "";
-      if (low.includes("watch?v=")) id = new URL(u).searchParams.get("v") || "";
-      else id = u.split("/").pop() || "";
-      if (id)
-        items.push({
-          type: "youtube",
-          src: `https://www.youtube.com/embed/${id}`,
-        });
-    } else if (low.includes("aparat.com/v/")) {
-      const id = u.split("/v/")[1]?.split(/[?&#]/)[0] || "";
-      if (id)
-        items.push({
-          type: "aparat",
-          src: `https://www.aparat.com/video/video/embed/videohash/${id}/vt/frame`,
-        });
-    } else if (/\.(mp3|wav|ogg)$/i.test(low)) {
-      items.push({ type: "audio", src: u });
-    } else if (/\.(mp4|webm|ogv)$/i.test(low)) {
-      items.push({ type: "video", src: u });
-    }
-  });
-  return items;
 };
 
-const MediaBlocks = ({ from = "" }) => {
-  const media = useMemo(() => parseMedia(from), [from]);
-  if (!media.length) return null;
+const MediaEl = ({ src }) => {
+  const low = (src || "").toLowerCase();
+  if (low.includes("youtube.com/watch?v=") || low.includes("youtu.be/")) {
+    let id = "";
+    try {
+      if (low.includes("watch?v="))
+        id = new URL(src).searchParams.get("v") || "";
+      else id = src.split("/").pop() || "";
+    } catch {}
+    return id ? (
+      <Box
+        sx={{
+          position: "relative",
+          pt: "56.25%",
+          borderRadius: 2,
+          overflow: "hidden",
+          my: 1.5,
+        }}
+      >
+        <iframe
+          src={`https://www.youtube.com/embed/${id}`}
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: 0,
+          }}
+          title="youtube"
+        />
+      </Box>
+    ) : null;
+  }
+  if (low.includes("aparat.com/v/")) {
+    const id = src.split("/v/")[1]?.split(/[?&#]/)[0] || "";
+    return id ? (
+      <Box
+        sx={{
+          position: "relative",
+          pt: "56.25%",
+          borderRadius: 2,
+          overflow: "hidden",
+          my: 1.5,
+        }}
+      >
+        <iframe
+          src={`https://www.aparat.com/video/video/embed/videohash/${id}/vt/frame`}
+          allowFullScreen
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: 0,
+          }}
+          title="aparat"
+        />
+      </Box>
+    ) : null;
+  }
+  if (/\.(mp3|wav|ogg)(\?|#|$)/i.test(low)) {
+    return (
+      <audio src={src} controls style={{ width: "100%", margin: "12px 0" }} />
+    );
+  }
+  if (/\.(mp4|webm|ogv)(\?|#|$)/i.test(low)) {
+    return (
+      <video
+        src={src}
+        controls
+        style={{ width: "100%", borderRadius: 8, margin: "12px 0" }}
+      />
+    );
+  }
+  return null;
+};
+
+/* متن ساده + مدیا inline */
+const InlineTextWithMedia = ({ text = "" }) => {
+  if (!text) return null;
+  const parts = text.split(URL_RE);
   return (
-    <Stack spacing={1.5} mt={2}>
-      {media.map((m, i) => {
-        if (m.type === "youtube" || m.type === "aparat") {
-          return (
-            <Box
-              key={i}
-              sx={{
-                position: "relative",
-                pt: "56.25%",
-                borderRadius: 2,
-                overflow: "hidden",
-              }}
-            >
-              <iframe
-                src={m.src}
-                allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  border: 0,
-                }}
-                title={`embed-${i}`}
-              />
-            </Box>
-          );
-        }
-        if (m.type === "audio")
-          return (
-            <audio key={i} src={m.src} controls style={{ width: "100%" }} />
-          );
-        return (
-          <video
+    <>
+      {parts.map((chunk, i) => {
+        // even indexes = متن، odd = url
+        if (i % 2 === 0) return chunk ? <span key={i}>{chunk}</span> : null;
+        const url = chunk.replace(/[),.;]+$/, "");
+        return isMediaUrl(url) ? (
+          <MediaEl key={i} src={url} />
+        ) : (
+          <a
             key={i}
-            src={m.src}
-            controls
-            style={{ width: "100%", borderRadius: 8 }}
-          />
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+          >
+            {url}
+          </a>
         );
       })}
-    </Stack>
+    </>
   );
 };
 
-/* ─────────────────────────────────────────────── */
+/* HTML + مدیا inline (جایگزینی a[href] و URL خام داخل متن‌ها) */
+const HtmlInlineMedia = ({ html = "" }) => {
+  const content = useMemo(() => {
+    if (!html) return null;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+    const root = doc.body.firstElementChild;
+
+    const walk = (node, key) => {
+      if (node.nodeType === 3) {
+        // text node → ممکنه URL خام داشته باشه
+        const text = node.nodeValue || "";
+        const parts = text.split(URL_RE);
+        return parts.map((chunk, i) => {
+          if (i % 2 === 0)
+            return chunk ? <span key={`${key}-t-${i}`}>{chunk}</span> : null;
+          const url = chunk.replace(/[),.;]+$/, "");
+          return isMediaUrl(url) ? (
+            <MediaEl key={`${key}-m-${i}`} src={url} />
+          ) : (
+            <a
+              key={`${key}-a-${i}`}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              style={{ wordBreak: "break-all" }}
+            >
+              {url}
+            </a>
+          );
+        });
+      }
+
+      if (node.nodeType !== 1) return null;
+      const tag = node.tagName.toLowerCase();
+
+      // a[href] که مدیا است → خود پلیر
+      if (tag === "a") {
+        const href = node.getAttribute("href") || "";
+        if (isMediaUrl(href)) return <MediaEl key={key} src={href} />;
+        const children = Array.from(node.childNodes).map((ch, i) =>
+          walk(ch, `${key}-${i}`)
+        );
+        return (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+          >
+            {children}
+          </a>
+        );
+      }
+
+      const children = Array.from(node.childNodes).map((ch, i) =>
+        walk(ch, `${key}-${i}`)
+      );
+
+      // فقط تگ‌های متداول رو نگه داریم
+      const allowed = new Set([
+        "p",
+        "strong",
+        "em",
+        "u",
+        "br",
+        "ul",
+        "ol",
+        "li",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "blockquote",
+        "pre",
+        "code",
+        "table",
+        "thead",
+        "tbody",
+        "tr",
+        "th",
+        "td",
+        "div",
+        "span",
+      ]);
+      const Tag = allowed.has(tag) ? tag : "span";
+      return <Tag key={key}>{children}</Tag>;
+    };
+
+    return Array.from(root.childNodes).map((n, i) => walk(n, `n-${i}`));
+  }, [html]);
+
+  return (
+    <Box
+      sx={{
+        lineHeight: 1.9,
+        "& p": { m: 0, mb: 1 },
+        "& table": {
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          overflow: "hidden",
+          borderRadius: 1,
+        },
+        "& th, & td": { border: "1px solid #e5e7eb", p: 1 },
+        "& th": { background: "#f3f4f6", fontWeight: 700 },
+      }}
+    >
+      {content}
+    </Box>
+  );
+};
+
+/* =============================== PAGE =============================== */
 export default function StepPage() {
   const { id: courseId, flatStepIdx: idx } = useParams();
   const flatStepIdx = Number(idx);
@@ -145,18 +292,15 @@ export default function StepPage() {
   const [learning, setLearning] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // پاسخ‌ها
   const [answer, setAnswer] = useState("");
   const [matchMap, setMatchMap] = useState({});
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(null);
 
-  // شافل
   const [shuffledOptions, setShuffledOptions] = useState([]);
   const [displayToOriginal, setDisplayToOriginal] = useState({});
   const [shuffledRights, setShuffledRights] = useState([]);
 
-  // مرور/امتیاز
   const [reviewModal, setReviewModal] = useState(false);
   const pendingQueue = useRef([]);
   const redirected = useRef(false);
@@ -164,28 +308,25 @@ export default function StepPage() {
   const [rateOpen, setRateOpen] = useState(false);
   const [unitRate, setUnitRate] = useState(0);
   const [unitComment, setUnitComment] = useState("");
-  const blockAutoNextRef = useRef(false); // 👈 جلوگیری از پرش وقتی دیالوگ باز است
+  const blockAutoNextRef = useRef(false);
 
-  // فیدبک گام
   const [issueOpen, setIssueOpen] = useState(false);
   const [issueReason, setIssueReason] = useState("اشتباه محتوایی");
   const [issueText, setIssueText] = useState("");
 
-  // نوتیف
   const [snack, setSnack] = useState({
     open: false,
     text: "",
     type: "success",
   });
 
-  /* ---------- fetch course + learning ----------- */
+  /* -------- fetch course + learning -------- */
   useEffect(() => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) {
       router.replace("/");
       return;
     }
-
     Promise.all([
       fetch(`/api/courses/${courseId}`).then((r) => r.json()),
       fetch("/api/students/learning", {
@@ -235,10 +376,10 @@ export default function StepPage() {
     });
   }, [courseId, flatStepIdx, router]);
 
-  /* ---------- شافل پس از لود گام ---------- */
+  /* -------- shuffle on step load -------- */
   useEffect(() => {
     if (!step) return;
-    blockAutoNextRef.current = false; // هر بار ورود به گام، اجازه ناوبری مجدد
+    blockAutoNextRef.current = false;
 
     if (
       ["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
@@ -269,7 +410,7 @@ export default function StepPage() {
     }
   }, [step]);
 
-  /* ---------- helpers ---------- */
+  /* -------- helpers -------- */
   const unitTotal = meta.unit?.steps?.length || 1;
   const inUnitIdx = meta.stIdx || 0;
   const unitProgress = Math.floor((inUnitIdx / unitTotal) * 100);
@@ -284,7 +425,6 @@ export default function StepPage() {
   const isLastOfUnit = inUnitIdx === unitTotal - 1;
   const unitKey = `${meta.sIdx}-${meta.uIdx}`;
 
-  /* ---------- API helper ---------- */
   const persist = (payload) =>
     fetch("/api/students/learning", {
       method: "PUT",
@@ -296,7 +436,6 @@ export default function StepPage() {
       }),
     });
 
-  /* ---------- modal auto-close ---------- */
   useEffect(() => {
     if (!reviewModal) return;
     const t = setTimeout(() => {
@@ -307,19 +446,14 @@ export default function StepPage() {
     return () => clearTimeout(t);
   }, [reviewModal, courseId, router]);
 
-  /* ---------- navigation ---------- */
   const goToNext = (queue) => {
-    if (blockAutoNextRef.current) return; // اگر دیالوگ باز است، نرو
-    if (queue.length) {
-      router.replace(`/course/${courseId}/step/${queue[0]}`);
-    } else if (learning.progress < totalSteps) {
+    if (blockAutoNextRef.current) return;
+    if (queue.length) router.replace(`/course/${courseId}/step/${queue[0]}`);
+    else if (learning.progress < totalSteps)
       router.replace(`/course/${courseId}/step/${learning.progress}`);
-    } else {
-      router.replace(`/roadmap/${courseId}`);
-    }
+    else router.replace(`/roadmap/${courseId}`);
   };
 
-  /* ---------- evaluation & save ---------- */
   const evaluate = async ({ ok, awardXp }) => {
     let {
       correct = [],
@@ -343,22 +477,19 @@ export default function StepPage() {
 
     let openedRate = false;
 
-    // پایان یونیت
     if (isLastOfUnit && !inReview) {
       reviewQueue = [...reviewQueue, ...(wrongByUnit[unitKey] || [])];
       wrongByUnit[unitKey] = [];
       if (reviewQueue.length) {
         pendingQueue.current = reviewQueue;
         setReviewModal(true);
-        blockAutoNextRef.current = true; // تا دیالوگ مرور بسته شود
+        blockAutoNextRef.current = true;
       } else {
         setRateOpen(true);
         blockAutoNextRef.current = true;
         openedRate = true;
       }
     }
-
-    // اگر در مرور بودیم و صف خالی شد → امتیاز یونیت
     if (inReview && reviewQueue.length === 0) {
       setRateOpen(true);
       blockAutoNextRef.current = true;
@@ -368,27 +499,23 @@ export default function StepPage() {
     const newProgress = inReview
       ? progress
       : Math.max(progress, flatStepIdx + 1);
-
     await persist({
       progress: newProgress,
       correct,
       wrongByUnit,
       reviewQueue,
-      deltaXp: awardXp ? 1 : 0, // پاسخ صحیح
+      deltaXp: awardXp ? 1 : 0,
       finished: isLastStep,
     });
 
     learning.progress = newProgress;
     learning.reviewQueue = reviewQueue;
-
     return { openedRate };
   };
 
-  /* ---------- submit handlers ---------- */
   const submitChoice = async () => {
     const origIdx = displayToOriginal[Number(answer)];
     let ok = false;
-
     if (step.type === "multi-answer") {
       ok = (step.correctIndexes || []).includes(origIdx);
     } else {
@@ -396,7 +523,6 @@ export default function StepPage() {
         step.correctIndex === origIdx ||
         step.options?.[step.correctIndex] === shuffledOptions[Number(answer)];
     }
-
     setShowResult(true);
     setIsCorrect(ok);
     const { openedRate } = await evaluate({ ok, awardXp: ok });
@@ -420,7 +546,6 @@ export default function StepPage() {
     if (!openedRate) goToNext(learning.reviewQueue);
   };
 
-  /* ---------- feedback: step ---------- */
   const submitIssue = async () => {
     try {
       await fetch("/api/feedback/step", {
@@ -435,7 +560,7 @@ export default function StepPage() {
           reason: issueReason,
         }),
       });
-      await persist({ deltaXp: 1 }); // پاداش کوچک
+      await persist({ deltaXp: 1 });
       setSnack({
         open: true,
         text: "گزارش شما ثبت شد. ممنون! 🌟",
@@ -452,7 +577,6 @@ export default function StepPage() {
     }
   };
 
-  /* ---------- feedback: unit ---------- */
   const submitUnitRate = async () => {
     try {
       await fetch("/api/feedback/unit", {
@@ -467,7 +591,7 @@ export default function StepPage() {
           comment: unitRate <= 2 ? unitComment : "",
         }),
       });
-      await persist({ deltaXp: 1 }); // پاداش کوچک
+      await persist({ deltaXp: 1 });
       setSnack({
         open: true,
         text: "بازخورد یونیت ثبت شد 💚",
@@ -476,7 +600,7 @@ export default function StepPage() {
       setRateOpen(false);
       setUnitRate(0);
       setUnitComment("");
-      blockAutoNextRef.current = false; // آزاد کردن ناوبری
+      blockAutoNextRef.current = false;
       goToNext(learning.reviewQueue || []);
     } catch {
       setSnack({
@@ -487,7 +611,6 @@ export default function StepPage() {
     }
   };
 
-  /* ---------- guards ---------- */
   if (loading)
     return (
       <Box
@@ -500,10 +623,9 @@ export default function StepPage() {
       </Box>
     );
 
-  /* ---------- UI ---------- */
   return (
     <Box maxWidth="sm" mx="auto" mt={5}>
-      {/* progress bar */}
+      {/* progress */}
       <Box mb={2}>
         <LinearProgress
           variant="determinate"
@@ -525,9 +647,7 @@ export default function StepPage() {
         </Typography>
       </Box>
 
-      {/* card */}
       <Paper sx={{ p: 4, borderRadius: 4, position: "relative" }}>
-        {/* آیکن گزارش مشکل سؤال – مینیمال و تمیز */}
         <Tooltip title="گزارش اشکال این سؤال">
           <IconButton
             onClick={() => setIssueOpen(true)}
@@ -550,13 +670,10 @@ export default function StepPage() {
           {step.title}
         </Typography>
 
-        {/* explanation */}
+        {/* explanation → HTML + media inline */}
         {step.type === "explanation" && (
           <>
-            <div dangerouslySetInnerHTML={{ __html: step.content || "" }} />
-            <MediaBlocks
-              from={`${step.content || ""} ${step.explanation || ""}`}
-            />
+            <HtmlInlineMedia html={step.content || ""} />
             <Button
               variant="contained"
               sx={{ mt: 3, fontWeight: "bold" }}
@@ -567,18 +684,15 @@ export default function StepPage() {
           </>
         )}
 
-        {/* choice / fill / multi */}
+        {/* choice / fill / multi → TEXT + media inline */}
         {["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
           step.type
         ) && (
           <>
             {step.text && (
-              <>
-                <Typography fontSize={17} mb={2}>
-                  {step.text}
-                </Typography>
-                <MediaBlocks from={step.text} />
-              </>
+              <Box mb={2} sx={{ "&, & p": { fontSize: 17, lineHeight: 1.9 } }}>
+                <InlineTextWithMedia text={step.text} />
+              </Box>
             )}
             <Box display="flex" flexDirection="column" gap={1}>
               {(shuffledOptions || []).map((opt, i) => (
@@ -629,15 +743,14 @@ export default function StepPage() {
           </>
         )}
 
-        {/* matching */}
+        {/* matching → TEXT + media inline */}
         {step.type === "matching" && (
           <>
             {step.matchingQuestion && (
-              <Typography fontSize={17} mb={2}>
-                {step.matchingQuestion}
-              </Typography>
+              <Box mb={2} sx={{ "&, & p": { fontSize: 17, lineHeight: 1.9 } }}>
+                <InlineTextWithMedia text={step.matchingQuestion} />
+              </Box>
             )}
-            <MediaBlocks from={step.matchingQuestion || ""} />
             {(step.pairs || []).map((p, i) => (
               <Stack
                 key={i}
@@ -705,7 +818,6 @@ export default function StepPage() {
         )}
       </Paper>
 
-      {/* roadmap link */}
       <Box mt={2} textAlign="center">
         <Button
           variant="text"
