@@ -16,6 +16,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PlayCircleFilledWhiteIcon from "@mui/icons-material/PlayCircleFilledWhite";
 import BookIcon from "@mui/icons-material/Book";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import SafeHtml from "../../components/SafeHtml";
 
 /* ---------- Finoja Palette ---------- */
 const colors = {
@@ -159,13 +160,36 @@ export default function RoadmapPage() {
             <Typography fontWeight="bold" color={colors.text}>
               {course.title}
             </Typography>
-            <Typography
-              variant="body2"
-              sx={{ opacity: 0.8 }}
-              color={colors.text}
-            >
-              {course.description}
-            </Typography>
+            <SafeHtml
+              html={course.description || ""}
+              sx={{
+                color: colors.text,
+                opacity: 0.85,
+                lineHeight: 1.8,
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+
+                // استایل‌های داخلی برای HTML توضیح
+                "& p": { m: 0 }, // حذف مارجین پیش‌فرض <p>
+                "& ul, & ol": { m: 0, pl: 2 },
+                "& h1, & h2, & h3": { mt: 0.5, mb: 0.25 },
+                "& table": {
+                  width: "100%",
+                  borderCollapse: "separate",
+                  borderSpacing: 0,
+                  overflow: "hidden",
+                  borderRadius: 8,
+                },
+                "& th, & td": {
+                  border: "1px solid #e5e7eb",
+                  p: 1,
+                  bgcolor: "#fff",
+                },
+                "& th": { bgcolor: "#f3f4f6", fontWeight: 700 },
+              }}
+            />
 
             {isInProgress && (
               <Box mt={1}>
