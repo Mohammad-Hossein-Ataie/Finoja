@@ -24,11 +24,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import { endpoints } from "../../utils/endpoints";
 import { useCurrentUser } from "../../lib/useCurrentUser";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 
 const navLinks = [
   { href: "/dashboard", icon: <DashboardIcon />, label: "داشبورد", roles: ["admin"] },
   { href: "/dashboard/courses", icon: <SchoolIcon />, label: "دوره‌ها", roles: ["admin", "teacher"] },
   { href: "/dashboard/teachers", icon: <PersonIcon />, label: "اساتید", roles: ["admin"] },
+  { href: "/dashboard/students", icon: <GroupOutlinedIcon />, label: "یادگیرندگان", roles: ["admin", "teacher"] },
 ];
 
 export default function Sidebar() {
