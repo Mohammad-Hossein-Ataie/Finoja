@@ -1,5 +1,5 @@
 import dbConnect from "../../../../lib/dbConnect";
-import Student   from "../../../../models/Student";
+import Student from "../../../../models/Student";
 
 /* ────────── دریافت وضعیت یادگیری دانش‌آموز ────────── */
 export async function POST(req) {
@@ -13,6 +13,7 @@ export async function POST(req) {
   if (!student)
     return Response.json({ error: "Student not found" }, { status: 404 });
 
+  // همان ساختار: لیست کامل learning را برمی‌گردانیم
   return Response.json({ learning: student.learning || [] });
 }
 
@@ -20,66 +21,99 @@ export async function POST(req) {
 export async function PUT(req) {
   await dbConnect();
 
+  const body = await req.json();
   const {
     mobile,
     courseId,
+
+    // قدیمی‌ها
     progress,
     correct,
     wrongByUnit,
     reviewQueue,
     finished,
-    deltaXp = 0,            // پیش‌فرض صفر، حتی برای توضیح
-  } = await req.json();
+
+    // جدیدها (شناسه‌محور)
+    doneIds,
+    correctIds,
+    wrongByUnitIds,
+    reviewQueueIds,
+    carryOverIds,
+    cursorStepId,
+
+    // XP
+    deltaXp = 0,
+  } = body || {};
+
+  if (!mobile || !courseId)
+    return Response.json({ error: "mobile & courseId required" }, { status: 400 });
 
   const student = await Student.findOne({ mobile });
   if (!student)
     return Response.json({ error: "Student not found" }, { status: 404 });
 
-  /* ───── یافتن یا ایجاد رکورد دوره ───── */
+  // یافتن رکورد دوره
   const idx = student.learning.findIndex((l) => l.courseId === courseId);
 
-  /* ---------- اگر رکورد وجود نداشته باشد ---------- */
+  // اگر وجود ندارد → بساز
   if (idx === -1) {
-    student.learning.push({
+    const newRec = {
       courseId,
+      // قدیمی
       progress      : progress      ?? 0,
       correct       : correct       ?? [],
       wrongByUnit   : wrongByUnit   ?? {},
       reviewQueue   : reviewQueue   ?? [],
-      wrong         :
-        Object.values(wrongByUnit || {}).flat().concat(reviewQueue || []),
-      finished      : finished      ?? false,
-      xp            : deltaXp,                // فیلد حتماً ساخته می‌شود
-    });
+      finished      : !!finished,
+      xp            : deltaXp || 0,
 
-    if (deltaXp) {                            // مجموع کل
-      student.totalXp = (student.totalXp || 0) + deltaXp;
-    }
+      // جدید
+      doneIds         : doneIds         ?? [],
+      correctIds      : correctIds      ?? [],
+      wrongByUnitIds  : wrongByUnitIds  ?? {},
+      reviewQueueIds  : reviewQueueIds  ?? [],
+      carryOverIds    : carryOverIds    ?? [],
+      cursorStepId    : cursorStepId    ?? undefined,
+    };
+
+    // wrong (قدیمی) را اگر داده شد، جمع بزن
+    newRec.wrong = Object.values(newRec.wrongByUnit || {}).flat()
+      .concat(newRec.reviewQueue || []);
+
+    student.learning.push(newRec);
+    if (deltaXp) student.totalXp = (student.totalXp || 0) + deltaXp;
+
+    await student.save();
+    return Response.json({ success: true });
   }
 
-  /* ---------- اگر رکورد از قبل وجود داشته باشد ---------- */
-  else {
-    const L = student.learning[idx];
+  // اگر رکورد قبلی وجود داشت → به‌روزرسانی
+  const L = student.learning[idx];
 
-    /* فیلدهای ساده */
-    if (progress    !== undefined) L.progress    = progress;
-    if (correct     !== undefined) L.correct     = correct;
-    if (wrongByUnit !== undefined) L.wrongByUnit = wrongByUnit;
-    if (reviewQueue !== undefined) L.reviewQueue = reviewQueue;
-    if (finished    !== undefined) L.finished    = finished;
+  // ─── قدیمی‌ها
+  if (progress    !== undefined) L.progress    = progress;
+  if (correct     !== undefined) L.correct     = Array.isArray(correct) ? correct : L.correct;
+  if (wrongByUnit !== undefined) L.wrongByUnit = wrongByUnit || {};
+  if (reviewQueue !== undefined) L.reviewQueue = Array.isArray(reviewQueue) ? reviewQueue : [];
+  if (finished    !== undefined) L.finished    = !!finished;
 
-    /* محاسبهٔ آرایهٔ جمعی wrong[] برای سازگاری عقب */
-    L.wrong = Object.values(L.wrongByUnit || {}).flat()
-                .concat(L.reviewQueue || []);
+  // سازگاری قدیمی: wrong (flat) = wrongByUnit ∪ reviewQueue
+  L.wrong = Object.values(L.wrongByUnit || {}).flat()
+    .concat(L.reviewQueue || []);
 
-    /* --------- XP --------- */
-    if (L.xp === undefined) L.xp = 0;          // اطمینان از وجود فیلد
+  // ─── جدیدها
+  if (Array.isArray(doneIds))        L.doneIds        = doneIds;
+  if (Array.isArray(correctIds))     L.correctIds     = correctIds;
+  if (wrongByUnitIds !== undefined)  L.wrongByUnitIds = wrongByUnitIds || {};
+  if (Array.isArray(reviewQueueIds)) L.reviewQueueIds = reviewQueueIds;
+  if (Array.isArray(carryOverIds))   L.carryOverIds   = carryOverIds;
+  if (cursorStepId !== undefined)    L.cursorStepId   = cursorStepId || undefined;
 
-    L.xp += deltaXp;                           // جمع بزن (حذف شرط قبلی)
-
-    if (deltaXp) {                             // مجموع کل فقط وقتی >۰ است
-      student.totalXp = (student.totalXp || 0) + deltaXp;
-    }
+  // XP
+  if (typeof L.xp !== "number") L.xp = 0;
+  if (deltaXp) {
+    L.xp += deltaXp;
+    student.totalXp = (student.totalXp || 0) + deltaXp;
   }
 
   await student.save();

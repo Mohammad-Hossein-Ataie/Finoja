@@ -1,3 +1,6 @@
+// ===============================
+// FILE: app/course/[id]/step/[flatStepIdx]/page.jsx
+// ===============================
 "use client";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,13 +18,13 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   IconButton,
   Tooltip,
   TextField,
   Rating,
   Snackbar,
   Alert,
+  DialogActions,
 } from "@mui/material";
 import BugReportOutlinedIcon from "@mui/icons-material/BugReportOutlined";
 
@@ -138,14 +141,12 @@ const MediaEl = ({ src }) => {
   return null;
 };
 
-/* متن ساده + مدیا inline */
 const InlineTextWithMedia = ({ text = "" }) => {
   if (!text) return null;
   const parts = text.split(URL_RE);
   return (
     <>
       {parts.map((chunk, i) => {
-        // even indexes = متن، odd = url
         if (i % 2 === 0) return chunk ? <span key={i}>{chunk}</span> : null;
         const url = chunk.replace(/[),.;]+$/, "");
         return isMediaUrl(url) ? (
@@ -165,7 +166,6 @@ const InlineTextWithMedia = ({ text = "" }) => {
   );
 };
 
-/* HTML + مدیا inline (جایگزینی a[href] و URL خام داخل متن‌ها) */
 const HtmlInlineMedia = ({ html = "" }) => {
   const content = useMemo(() => {
     if (!html) return null;
@@ -175,7 +175,6 @@ const HtmlInlineMedia = ({ html = "" }) => {
 
     const walk = (node, key) => {
       if (node.nodeType === 3) {
-        // text node → ممکنه URL خام داشته باشه
         const text = node.nodeValue || "";
         const parts = text.split(URL_RE);
         return parts.map((chunk, i) => {
@@ -201,7 +200,6 @@ const HtmlInlineMedia = ({ html = "" }) => {
       if (node.nodeType !== 1) return null;
       const tag = node.tagName.toLowerCase();
 
-      // a[href] که مدیا است → خود پلیر
       if (tag === "a") {
         const href = node.getAttribute("href") || "";
         if (isMediaUrl(href)) return <MediaEl key={key} src={href} />;
@@ -223,8 +221,6 @@ const HtmlInlineMedia = ({ html = "" }) => {
       const children = Array.from(node.childNodes).map((ch, i) =>
         walk(ch, `${key}-${i}`)
       );
-
-      // فقط تگ‌های متداول رو نگه داریم
       const allowed = new Set([
         "p",
         "strong",
@@ -280,18 +276,75 @@ const HtmlInlineMedia = ({ html = "" }) => {
   );
 };
 
-/* =============================== PAGE =============================== */
+/* =============================== Helpers =============================== */
+function flattenCourse(course) {
+  const flat = [];
+  let idx = 0;
+  course.sections.forEach((sec, sIdx) =>
+    sec.units.forEach((u, uIdx) => {
+      const unitId = (u._id || `${sIdx}-${uIdx}`).toString();
+      u.steps.forEach((st, stIdx) => {
+        const stepId = (st._id || `${sIdx}-${uIdx}-${stIdx}`).toString();
+        flat.push({
+          index: idx++,
+          stepId,
+          unitId,
+          sIdx,
+          uIdx,
+          stIdx,
+          step: st,
+          unit: u,
+        });
+      });
+    })
+  );
+  return flat;
+}
+
+const arrayToSet = (arr) => new Set(Array.isArray(arr) ? arr : []);
+
+const nextIndexFromStateLocal = (lrn, flatLocal, indexByIdLocal) => {
+  if (lrn?.reviewQueueIds?.length) {
+    const id = lrn.reviewQueueIds[0];
+    const idx = indexByIdLocal[id];
+    if (typeof idx === "number") return idx;
+  }
+  if (Array.isArray(lrn?.doneIds) && lrn.doneIds.length) {
+    const done = new Set(lrn.doneIds);
+    for (let i = 0; i < flatLocal.length; i++) {
+      if (!done.has(flatLocal[i].stepId)) return i;
+    }
+    return flatLocal.length;
+  }
+  if (Number.isFinite(lrn?.progress)) {
+    return Math.min(Math.max(0, lnr.progress), flatLocal.length);
+  }
+  return 0;
+};
+
 export default function StepPage() {
-  const { id: courseId, flatStepIdx: idx } = useParams();
-  const flatStepIdx = Number(idx);
+  const { id: courseId, flatStepIdx: idxStr } = useParams();
   const router = useRouter();
 
   const [course, setCourse] = useState(null);
+  const [flat, setFlat] = useState([]);
+  const [indexById, setIndexById] = useState({});
+
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [step, setStep] = useState(null);
-  const [meta, setMeta] = useState({});
+  const [meta, setMeta] = useState({
+    sIdx: 0,
+    uIdx: 0,
+    stIdx: 0,
+    unit: null,
+    unitId: "",
+    stepId: "",
+  });
+
   const [learning, setLearning] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // local UI states
   const [answer, setAnswer] = useState("");
   const [matchMap, setMatchMap] = useState({});
   const [showResult, setShowResult] = useState(false);
@@ -302,25 +355,35 @@ export default function StepPage() {
   const [shuffledRights, setShuffledRights] = useState([]);
 
   const [reviewModal, setReviewModal] = useState(false);
-  const pendingQueue = useRef([]);
-  const redirected = useRef(false);
-
   const [rateOpen, setRateOpen] = useState(false);
   const [unitRate, setUnitRate] = useState(0);
   const [unitComment, setUnitComment] = useState("");
-  const blockAutoNextRef = useRef(false);
-
   const [issueOpen, setIssueOpen] = useState(false);
   const [issueReason, setIssueReason] = useState("اشتباه محتوایی");
   const [issueText, setIssueText] = useState("");
-
   const [snack, setSnack] = useState({
     open: false,
     text: "",
     type: "success",
   });
 
-  /* -------- fetch course + learning -------- */
+  // صف فعلی مرور برای جلوگیری از race با setState
+  const pendingQueueRef = useRef([]);
+
+  /* -------- persist helper -------- */
+  const persist = async (payload) => {
+    await fetch("/api/students/learning", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mobile: localStorage.getItem("student_mobile"),
+        courseId,
+        ...payload,
+      }),
+    });
+  };
+
+  /* -------- fetch course + learning (فقط به courseId وابسته!) -------- */
   useEffect(() => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) {
@@ -334,52 +397,145 @@ export default function StepPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mobile }),
       }).then((r) => r.json()),
-    ]).then(([c, lRes]) => {
+    ]).then(async ([c, lRes]) => {
       setCourse(c);
-      const l = (lRes.learning || []).find((v) => v.courseId === courseId) || {
+
+      const flat_ = flattenCourse(c);
+      setFlat(flat_);
+      const idxMap = flat_.reduce((m, n) => ((m[n.stepId] = n.index), m), {});
+      setIndexById(idxMap);
+
+      const raw = (lRes.learning || []).find(
+        (v) => v.courseId === courseId
+      ) || {
         courseId,
+        doneIds: [],
+        correctIds: [],
+        wrongByUnitIds: {},
+        reviewQueueIds: [],
+        carryOverIds: [],
         progress: 0,
         correct: [],
         wrongByUnit: {},
         reviewQueue: [],
         xp: 0,
+        finished: false,
       };
-      setLearning(l);
+
+      // مهاجرت اندیس→شناسه
+      const idByIndex = flat_.reduce(
+        (m, n) => ((m[n.index] = n.stepId), m),
+        {}
+      );
+      const migrated = { ...raw };
+      let changed = false;
 
       if (
-        l.reviewQueue?.length &&
-        l.reviewQueue[0] !== flatStepIdx &&
-        !redirected.current
+        (!migrated.correctIds || !Array.isArray(migrated.correctIds)) &&
+        Array.isArray(migrated.correct)
       ) {
-        redirected.current = true;
-        router.replace(`/course/${courseId}/step/${l.reviewQueue[0]}`);
+        const ids = migrated.correct.map((i) => idByIndex[i]).filter(Boolean);
+        migrated.correctIds = Array.from(
+          new Set([...(migrated.correctIds || []), ...ids])
+        );
+        changed = true;
+      }
+      if (!Array.isArray(migrated.correctIds)) migrated.correctIds = [];
+
+      if (
+        (!migrated.reviewQueueIds || !Array.isArray(migrated.reviewQueueIds)) &&
+        Array.isArray(migrated.reviewQueue)
+      ) {
+        const ids = migrated.reviewQueue
+          .map((i) => idByIndex[i])
+          .filter(Boolean);
+        migrated.reviewQueueIds = Array.from(
+          new Set([...(migrated.reviewQueueIds || []), ...ids])
+        );
+        changed = true;
+      }
+      if (!Array.isArray(migrated.reviewQueueIds)) migrated.reviewQueueIds = [];
+
+      if (!migrated.wrongByUnitIds && migrated.wrongByUnit) {
+        const obj = {};
+        Object.entries(migrated.wrongByUnit).forEach(([uKey, arr]) => {
+          const ids = (arr || []).map((i) => idByIndex[i]).filter(Boolean);
+          obj[uKey] = Array.from(new Set(ids));
+        });
+        migrated.wrongByUnitIds = obj;
+        changed = true;
+      }
+      if (!migrated.wrongByUnitIds) migrated.wrongByUnitIds = {};
+
+      if (!Array.isArray(migrated.doneIds)) migrated.doneIds = [];
+      if (!Array.isArray(migrated.carryOverIds)) migrated.carryOverIds = [];
+
+      if (changed) {
+        await persist({
+          doneIds: migrated.doneIds,
+          correctIds: migrated.correctIds,
+          wrongByUnitIds: migrated.wrongByUnitIds,
+          reviewQueueIds: migrated.reviewQueueIds,
+          carryOverIds: migrated.carryOverIds,
+        });
+      }
+
+      setLearning(migrated);
+
+      const requestedIdx = Number(idxStr);
+      const nextIdx = nextIndexFromStateLocal(migrated, flat_, idxMap);
+      const forcedReviewIdx = migrated.reviewQueueIds?.length
+        ? idxMap[migrated.reviewQueueIds[0]]
+        : undefined;
+
+      let targetIdx;
+      if (typeof forcedReviewIdx === "number") targetIdx = forcedReviewIdx;
+      else if (
+        Number.isFinite(requestedIdx) &&
+        requestedIdx >= 0 &&
+        requestedIdx <= flat_.length
+      )
+        targetIdx = requestedIdx;
+      else targetIdx = nextIdx;
+
+      if (targetIdx >= flat_.length) {
+        router.replace(`/roadmap/${courseId}`);
         return;
       }
 
-      let counter = 0,
-        found = null,
-        m = {};
-      c.sections.forEach((sec, sIdx) =>
-        sec.units.forEach((u, uIdx) =>
-          u.steps.forEach((st, stIdx) => {
-            if (counter === flatStepIdx) {
-              found = st;
-              m = { sIdx, uIdx, stIdx, unit: u };
-            }
-            counter++;
-          })
-        )
-      );
-      setStep(found);
-      setMeta(m);
+      const node = flat_[targetIdx];
+      setCurrentIndex(node.index);
+      setStep(node.step);
+      setMeta({
+        sIdx: node.sIdx,
+        uIdx: node.uIdx,
+        stIdx: node.stIdx,
+        unit: node.unit,
+        unitId: node.unitId,
+        stepId: node.stepId,
+      });
+
+      if (Number.isFinite(requestedIdx) && targetIdx !== requestedIdx) {
+        router.replace(`/course/${courseId}/step/${targetIdx}`);
+      }
+
       setLoading(false);
     });
-  }, [courseId, flatStepIdx, router]);
+  }, [courseId, router]);
+
+  /* -------- sync local index when URL param changes -------- */
+  useEffect(() => {
+    const p = Number(idxStr);
+    if (!loading && flat.length && Number.isFinite(p)) {
+      const clamped = Math.max(0, Math.min(p, flat.length - 1));
+      if (clamped !== currentIndex) setCurrentIndex(clamped);
+    }
+  }, [idxStr, loading, flat, currentIndex]);
 
   /* -------- shuffle on step load -------- */
+  const [multiSelected, setMultiSelected] = useState(new Set());
   useEffect(() => {
     if (!step) return;
-    blockAutoNextRef.current = false;
 
     if (
       ["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
@@ -408,126 +564,177 @@ export default function StepPage() {
     } else {
       setShuffledRights([]);
     }
+
+    if (step.type === "multi-answer") setMultiSelected(new Set());
   }, [step]);
 
-  /* -------- helpers -------- */
+  /* -------- computed UI helpers -------- */
   const unitTotal = meta.unit?.steps?.length || 1;
   const inUnitIdx = meta.stIdx || 0;
   const unitProgress = Math.floor((inUnitIdx / unitTotal) * 100);
 
-  const totalSteps =
-    course?.sections.reduce(
-      (a, s) => a + s.units.reduce((b, u) => b + u.steps.length, 0),
-      0
-    ) ?? 0;
-
-  const isLastStep = flatStepIdx === totalSteps - 1;
-  const isLastOfUnit = inUnitIdx === unitTotal - 1;
-  const unitKey = `${meta.sIdx}-${meta.uIdx}`;
-
-  const persist = (payload) =>
-    fetch("/api/students/learning", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        mobile: localStorage.getItem("student_mobile"),
-        courseId,
-        ...payload,
-      }),
-    });
-
+  /* -------- queue modal auto-close -------- */
   useEffect(() => {
     if (!reviewModal) return;
-    const t = setTimeout(() => {
-      setReviewModal(false);
-      if (pendingQueue.current.length)
-        router.replace(`/course/${courseId}/step/${pendingQueue.current[0]}`);
-    }, 1400);
+    const t = setTimeout(() => setReviewModal(false), 1200);
     return () => clearTimeout(t);
-  }, [reviewModal, courseId, router]);
+  }, [reviewModal]);
 
-  const goToNext = (queue) => {
-    if (blockAutoNextRef.current) return;
-    if (queue.length) router.replace(`/course/${courseId}/step/${queue[0]}`);
-    else if (learning.progress < totalSteps)
-      router.replace(`/course/${courseId}/step/${learning.progress}`);
-    else router.replace(`/roadmap/${courseId}`);
+  /* -------- goToNext (stateOverride اختیاری) -------- */
+  const goToNext = (queueIds, stateOverride) => {
+    const lrn = stateOverride || learning;
+    let targetIdx;
+
+    if (queueIds?.length) {
+      const firstId = queueIds[0];
+      targetIdx = indexById[firstId];
+    } else if (lrn?.reviewQueueIds?.length) {
+      const id = lrn.reviewQueueIds[0];
+      targetIdx = indexById[id];
+    } else {
+      const done = arrayToSet(lrn?.doneIds);
+      targetIdx = flat.findIndex((n) => !done.has(n.stepId));
+      if (targetIdx === -1) targetIdx = flat.length;
+    }
+
+    if (typeof targetIdx !== "number") targetIdx = currentIndex + 1;
+
+    if (targetIdx >= flat.length) router.replace(`/roadmap/${courseId}`);
+    else router.replace(`/course/${courseId}/step/${targetIdx}`);
   };
 
-  const evaluate = async ({ ok, awardXp }) => {
-    let {
-      correct = [],
-      wrongByUnit = {},
-      reviewQueue = [],
-      progress,
-    } = learning;
-    const inReview = reviewQueue.includes(flatStepIdx);
+  /* -------- evaluate (مرور قبل از نظرسنجی + بازگشت state) -------- */
+  const evaluate = async ({ ok, awardXp, treatExplanation = false }) => {
+    const l = { ...(learning || {}) };
 
-    if (ok) {
-      wrongByUnit[unitKey] = (wrongByUnit[unitKey] || []).filter(
-        (i) => i !== flatStepIdx
-      );
-      reviewQueue = reviewQueue.filter((i) => i !== flatStepIdx);
-      if (!correct.includes(flatStepIdx)) correct.push(flatStepIdx);
-    } else if (!inReview) {
-      wrongByUnit[unitKey] = wrongByUnit[unitKey] || [];
-      if (!wrongByUnit[unitKey].includes(flatStepIdx))
-        wrongByUnit[unitKey].push(flatStepIdx);
-    }
+    const done = new Set(l.doneIds || []);
+    const correctSet = new Set(l.correctIds || []);
+    const carryOver = new Set(l.carryOverIds || []);
+    const reviewQ = [...(l.reviewQueueIds || [])];
+    const wbu = { ...(l.wrongByUnitIds || {}) };
 
-    let openedRate = false;
+    const stepId = meta.stepId;
+    const unitId = (
+      meta.unit?._id ||
+      meta.unitId ||
+      `${meta.sIdx}-${meta.uIdx}`
+    ).toString();
 
-    if (isLastOfUnit && !inReview) {
-      reviewQueue = [...reviewQueue, ...(wrongByUnit[unitKey] || [])];
-      wrongByUnit[unitKey] = [];
-      if (reviewQueue.length) {
-        pendingQueue.current = reviewQueue;
-        setReviewModal(true);
-        blockAutoNextRef.current = true;
+    const inReview = reviewQ.includes(stepId);
+
+    // هر گام دیده‌شده به done می‌رود
+    if (!done.has(stepId)) done.add(stepId);
+
+    if (!treatExplanation) {
+      if (ok) {
+        correctSet.add(stepId);
+        if (Array.isArray(wbu[unitId]))
+          wbu[unitId] = wbu[unitId].filter((id) => id !== stepId);
+        for (let i = reviewQ.length - 1; i >= 0; i--)
+          if (reviewQ[i] === stepId) reviewQ.splice(i, 1);
+        carryOver.delete(stepId);
       } else {
-        setRateOpen(true);
-        blockAutoNextRef.current = true;
-        openedRate = true;
+        if (inReview) {
+          for (let i = reviewQ.length - 1; i >= 0; i--)
+            if (reviewQ[i] === stepId) reviewQ.splice(i, 1);
+          carryOver.add(stepId);
+        } else {
+          const arr = Array.isArray(wbu[unitId]) ? wbu[unitId] : [];
+          if (!arr.includes(stepId)) arr.push(stepId);
+          wbu[unitId] = arr;
+        }
       }
     }
-    if (inReview && reviewQueue.length === 0) {
+
+    const isLastOfUnit = inUnitIdx === unitTotal - 1;
+
+    if (isLastOfUnit && !inReview) {
+      const unitWrongs = Array.isArray(wbu[unitId]) ? wbu[unitId] : [];
+      const newQueue = Array.from(
+        new Set([...reviewQ, ...unitWrongs, ...Array.from(carryOver)])
+      );
+      l.reviewQueueIds = newQueue;
+      wbu[unitId] = [];
+      l.carryOverIds = [];
+    } else {
+      l.reviewQueueIds = reviewQ;
+      l.carryOverIds = Array.from(carryOver);
+    }
+
+    const newProgress = Math.max(l.progress || 0, currentIndex + 1);
+
+    const nextLearning = {
+      ...l,
+      doneIds: Array.from(done),
+      correctIds: Array.from(correctSet),
+      wrongByUnitIds: wbu,
+      progress: newProgress,
+      finished: currentIndex === flat.length - 1,
+    };
+
+    setLearning(nextLearning);
+    pendingQueueRef.current = nextLearning.reviewQueueIds;
+
+    await persist({
+      doneIds: nextLearning.doneIds,
+      correctIds: nextLearning.correctIds,
+      wrongByUnitIds: nextLearning.wrongByUnitIds,
+      reviewQueueIds: nextLearning.reviewQueueIds,
+      carryOverIds: nextLearning.carryOverIds,
+      progress: nextLearning.progress,
+      finished: nextLearning.finished,
+      deltaXp: awardXp ? 1 : 0,
+    });
+
+    // Side-effects UI
+    let openedRate = false;
+    if (isLastOfUnit && !inReview) {
+      if (nextLearning.reviewQueueIds.length) {
+        setReviewModal(true);
+        setTimeout(() => {
+          setReviewModal(false);
+          goToNext(nextLearning.reviewQueueIds, nextLearning);
+        }, 800);
+      } else {
+        setRateOpen(true);
+        openedRate = true;
+      }
+    } else if (inReview && nextLearning.reviewQueueIds.length === 0) {
       setRateOpen(true);
-      blockAutoNextRef.current = true;
       openedRate = true;
     }
 
-    const newProgress = inReview
-      ? progress
-      : Math.max(progress, flatStepIdx + 1);
-    await persist({
-      progress: newProgress,
-      correct,
-      wrongByUnit,
-      reviewQueue,
-      deltaXp: awardXp ? 1 : 0,
-      finished: isLastStep,
-    });
-
-    learning.progress = newProgress;
-    learning.reviewQueue = reviewQueue;
-    return { openedRate };
+    return {
+      openedRate,
+      reviewQueueIds: nextLearning.reviewQueueIds,
+      nextLearning,
+    };
   };
 
+  /* -------- submit handlers -------- */
   const submitChoice = async () => {
-    const origIdx = displayToOriginal[Number(answer)];
     let ok = false;
     if (step.type === "multi-answer") {
-      ok = (step.correctIndexes || []).includes(origIdx);
+      const selectedOriginal = Array.from(multiSelected)
+        .map((dIdx) => displayToOriginal[Number(dIdx)])
+        .filter((x) => Number.isFinite(x))
+        .sort((a, b) => a - b);
+      const expected = [...(step.correctIndexes || [])].sort((a, b) => a - b);
+      ok =
+        selectedOriginal.length > 0 &&
+        JSON.stringify(selectedOriginal) === JSON.stringify(expected);
     } else {
+      const origIdx = displayToOriginal[Number(answer)];
       ok =
         step.correctIndex === origIdx ||
         step.options?.[step.correctIndex] === shuffledOptions[Number(answer)];
     }
+
     setShowResult(true);
     setIsCorrect(ok);
-    const { openedRate } = await evaluate({ ok, awardXp: ok });
-    if (ok && !openedRate)
-      setTimeout(() => goToNext(learning.reviewQueue), 800);
+    const res = await evaluate({ ok, awardXp: ok });
+    if (ok && !res.openedRate)
+      setTimeout(() => goToNext(res.reviewQueueIds, res.nextLearning), 700);
   };
 
   const submitMatch = async () => {
@@ -536,16 +743,21 @@ export default function StepPage() {
     );
     setShowResult(true);
     setIsCorrect(ok);
-    const { openedRate } = await evaluate({ ok, awardXp: ok });
-    if (ok && !openedRate)
-      setTimeout(() => goToNext(learning.reviewQueue), 800);
+    const res = await evaluate({ ok, awardXp: ok });
+    if (ok && !res.openedRate)
+      setTimeout(() => goToNext(res.reviewQueueIds, res.nextLearning), 700);
   };
 
   const nextExplanation = async () => {
-    const { openedRate } = await evaluate({ ok: true, awardXp: false });
-    if (!openedRate) goToNext(learning.reviewQueue);
+    const res = await evaluate({
+      ok: true,
+      awardXp: false,
+      treatExplanation: true,
+    });
+    if (!res.openedRate) goToNext(res.reviewQueueIds, res.nextLearning);
   };
 
+  /* -------- feedbacks -------- */
   const submitIssue = async () => {
     try {
       await fetch("/api/feedback/step", {
@@ -554,7 +766,7 @@ export default function StepPage() {
         body: JSON.stringify({
           mobile: localStorage.getItem("student_mobile"),
           courseId,
-          globalStepIndex: flatStepIdx,
+          globalStepIndex: currentIndex,
           stepType: step?.type || "",
           message: issueText,
           reason: issueReason,
@@ -600,8 +812,7 @@ export default function StepPage() {
       setRateOpen(false);
       setUnitRate(0);
       setUnitComment("");
-      blockAutoNextRef.current = false;
-      goToNext(learning.reviewQueue || []);
+      goToNext(pendingQueueRef.current);
     } catch {
       setSnack({
         open: true,
@@ -611,6 +822,22 @@ export default function StepPage() {
     }
   };
 
+  /* -------- keep step/meta in sync -------- */
+  useEffect(() => {
+    const node = flat[currentIndex];
+    if (!node) return;
+    setStep(node.step);
+    setMeta({
+      sIdx: node.sIdx,
+      uIdx: node.uIdx,
+      stIdx: node.stIdx,
+      unit: node.unit,
+      unitId: node.unitId,
+      stepId: node.stepId,
+    });
+  }, [currentIndex, flat]);
+
+  /* -------- loading UI -------- */
   if (loading)
     return (
       <Box
@@ -670,7 +897,7 @@ export default function StepPage() {
           {step.title}
         </Typography>
 
-        {/* explanation → HTML + media inline */}
+        {/* explanation */}
         {step.type === "explanation" && (
           <>
             <HtmlInlineMedia html={step.content || ""} />
@@ -684,7 +911,7 @@ export default function StepPage() {
           </>
         )}
 
-        {/* choice / fill / multi → TEXT + media inline */}
+        {/* choice / fill / multi */}
         {["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
           step.type
         ) && (
@@ -694,30 +921,63 @@ export default function StepPage() {
                 <InlineTextWithMedia text={step.text} />
               </Box>
             )}
-            <Box display="flex" flexDirection="column" gap={1}>
-              {(shuffledOptions || []).map((opt, i) => (
-                <Button
-                  key={i}
-                  variant={answer === String(i) ? "contained" : "outlined"}
-                  disabled={showResult}
-                  onClick={() => setAnswer(String(i))}
-                  sx={{ justifyContent: "flex-end", fontWeight: "bold" }}
-                >
-                  {opt}
-                </Button>
-              ))}
-            </Box>
+
+            {step.type === "multi-answer" ? (
+              <Box display="flex" flexDirection="column" gap={1}>
+                {(shuffledOptions || []).map((opt, i) => {
+                  const key = String(i);
+                  const active = multiSelected.has(key);
+                  return (
+                    <Button
+                      key={i}
+                      variant={active ? "contained" : "outlined"}
+                      disabled={showResult}
+                      onClick={() =>
+                        setMultiSelected((prev) => {
+                          const n = new Set(prev);
+                          n.has(key) ? n.delete(key) : n.add(key);
+                          return n;
+                        })
+                      }
+                      sx={{ justifyContent: "flex-end", fontWeight: "bold" }}
+                    >
+                      {opt}
+                    </Button>
+                  );
+                })}
+              </Box>
+            ) : (
+              <Box display="flex" flexDirection="column" gap={1}>
+                {(shuffledOptions || []).map((opt, i) => (
+                  <Button
+                    key={i}
+                    variant={answer === String(i) ? "contained" : "outlined"}
+                    disabled={showResult}
+                    onClick={() => setAnswer(String(i))}
+                    sx={{ justifyContent: "flex-end", fontWeight: "bold" }}
+                  >
+                    {opt}
+                  </Button>
+                ))}
+              </Box>
+            )}
+
             {!showResult && (
               <Button
                 variant="contained"
                 color="success"
                 sx={{ mt: 2, fontWeight: "bold" }}
-                disabled={answer === ""}
+                disabled={
+                  step.type === "multi-answer"
+                    ? multiSelected.size === 0
+                    : answer === ""
+                }
                 onClick={submitChoice}
               >
                 ثبت پاسخ
               </Button>
             )}
+
             {showResult && (
               <>
                 <Typography
@@ -733,7 +993,7 @@ export default function StepPage() {
                   <Button
                     variant="contained"
                     sx={{ mt: 2 }}
-                    onClick={() => goToNext(learning.reviewQueue)}
+                    onClick={() => goToNext(pendingQueueRef.current)}
                   >
                     مرحله بعد
                   </Button>
@@ -743,7 +1003,7 @@ export default function StepPage() {
           </>
         )}
 
-        {/* matching → TEXT + media inline */}
+        {/* matching */}
         {step.type === "matching" && (
           <>
             {step.matchingQuestion && (
@@ -807,7 +1067,7 @@ export default function StepPage() {
                   <Button
                     variant="contained"
                     sx={{ mt: 2 }}
-                    onClick={() => goToNext(learning.reviewQueue)}
+                    onClick={() => goToNext(pendingQueueRef.current)}
                   >
                     مرحله بعد
                   </Button>
@@ -905,14 +1165,7 @@ export default function StepPage() {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => {
-              setRateOpen(false);
-              blockAutoNextRef.current = false;
-            }}
-          >
-            بعداً
-          </Button>
+          <Button onClick={() => setRateOpen(false)}>بعداً</Button>
           <Button
             variant="contained"
             disabled={unitRate === 0}
