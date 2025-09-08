@@ -317,10 +317,26 @@ const nextIndexFromStateLocal = (lrn, flatLocal, indexByIdLocal) => {
     return flatLocal.length;
   }
   if (Number.isFinite(lrn?.progress)) {
-    return Math.min(Math.max(0, lnr.progress), flatLocal.length);
+    return Math.min(Math.max(0, lrn.progress), flatLocal.length);
   }
   return 0;
 };
+
+/* --- get presigned URL for S3 objects --- */
+async function getPresignedUrl(key) {
+  try {
+    const res = await fetch("/api/storage/presigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ key }),
+    });
+    const data = await res.json();
+    return data?.url || "";
+  } catch {
+    return "";
+  }
+}
 
 export default function StepPage() {
   const { id: courseId, flatStepIdx: idxStr } = useParams();
@@ -367,6 +383,9 @@ export default function StepPage() {
     type: "success",
   });
 
+  // media state for video/audio steps
+  const [mediaSrc, setMediaSrc] = useState("");
+
   // صف فعلی مرور برای جلوگیری از race با setState
   const pendingQueueRef = useRef([]);
 
@@ -375,6 +394,7 @@ export default function StepPage() {
     await fetch("/api/students/learning", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({
         mobile: localStorage.getItem("student_mobile"),
         courseId,
@@ -391,10 +411,13 @@ export default function StepPage() {
       return;
     }
     Promise.all([
-      fetch(`/api/courses/${courseId}`).then((r) => r.json()),
+      fetch(`/api/courses/${courseId}`, { credentials: "include" }).then((r) =>
+        r.json()
+      ),
       fetch("/api/students/learning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ mobile }),
       }).then((r) => r.json()),
     ]).then(async ([c, lRes]) => {
@@ -521,7 +544,7 @@ export default function StepPage() {
 
       setLoading(false);
     });
-  }, [courseId, router]);
+  }, [courseId, router, idxStr]);
 
   /* -------- sync local index when URL param changes -------- */
   useEffect(() => {
@@ -532,11 +555,12 @@ export default function StepPage() {
     }
   }, [idxStr, loading, flat, currentIndex]);
 
-  /* -------- shuffle on step load -------- */
+  /* -------- shuffle on step load + media presign -------- */
   const [multiSelected, setMultiSelected] = useState(new Set());
   useEffect(() => {
     if (!step) return;
 
+    // prepare choices
     if (
       ["multiple-choice", "fill-in-the-blank", "multi-answer"].includes(
         step.type
@@ -555,6 +579,7 @@ export default function StepPage() {
       setDisplayToOriginal({});
     }
 
+    // prepare matching
     if (step.type === "matching") {
       const rights = (step.pairs || []).map((p) => p.right);
       setShuffledRights(shuffle(rights));
@@ -566,12 +591,29 @@ export default function StepPage() {
     }
 
     if (step.type === "multi-answer") setMultiSelected(new Set());
+
+    // prepare media for video/audio
+    (async () => {
+      if (step.type === "video" || step.type === "audio") {
+        let src = "";
+        if (step.mediaKey) {
+          src = await getPresignedUrl(step.mediaKey);
+        }
+        if (!src && step.mediaUrl) {
+          src = step.mediaUrl;
+        }
+        setMediaSrc(src);
+      } else {
+        setMediaSrc("");
+      }
+    })();
   }, [step]);
 
   /* -------- computed UI helpers -------- */
   const unitTotal = meta.unit?.steps?.length || 1;
   const inUnitIdx = meta.stIdx || 0;
-  const unitProgress = Math.floor((inUnitIdx / unitTotal) * 100);
+  const unitProgress =
+    unitTotal > 0 ? Math.floor(((inUnitIdx + 1) / unitTotal) * 100) : 0;
 
   /* -------- queue modal auto-close -------- */
   useEffect(() => {
@@ -763,6 +805,7 @@ export default function StepPage() {
       await fetch("/api/feedback/step", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           mobile: localStorage.getItem("student_mobile"),
           courseId,
@@ -794,6 +837,7 @@ export default function StepPage() {
       await fetch("/api/feedback/unit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           mobile: localStorage.getItem("student_mobile"),
           courseId,
@@ -856,7 +900,7 @@ export default function StepPage() {
       <Box mb={2}>
         <LinearProgress
           variant="determinate"
-          value={unitProgress}
+          value={Math.max(0, Math.min(100, unitProgress))}
           sx={{
             height: 10,
             borderRadius: 5,
@@ -896,6 +940,77 @@ export default function StepPage() {
         <Typography variant="h6" mb={2} fontWeight="bold" color="#2477F3">
           {step.title}
         </Typography>
+
+        {/* ========= video step ========= */}
+        {step.type === "video" && (
+          <>
+            {step.text && (
+              <Box
+                mb={1.5}
+                sx={{ "&, & p": { fontSize: 16, lineHeight: 1.9 } }}
+              >
+                <InlineTextWithMedia text={step.text} />
+              </Box>
+            )}
+            {step.mediaUrl &&
+            (step.mediaUrl.includes("youtube.com/") ||
+              step.mediaUrl.includes("youtu.be/") ||
+              step.mediaUrl.includes("aparat.com/")) ? (
+              <MediaEl src={step.mediaUrl} />
+            ) : mediaSrc ? (
+              <video
+                key={mediaSrc}
+                src={mediaSrc}
+                controls
+                style={{ width: "100%", borderRadius: 8 }}
+              />
+            ) : (
+              <Typography color="text.secondary">
+                ویدیو در دسترس نیست.
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              sx={{ mt: 3, fontWeight: "bold" }}
+              onClick={nextExplanation}
+            >
+              مرحله بعد
+            </Button>
+          </>
+        )}
+
+        {/* ========= audio step ========= */}
+        {step.type === "audio" && (
+          <>
+            {step.text && (
+              <Box
+                mb={1.5}
+                sx={{ "&, & p": { fontSize: 16, lineHeight: 1.9 } }}
+              >
+                <InlineTextWithMedia text={step.text} />
+              </Box>
+            )}
+            {mediaSrc ? (
+              <audio
+                key={mediaSrc}
+                src={mediaSrc}
+                controls
+                style={{ width: "100%" }}
+              />
+            ) : (
+              <Typography color="text.secondary">
+                فایل صوتی در دسترس نیست.
+              </Typography>
+            )}
+            <Button
+              variant="contained"
+              sx={{ mt: 3, fontWeight: "bold" }}
+              onClick={nextExplanation}
+            >
+              مرحله بعد
+            </Button>
+          </>
+        )}
 
         {/* explanation */}
         {step.type === "explanation" && (
@@ -989,6 +1104,14 @@ export default function StepPage() {
                     ? step.feedbackCorrect || "پاسخ صحیح!"
                     : step.feedbackWrong || "پاسخ اشتباه"}
                 </Typography>
+
+                {/* توضیح اختیاری پس از پاسخ */}
+                {!!step.explanation && (
+                  <Typography mt={1.25} sx={{ lineHeight: 1.9 }}>
+                    {step.explanation}
+                  </Typography>
+                )}
+
                 {!isCorrect && (
                   <Button
                     variant="contained"
@@ -1006,11 +1129,13 @@ export default function StepPage() {
         {/* matching */}
         {step.type === "matching" && (
           <>
-            {step.matchingQuestion && (
-              <Box mb={2} sx={{ "&, & p": { fontSize: 17, lineHeight: 1.9 } }}>
-                <InlineTextWithMedia text={step.matchingQuestion} />
-              </Box>
-            )}
+            <Box mb={2} sx={{ "&, & p": { fontSize: 17, lineHeight: 1.9 } }}>
+              <InlineTextWithMedia
+                text={
+                  step.matchingQuestion || "موارد مناسب را با هم تطبیق دهید."
+                }
+              />
+            </Box>
             {(step.pairs || []).map((p, i) => (
               <Stack
                 key={i}

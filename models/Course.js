@@ -1,50 +1,51 @@
 import mongoose from "mongoose";
 
 const stepSchema = new mongoose.Schema({
-  // عنوان گام
   title: { type: String, default: "" },
 
-  type: { 
-    type: String, 
+  type: {
+    type: String,
     enum: [
-      'explanation', 
-      'multiple-choice', 
-      'multi-answer', 
-      'fill-in-the-blank', 
-      'matching'
-    ], 
-    default: 'explanation' 
+      "explanation",
+      "multiple-choice",
+      "multi-answer",
+      "fill-in-the-blank",
+      "matching",
+      // NEW ↓
+      "video",
+      "audio",
+    ],
+    default: "explanation",
   },
 
-  // برای توضیح و متن سؤال و جای‌خالی و ...  
-  content: String,      // متن HTML برای توضیح  
-  text: String,         // متن سؤال یا جمله
+  // عمومی
+  content: String,   // HTML برای توضیح
+  text: String,      // متن سوال/توضیح کوتاه
 
-  // برای گزینه‌های چندگزینه‌ای و جای‌خالی با چند گزینه
-  options: [String],    // در جای‌خالی هم استفاده می‌شود
-  correctIndex: Number, // فقط یکی صحیح است
-  correctIndexes: [Number], // چند جوابی
+  // چندگزینه‌ای/جای‌خالی
+  options: [String],
+  correctIndex: Number,
+  correctIndexes: [Number],
 
-  answer: String,       // برای پاسخ جای‌خالی سنتی  
-  explanation: String,  // توضیح بعد از جواب  
+  answer: String,
+  explanation: String,
   feedbackCorrect: String,
   feedbackWrong: String,
   order: Number,
 
-  // برای matching
-  pairs: [
-    {
-      left: String,   // مورد سمت راست
-      right: String,  // مورد سمت چپ
-    }
-  ],
-  matchingQuestion: String, // عنوان سوال matching
+  // matching
+  pairs: [{ left: String, right: String }],
+  matchingQuestion: String,
+
+  // NEW: مدیا (برای ویدیو/صوت یا حتی توضیحی)
+  mediaUrl: String,  // لینک بیرونی (YouTube/فایل عمومی و ...)
+  mediaKey: String,  // کلید S3 در لیارا (خصوصی) مثل: videos/1737-abc-file.mp4
 });
 
 const unitSchema = new mongoose.Schema({
   title: String,
   order: Number,
-  steps: [stepSchema], 
+  steps: [stepSchema],
 });
 
 const sectionSchema = new mongoose.Schema({

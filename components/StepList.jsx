@@ -2,7 +2,7 @@
 // FILE: components/StepList.jsx
 // ===============================
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Box,
   Button,
@@ -15,6 +15,7 @@ import {
   Collapse,
   Tooltip,
   Chip,
+  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -34,10 +35,11 @@ import SafeHtml from "./SafeHtml";
 
 const TYPE_LABELS = {
   explanation: "توضیحی",
-  "multiple-choice": "چهار گزینه‌ای",
-  "multi-answer": "چند گزینه‌ای",
-  // "fill-in-the-blank": hidden from selector (برای سادگی)
+  "multiple-choice": "چهارگزینه‌ای",
+  "multi-answer": "چندگزینه‌ای (چند پاسخ صحیح)",
   matching: "تطبیق",
+  video: "ویدیویی",
+  audio: "صوتی",
 };
 
 const EMPTY_STEP = {
@@ -45,66 +47,84 @@ const EMPTY_STEP = {
   type: "explanation",
   content: "",
   text: "",
-  options: ["", "", "", ""], // پیش‌فرض ۴ گزینه
+  // فقط برای تست‌ها
+  options: ["", "", "", ""],
   correctIndex: 0,
   correctIndexes: [],
-  answer: "",
   explanation: "",
   feedbackCorrect: "",
   feedbackWrong: "",
+  // برای matching
   pairs: [{ left: "", right: "" }],
   matchingQuestion: "",
+  // برای ویدیو/صوت
   mediaUrl: "",
+  mediaKey: "",
 };
 
-// نرمال‌سازی بر اساس نوع
 function normalizeStep(s) {
   const t = s.type;
   const base = { ...s };
 
-  if (t === "explanation") {
-    base.text = "";
+  const clearQA = () => {
     base.options = [];
     base.correctIndex = 0;
     base.correctIndexes = [];
     base.feedbackCorrect = "";
     base.feedbackWrong = "";
+  };
+  const clearMatching = () => {
     base.pairs = [{ left: "", right: "" }];
     base.matchingQuestion = "";
-  } else if (t === "multiple-choice") {
-    // چهار گزینه‌ای = دقیقاً ۴ گزینه
-    const opts = Array.isArray(base.options) ? base.options.slice(0, 4) : [];
-    while (opts.length < 4) opts.push("");
-    base.options = opts;
-    base.correctIndex = Math.min(Math.max(0, base.correctIndex ?? 0), 3);
-    base.correctIndexes = [];
-    base.pairs = [{ left: "", right: "" }];
-    base.matchingQuestion = "";
-  } else if (t === "multi-answer") {
-    // چند گزینه‌ای = تعداد متغیر؛ حداقل 2-4 اولیه
-    const opts =
-      Array.isArray(base.options) && base.options.length
-        ? base.options
-        : ["", "", "", ""];
-    base.options = opts;
-    // فیلتر ایندکس‌های صحیح بر اساس طول فعلی
-    base.correctIndexes = (base.correctIndexes || []).filter(
-      (i) => Number.isInteger(i) && i >= 0 && i < opts.length
-    );
-    base.correctIndex = 0;
-    base.pairs = [{ left: "", right: "" }];
-    base.matchingQuestion = "";
-  } else if (t === "matching") {
-    base.options = [];
-    base.correctIndex = 0;
-    base.correctIndexes = [];
-    // متن تطبیق اختیاری: پیش‌فرض اگر خالی بود
-    if (!base.matchingQuestion || !base.matchingQuestion.trim()) {
-      base.matchingQuestion = "موارد زیر را با هم تطبیق دهید";
-    }
-  }
+  };
 
+  if (t === "explanation") {
+    // اجازه داریم content داشته باشیم؛ بقیه موارد پاک
+    base.text = "";
+    clearQA();
+    clearMatching();
+    // mediaKey/mediaUrl ذخیره نمی‌کنیم؛ لینک‌ها را کاربر در ادیتور Paste می‌کند
+    base.mediaKey = "";
+    base.mediaUrl = "";
+  } else if (t === "multiple-choice") {
+    base.correctIndexes = [];
+    clearMatching();
+    base.mediaUrl = "";
+    base.mediaKey = "";
+  } else if (t === "multi-answer") {
+    base.correctIndex = 0;
+    clearMatching();
+    base.mediaUrl = "";
+    base.mediaKey = "";
+  } else if (t === "matching") {
+    clearQA();
+    base.mediaUrl = "";
+    base.mediaKey = "";
+  } else if (t === "video" || t === "audio") {
+    // فقط توضیح کوتاه (text) + یکی از mediaUrl/mediaKey
+    base.content = "";
+    clearQA();
+    clearMatching();
+  }
   return base;
+}
+
+// نام‌گذاری فایل برای S3 (فعلاً استفاده نمی‌شود اما می‌ماند)
+function makeKey(file, kind /* video|audio|asset */) {
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const folder =
+    kind === "audio" ? "audios" : kind === "video" ? "videos" : "assets";
+  const rand = Math.random().toString(36).slice(2, 12);
+  return `${folder}/${Date.now()}-${rand}.${ext}`;
+}
+
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export default function StepList({
@@ -123,6 +143,19 @@ export default function StepList({
   const [helpOpen, setHelpOpen] = useState(false);
   const [toast, setToast] = useState({ open: false, msg: "", sev: "success" });
   const notify = (msg, sev = "success") => setToast({ open: true, msg, sev });
+
+  // آپلود S3 برای video/audio
+  const fileRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  // آپلود برای گام توضیحی (فقط کمک برای کپی لینک)
+  const helperRef = useRef(null);
+  const [helperUploading, setHelperUploading] = useState(false);
+  const [helperKey, setHelperKey] = useState("");
+  const [helperSigned, setHelperSigned] = useState("");
+
+  const QUESTION_TYPES = ["multiple-choice", "multi-answer"];
+  const SHOW_FEEDBACK = QUESTION_TYPES.includes(form.type);
 
   const save = async (newSteps) => {
     const newUnits = [...section.units];
@@ -148,6 +181,8 @@ export default function StepList({
     setFormOpen(false);
     setEditing(null);
     setForm(EMPTY_STEP);
+    setHelperKey("");
+    setHelperSigned("");
     notify(editing !== null ? "گام ویرایش شد" : "گام اضافه شد");
     onToast?.("یونیت به‌روزرسانی شد");
   };
@@ -169,24 +204,111 @@ export default function StepList({
     notify("ترتیب گام‌ها تغییر کرد");
   };
 
-  // helpers برای گزینه‌ها
+  // ====== افزودن/حذف گزینه‌ها برای تست‌ها ======
   const addOption = () =>
     setForm((f) => ({ ...f, options: [...(f.options || []), ""] }));
 
-  const removeOptionAt = (idx) =>
+  // حداقل 2 گزینه
+  const removeOption = (idx) =>
     setForm((f) => {
       const opts = [...(f.options || [])];
+      if (opts.length <= 2) return f;
       opts.splice(idx, 1);
-      // correctIndexes را نسبت به حذف هم‌تراز کنیم
-      const ci = (f.correctIndexes || [])
+
+      // اصلاح پاسخ‌های صحیح
+      let correctIndex = f.correctIndex ?? 0;
+      if (f.type === "multiple-choice") {
+        if (correctIndex === idx) correctIndex = 0;
+        else if (correctIndex > idx) correctIndex -= 1;
+      }
+      let correctIndexes = Array.isArray(f.correctIndexes)
+        ? f.correctIndexes
+        : [];
+      correctIndexes = correctIndexes
         .filter((i) => i !== idx)
         .map((i) => (i > idx ? i - 1 : i));
-      return { ...f, options: opts, correctIndexes: ci };
+
+      return { ...f, options: opts, correctIndex, correctIndexes };
     });
 
-  // تغییر نوع با نرمال‌سازی فوری
-  const changeType = (t) =>
-    setForm((prev) => normalizeStep({ ...prev, type: t }));
+  // ====== آپلود برای video/audio ======
+  const handlePickAndUpload = () => fileRef.current?.click();
+  const onFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const isVideo = form.type === "video";
+    const isAudio = form.type === "audio";
+    if (!isVideo && !isAudio) return;
+
+    const okVideo = /(mp4|webm|ogv)$/i.test(file.name);
+    const okAudio = /(mp3|wav|ogg)$/i.test(file.name);
+    if ((isVideo && !okVideo) || (isAudio && !okAudio)) {
+      notify("فرمت فایل با نوع گام سازگار نیست.", "warning");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/storage/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("upload failed");
+      const data = await res.json();
+      setForm((f) => ({ ...f, mediaKey: data.key, mediaUrl: "" }));
+      notify("آپلود انجام شد ✅");
+    } catch {
+      notify("خطا در آپلود فایل", "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // ====== آپلود کمکی برای توضیحی ======
+  const helperPick = () => helperRef.current?.click();
+  const helperChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setHelperUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/storage/upload", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("upload failed");
+      const data = await res.json();
+      setHelperKey(data.key);
+      setHelperSigned("");
+      notify("آپلود انجام شد ✅ — روی «گرفتن لینک موقت» بزنید");
+    } catch {
+      notify("خطا در آپلود فایل", "error");
+    } finally {
+      setHelperUploading(false);
+    }
+  };
+  const getSigned = async () => {
+    if (!helperKey) return;
+    const r = await fetch("/api/storage/presigned", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: helperKey }),
+    });
+    const data = await r.json();
+    setHelperSigned(data?.url || "");
+    if (data?.url) {
+      await copy(data.url);
+      notify("لینک در کلیپ‌بورد کپی شد ✨");
+    }
+  };
 
   return (
     <Box sx={{ mt: 1, pr: 1 }}>
@@ -210,14 +332,13 @@ export default function StepList({
         <Card variant="outlined" sx={{ mb: 1 }}>
           <CardContent sx={{ pt: 1.5 }}>
             <Typography variant="body2" sx={{ lineHeight: 2 }}>
-              • «توضیحی» فقط متن/رسانه دارد.
-              <br />
-              • «چهار گزینه‌ای» دقیقاً ۴ گزینه دارد و تنها یک پاسخ صحیح.
-              <br />
-              • «چند گزینه‌ای» هر تعداد گزینه می‌تواند داشته باشد و چند پاسخ
-              صحیح را پشتیبانی می‌کند.
-              <br />• «تطبیق» متن سؤال اختیاری است؛ اگر خالی بماند یک متن
-              پیش‌فرض ذخیره می‌شود.
+              • «توضیحی» متن (با ادیتور) دارد؛ می‌توانید فایل را آپلود کرده و
+              لینک را در متن Paste کنید. <br />
+              • «ویدیویی/صوتی» پاسخ و فیدبک ندارند؛ فقط توضیح کوتاه + فایل/لینک
+              دارند. <br />
+              • تست‌ها: «چهارگزینه‌ای» (یک پاسخ صحیح) و «چندگزینه‌ای (چند پاسخ
+              صحیح)» که می‌توانید هر تعداد گزینه اضافه کنید. <br />• «تطبیق» با
+              جفت‌های چپ/راست.
             </Typography>
           </CardContent>
         </Card>
@@ -231,6 +352,8 @@ export default function StepList({
             setFormOpen(true);
             setEditing(null);
             setForm(EMPTY_STEP);
+            setHelperKey("");
+            setHelperSigned("");
           }}
         >
           افزودن گام جدید
@@ -242,163 +365,146 @@ export default function StepList({
         <Droppable droppableId="steps">
           {(p) => (
             <div ref={p.innerRef} {...p.droppableProps}>
-              {(unit.steps || []).map((st, i) => {
-                const showOptions =
-                  ["multiple-choice", "multi-answer"].includes(st.type) &&
-                  Array.isArray(st.options) &&
-                  st.options.some((o) => (o || "").toString().trim() !== "");
-
-                return (
-                  <Draggable key={i} draggableId={`step-${i}`} index={i}>
-                    {(prov) => (
-                      <Card
-                        ref={prov.innerRef}
-                        {...prov.draggableProps}
-                        sx={{
-                          mb: 1,
-                          background: "#fff",
-                          borderRadius: 2,
-                          boxShadow: 1,
-                          border: "1px solid #eaecef",
-                        }}
-                      >
-                        <CardContent sx={{ pb: 1.25 }}>
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            spacing={1}
-                          >
-                            <span {...prov.dragHandleProps}>
-                              <DragIndicatorIcon
-                                sx={{ color: "#999", cursor: "grab" }}
-                              />
-                            </span>
-                            <IconButton size="small" onClick={() => remove(i)}>
-                              <DeleteIcon fontSize="small" color="error" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                setFormOpen(true);
-                                setEditing(i);
-                                setForm(st);
-                              }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                setOpenIdx(openIdx === i ? null : i)
-                              }
-                            >
-                              <ExpandMoreIcon
-                                sx={{
-                                  transform:
-                                    openIdx === i ? "rotate(180deg)" : "none",
-                                  transition: ".2s",
-                                }}
-                              />
-                            </IconButton>
-                            <Chip
-                              size="small"
-                              label={TYPE_LABELS[st.type] || st.type}
+              {(unit.steps || []).map((st, i) => (
+                <Draggable key={i} draggableId={`step-${i}`} index={i}>
+                  {(prov) => (
+                    <Card
+                      ref={prov.innerRef}
+                      {...prov.draggableProps}
+                      sx={{
+                        mb: 1,
+                        background: "#fff",
+                        borderRadius: 2,
+                        boxShadow: 1,
+                        border: "1px solid #eaecef",
+                      }}
+                    >
+                      <CardContent sx={{ pb: 1.25 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                          <span {...prov.dragHandleProps}>
+                            <DragIndicatorIcon
+                              sx={{ color: "#999", cursor: "grab" }}
                             />
-                            <Typography fontWeight={700} sx={{ mr: 1 }}>
-                              {i + 1}. {st.title || "بدون عنوان"}
-                            </Typography>
-                          </Stack>
+                          </span>
+                          <IconButton size="small" onClick={() => remove(i)}>
+                            <DeleteIcon fontSize="small" color="error" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setFormOpen(true);
+                              setEditing(i);
+                              setForm(st);
+                              setHelperKey("");
+                              setHelperSigned("");
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => setOpenIdx(openIdx === i ? null : i)}
+                          >
+                            <ExpandMoreIcon
+                              sx={{
+                                transform:
+                                  openIdx === i ? "rotate(180deg)" : "none",
+                                transition: ".2s",
+                              }}
+                            />
+                          </IconButton>
+                          <Chip
+                            size="small"
+                            label={TYPE_LABELS[st.type] || st.type}
+                          />
+                          <Typography fontWeight={700} sx={{ mr: 1 }}>
+                            {i + 1}. {st.title || "بدون عنوان"}
+                          </Typography>
+                        </Stack>
 
-                          <Collapse in={openIdx === i}>
-                            <Box sx={{ mt: 1, color: "text.secondary" }}>
-                              {st.type === "explanation" ? (
-                                <>
-                                  {st.mediaUrl ? (
-                                    <div style={{ marginBottom: 8 }}>
-                                      <SafeHtml
-                                        html={`<p><a href="${st.mediaUrl}" target="_blank" rel="noreferrer">مشاهده مدیا</a></p>`}
-                                      />
-                                    </div>
-                                  ) : null}
-                                  <SafeHtml
-                                    html={
-                                      st.content ||
-                                      '<p style="opacity:.6">— بدون محتوا —</p>'
-                                    }
-                                  />
-                                </>
-                              ) : st.type === "matching" ? (
-                                <>
-                                  {(st.matchingQuestion || st.text) && (
-                                    <Typography sx={{ mb: 0.75 }}>
-                                      سؤال تطبیق:{" "}
-                                      {st.matchingQuestion ||
-                                        st.text ||
-                                        "موارد زیر را با هم تطبیق دهید"}
-                                    </Typography>
-                                  )}
-                                  {Array.isArray(st.pairs) &&
-                                  st.pairs.length ? (
+                        <Collapse in={openIdx === i}>
+                          <Box sx={{ mt: 1, color: "text.secondary" }}>
+                            {st.type === "explanation" ? (
+                              <SafeHtml
+                                html={
+                                  st.content ||
+                                  '<p style="opacity:.6">— بدون محتوا —</p>'
+                                }
+                              />
+                            ) : st.type === "matching" ? (
+                              <>
+                                <Typography sx={{ mb: 0.75 }}>
+                                  سؤال تطبیق:{" "}
+                                  {st.matchingQuestion ||
+                                    "موارد مناسب را تطبیق دهید."}
+                                </Typography>
+                                {Array.isArray(st.pairs) && st.pairs.length ? (
+                                  <Box
+                                    sx={{
+                                      mt: 0.5,
+                                      border: "1px dashed #d0d7de",
+                                      borderRadius: 1,
+                                    }}
+                                  >
                                     <Box
                                       sx={{
-                                        mt: 0.5,
-                                        border: "1px dashed #d0d7de",
-                                        borderRadius: 1,
+                                        display: "grid",
+                                        gridTemplateColumns: "1fr 1fr",
+                                        p: 1,
+                                        bgcolor: "#f6f8fa",
+                                        fontWeight: 700,
                                       }}
                                     >
+                                      <div>سمت راست</div>
+                                      <div>سمت چپ</div>
+                                    </Box>
+                                    {st.pairs.map((p, idx) => (
                                       <Box
+                                        key={idx}
                                         sx={{
                                           display: "grid",
                                           gridTemplateColumns: "1fr 1fr",
                                           p: 1,
-                                          bgcolor: "#f6f8fa",
-                                          fontWeight: 700,
+                                          borderTop: "1px solid #eee",
                                         }}
                                       >
-                                        <div>سمت راست</div>
-                                        <div>سمت چپ</div>
+                                        <div>{p.left || "—"}</div>
+                                        <div>{p.right || "—"}</div>
                                       </Box>
-                                      {st.pairs.map((p, idx) => (
-                                        <Box
-                                          key={idx}
-                                          sx={{
-                                            display: "grid",
-                                            gridTemplateColumns: "1fr 1fr",
-                                            p: 1,
-                                            borderTop: "1px solid #eee",
-                                          }}
-                                        >
-                                          <div>
-                                            {p.left || (
-                                              <span style={{ opacity: 0.5 }}>
-                                                —
-                                              </span>
-                                            )}
-                                          </div>
-                                          <div>
-                                            {p.right || (
-                                              <span style={{ opacity: 0.5 }}>
-                                                —
-                                              </span>
-                                            )}
-                                          </div>
-                                        </Box>
-                                      ))}
-                                    </Box>
-                                  ) : (
-                                    <Typography sx={{ opacity: 0.6 }}>
-                                      — بدون جفت —
-                                    </Typography>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  {st.text && (
-                                    <Typography sx={{ mb: 0.5 }}>
-                                      سؤال: {st.text}
-                                    </Typography>
-                                  )}
-                                  {showOptions && (
+                                    ))}
+                                  </Box>
+                                ) : (
+                                  <Typography sx={{ opacity: 0.6 }}>
+                                    — بدون جفت —
+                                  </Typography>
+                                )}
+                              </>
+                            ) : st.type === "video" || st.type === "audio" ? (
+                              <>
+                                {st.text && (
+                                  <Typography sx={{ mb: 0.5 }}>
+                                    توضیح: {st.text}
+                                  </Typography>
+                                )}
+                                <Typography variant="caption">
+                                  {st.mediaKey
+                                    ? `S3 Key: ${st.mediaKey}`
+                                    : st.mediaUrl
+                                    ? `URL: ${st.mediaUrl}`
+                                    : "بدون فایل"}
+                                </Typography>
+                              </>
+                            ) : (
+                              <>
+                                {st.text && (
+                                  <Typography sx={{ mb: 0.5 }}>
+                                    سؤال: {st.text}
+                                  </Typography>
+                                )}
+                                {Array.isArray(st.options) &&
+                                  st.options.some(
+                                    (o) => (o || "").trim() !== ""
+                                  ) && (
                                     <>
                                       <Typography variant="body2">
                                         گزینه‌ها:
@@ -409,37 +515,29 @@ export default function StepList({
                                             key={idx}
                                             style={{
                                               fontWeight:
-                                                st.type === "multiple-choice"
-                                                  ? st.correctIndex === idx
-                                                    ? "bold"
-                                                    : "normal"
-                                                  : (
-                                                      st.correctIndexes || []
-                                                    ).includes(idx)
+                                                st.correctIndex === idx ||
+                                                (
+                                                  st.correctIndexes || []
+                                                ).includes(idx)
                                                   ? "bold"
                                                   : "normal",
                                             }}
                                           >
-                                            {o || (
-                                              <span style={{ opacity: 0.5 }}>
-                                                —
-                                              </span>
-                                            )}
+                                            {o || "—"}
                                           </li>
                                         ))}
                                       </ol>
                                     </>
                                   )}
-                                </>
-                              )}
-                            </Box>
-                          </Collapse>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </Draggable>
-                );
-              })}
+                              </>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </CardContent>
+                    </Card>
+                  )}
+                </Draggable>
+              ))}
               {p.placeholder}
             </div>
           )}
@@ -470,45 +568,44 @@ export default function StepList({
               <TextField
                 label="نوع گام"
                 value={form.type}
-                onChange={(e) => changeType(e.target.value)}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, type: e.target.value }))
+                }
                 select
-                sx={{ minWidth: 240 }}
+                sx={{ minWidth: 280 }}
               >
                 <MenuItem value="explanation">توضیحی</MenuItem>
-                <MenuItem value="multiple-choice">چهار گزینه‌ای</MenuItem>
-                <MenuItem value="multi-answer">چند گزینه‌ای</MenuItem>
+                <MenuItem value="multiple-choice">چهارگزینه‌ای</MenuItem>
+                <MenuItem value="multi-answer">
+                  چندگزینه‌ای (چند پاسخ صحیح)
+                </MenuItem>
                 <MenuItem value="matching">تطبیق</MenuItem>
+                <Divider />
+                <MenuItem value="video">ویدیویی</MenuItem>
+                <MenuItem value="audio">صوتی</MenuItem>
               </TextField>
 
-              <TextField
-                label="لینک مدیا (اختیاری)"
-                placeholder="https://... (mp4/mp3/jpg/...)"
-                value={form.mediaUrl || ""}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, mediaUrl: e.target.value }))
-                }
-                fullWidth
-              />
+              {/* لینک بیرونی فقط برای ویدیو/صوتی */}
+              {(form.type === "video" || form.type === "audio") && (
+                <TextField
+                  label="לینک بیرونی (اختیاری)"
+                  placeholder="https://aparat.com/... | https://...mp4"
+                  value={form.mediaUrl || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, mediaUrl: e.target.value }))
+                  }
+                  fullWidth
+                />
+              )}
             </Stack>
 
-            {form.type === "explanation" && (
-              <>
-                <Typography fontWeight={700} mt={1}>
-                  محتوا:
-                </Typography>
-                <RichTextEditor
-                  value={form.content}
-                  onChange={(val) => setForm((f) => ({ ...f, content: val }))}
-                />
-              </>
-            )}
-
-            {["multiple-choice", "multi-answer", "matching"].includes(
-              form.type
-            ) && (
+            {/* توضیح/سوال/توضیح کوتاه برای همه انواع غیر-توضیحی */}
+            {form.type !== "explanation" && (
               <TextField
                 label={
-                  form.type === "matching" ? "متن سؤال (اختیاری)" : "متن سؤال"
+                  form.type === "matching"
+                    ? "متن/توضیح (اختیاری)"
+                    : "متن سؤال/توضیح"
                 }
                 value={form.text}
                 onChange={(e) =>
@@ -519,62 +616,163 @@ export default function StepList({
               />
             )}
 
-            {/* چهار گزینه‌ای: دقیقاً ۴ ورودی */}
-            {form.type === "multiple-choice" && (
+            {/* ادیتور برای توضیحی + باکس آپلود کمکـی */}
+            {form.type === "explanation" && (
               <>
-                <Typography fontWeight={700}>گزینه‌ها (۴ مورد)</Typography>
-                <Stack gap={1}>
-                  {(() => {
-                    const opts =
-                      Array.isArray(form.options) && form.options.length === 4
-                        ? form.options
-                        : normalizeStep({ ...form, type: "multiple-choice" })
-                            .options;
-                    return opts.map((op, i) => (
-                      <TextField
-                        key={i}
-                        label={`گزینه ${i + 1}`}
-                        value={op}
-                        onChange={(e) => {
-                          const options = [...opts];
-                          options[i] = e.target.value;
-                          setForm((f) => ({ ...f, options }));
-                        }}
-                      />
-                    ));
-                  })()}
-                </Stack>
-                <TextField
-                  label="اندیس گزینه صحیح (۰ تا ۳)"
-                  type="number"
-                  value={form.correctIndex ?? 0}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      correctIndex: Math.max(
-                        0,
-                        Math.min(3, Number(e.target.value))
-                      ),
-                    }))
-                  }
-                  sx={{ maxWidth: 260 }}
+                <Typography fontWeight={700} mt={1}>
+                  محتوا:
+                </Typography>
+                <RichTextEditor
+                  value={form.content}
+                  onChange={(val) => setForm((f) => ({ ...f, content: val }))}
                 />
+
+                {/* آپلود کمکـی برای گرفتن لینک و پیست در ادیتور */}
+                <Box
+                  sx={{
+                    mt: 1.5,
+                    border: "2px dashed #d0d7de",
+                    borderRadius: 2,
+                    p: 1.25,
+                    bgcolor: "#f8fafc",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 0.5, fontWeight: 800 }}
+                  >
+                    آپلود مدیا برای درج در متن
+                  </Typography>
+                  <Stack
+                    direction={{ xs: "column", sm: "row" }}
+                    gap={1}
+                    alignItems="center"
+                  >
+                    <TextField
+                      fullWidth
+                      value={helperKey}
+                      placeholder="S3 Key — پس از آپلود پر می‌شود"
+                      onChange={(e) => setHelperKey(e.target.value)}
+                    />
+                    <Button
+                      onClick={helperPick}
+                      disabled={helperUploading}
+                      variant="outlined"
+                    >
+                      {helperUploading
+                        ? "در حال آپلود…"
+                        : "انتخاب و آپلود فایل"}
+                    </Button>
+                    <input
+                      ref={helperRef}
+                      type="file"
+                      hidden
+                      accept="video/mp4,video/webm,video/ogg,audio/mpeg,audio/wav,audio/ogg,image/*"
+                      onChange={helperChange}
+                    />
+                  </Stack>
+                  <Stack direction="row" gap={1} sx={{ mt: 1 }}>
+                    <Button
+                      variant="contained"
+                      onClick={getSigned}
+                      disabled={!helperKey}
+                    >
+                      گرفتن لینک موقت
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={async () => {
+                        if (helperSigned) {
+                          await copy(helperSigned);
+                          notify("לینک در کلیپ‌بورد کپی شد ✨");
+                        }
+                      }}
+                      disabled={!helperSigned}
+                    >
+                      کپی لینک
+                    </Button>
+                  </Stack>
+                  {!!helperSigned && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        mt: 0.75,
+                        display: "block",
+                        direction: "ltr",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {helperSigned}
+                    </Typography>
+                  )}
+                  <Typography
+                    variant="caption"
+                    sx={{ mt: 0.5, display: "block" }}
+                  >
+                    نکته: لینک را هرجا خواستی داخل ادیتور بالا پیست کن. اگر لینک
+                    mp4/mp3/... باشد، پخش‌کننده به‌صورت خودکار نمایش داده
+                    می‌شود.
+                  </Typography>
+                </Box>
               </>
             )}
 
-            {/* چند گزینه‌ای: اضافه/حذف گزینه آزاد */}
-            {form.type === "multi-answer" && (
+            {/* آپلود S3 فقط برای ویدیو/صوتی */}
+            {(form.type === "video" || form.type === "audio") && (
+              <Box
+                sx={{
+                  border: "2px dashed #d0d7de",
+                  borderRadius: 2,
+                  p: 1.25,
+                  bgcolor: "#f8fafc",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{ opacity: 0.7, mb: 0.75, textAlign: "left" }}
+                >
+                  S3 Key
+                </Typography>
+                <Stack direction="row" gap={1} alignItems="center">
+                  <TextField
+                    fullWidth
+                    value={form.mediaKey || ""}
+                    placeholder="پس از آپلود پر می‌شود…"
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, mediaKey: e.target.value }))
+                    }
+                  />
+                  <Button
+                    onClick={handlePickAndUpload}
+                    disabled={uploading}
+                    variant="outlined"
+                  >
+                    {uploading ? "در حال آپلود…" : "انتخاب و آپلود فایل"}
+                  </Button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    hidden
+                    accept={
+                      form.type === "video"
+                        ? "video/mp4,video/webm,video/ogg"
+                        : "audio/mpeg,audio/wav,audio/ogg"
+                    }
+                    onChange={onFileChange}
+                  />
+                </Stack>
+              </Box>
+            )}
+
+            {/* گزینه‌ها و پاسخ‌ها — فقط برای انواع تستی */}
+            {form.type === "multiple-choice" && (
               <>
                 <Typography fontWeight={700}>گزینه‌ها</Typography>
                 <Stack gap={1}>
                   {(form.options || []).map((op, i) => (
-                    <Stack
-                      key={i}
-                      direction={{ xs: "column", sm: "row" }}
-                      gap={1}
-                      alignItems="center"
-                    >
+                    <Stack key={i} direction="row" gap={1} alignItems="center">
                       <TextField
+                        fullWidth
                         label={`گزینه ${i + 1}`}
                         value={op}
                         onChange={(e) => {
@@ -582,22 +780,67 @@ export default function StepList({
                           options[i] = e.target.value;
                           setForm((f) => ({ ...f, options }));
                         }}
-                        fullWidth
                       />
-                      <Button
-                        color="error"
-                        onClick={() => removeOptionAt(i)}
-                        disabled={(form.options || []).length <= 2}
+                      <IconButton
+                        onClick={() => removeOption(i)}
+                        disabled={(form.options?.length || 0) <= 2}
+                        aria-label="حذف گزینه"
                       >
-                        حذف
-                      </Button>
+                        <DeleteIcon color="error" />
+                      </IconButton>
                     </Stack>
                   ))}
-                  <Button onClick={addOption}>افزودن گزینه</Button>
+                  <Button size="small" onClick={addOption}>
+                    افزودن گزینه
+                  </Button>
+                </Stack>
+                <TextField
+                  label="اندیس گزینه صحیح (۰…)"
+                  type="number"
+                  value={form.correctIndex ?? 0}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      correctIndex: Number(e.target.value),
+                    }))
+                  }
+                  sx={{ maxWidth: 260 }}
+                />
+              </>
+            )}
+
+            {form.type === "multi-answer" && (
+              <>
+                <Typography fontWeight={700}>گزینه‌ها</Typography>
+                <Stack gap={1}>
+                  {(form.options || []).map((op, i) => (
+                    <Stack key={i} direction="row" gap={1} alignItems="center">
+                      <TextField
+                        fullWidth
+                        label={`گزینه ${i + 1}`}
+                        value={op}
+                        onChange={(e) => {
+                          const options = [...(form.options || [])];
+                          options[i] = e.target.value;
+                          setForm((f) => ({ ...f, options }));
+                        }}
+                      />
+                      <IconButton
+                        onClick={() => removeOption(i)}
+                        disabled={(form.options?.length || 0) <= 2}
+                        aria-label="حذف گزینه"
+                      >
+                        <DeleteIcon color="error" />
+                      </IconButton>
+                    </Stack>
+                  ))}
+                  <Button size="small" onClick={addOption}>
+                    افزودن گزینه
+                  </Button>
                 </Stack>
                 <TextField
                   label="اندیس‌های صحیح (با ویرگول)"
-                  placeholder="مثلاً: 0,2"
+                  placeholder="مثلاً: 0,2,4"
                   value={(form.correctIndexes || []).join(",")}
                   onChange={(e) =>
                     setForm((f) => ({
@@ -605,24 +848,17 @@ export default function StepList({
                       correctIndexes: e.target.value
                         .split(",")
                         .map((x) => Number(x.trim()))
-                        .filter(
-                          (x) =>
-                            Number.isInteger(x) &&
-                            x >= 0 &&
-                            x < (f.options || []).length
-                        ),
+                        .filter((x) => !Number.isNaN(x)),
                     }))
                   }
                 />
               </>
             )}
 
-            {/* تطبیق */}
             {form.type === "matching" && (
               <>
                 <TextField
                   label="عنوان سؤال تطبیق (اختیاری)"
-                  helperText="اگر خالی بگذارید، به‌صورت خودکار «موارد زیر را با هم تطبیق دهید» ذخیره می‌شود."
                   value={form.matchingQuestion || ""}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, matchingQuestion: e.target.value }))
@@ -685,8 +921,8 @@ export default function StepList({
               </>
             )}
 
-            {/* فیدبک‌ها برای همه‌ی انواع (به‌جز توضیحی) */}
-            {form.type !== "explanation" && (
+            {/* فیدبک‌ها فقط برای تست‌ها */}
+            {SHOW_FEEDBACK && (
               <>
                 <TextField
                   label="فیدبک پاسخ صحیح"
@@ -729,7 +965,7 @@ export default function StepList({
 
       <Snackbar
         open={toast.open}
-        autoHideDuration={2000}
+        autoHideDuration={2200}
         onClose={() => setToast((s) => ({ ...s, open: false }))}
       >
         <Alert severity={toast.sev} variant="filled" sx={{ width: "100%" }}>
