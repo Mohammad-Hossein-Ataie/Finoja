@@ -1,221 +1,146 @@
+// components/QuestionList.jsx
 "use client";
-import { useState } from "react";
+import { useMemo } from "react";
 import {
   Box,
-  Button,
-  Card,
-  CardContent,
   Stack,
   TextField,
   IconButton,
+  Tooltip,
+  Button,
+  Checkbox,
+  Radio,
   Typography,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
+  Divider,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
-export default function QuestionList({
-  course,
-  topic,
-  topicIndex,
-  unit,
-  unitIndex,
-  section,
-  sectionIndex,
-  refreshCourses,
-}) {
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({
-    type: "multiple-choice",
-    text: "",
-    options: ["", "", "", ""],
-    correctIndex: 0,
-    explanation: "",
-  });
+export default function QuestionList({ step, onChange }) {
+  const type = step?.type || "multiple-choice";
+  const isMulti = type === "multi-answer";
+  const isSingle = type === "multiple-choice";
 
-  const handleOptionChange = (idx, value) => {
-    setForm((f) => {
-      const options = [...f.options];
-      options[idx] = value;
-      return { ...f, options };
-    });
+  // مقادیر امن پیش‌فرض
+  const options = useMemo(
+    () => (Array.isArray(step?.options) ? step.options : ["", "", "", ""]),
+    [step?.options]
+  );
+  const correctIndex = Number.isFinite(step?.correctIndex)
+    ? step.correctIndex
+    : 0;
+  const correctIndexes = Array.isArray(step?.correctIndexes)
+    ? step.correctIndexes
+    : [];
+
+  const commit = (patch) => onChange?.({ ...step, ...patch });
+
+  const setOption = (i, v) => {
+    const next = [...options];
+    next[i] = v;
+    commit({ options: next });
   };
 
-  const addOrEditQuestion = async () => {
-    let newQuestions;
-    if (editing !== null) {
-      newQuestions = topic.questions.map((q, i) => (i === editing ? form : q));
+  const addOption = () => {
+    const next = [...options, ""];
+    commit({ options: next });
+  };
+
+  const removeOption = (i) => {
+    if (options.length <= 2) return; // حداقل دو گزینه
+    const next = options.filter((_, idx) => idx !== i);
+
+    if (isSingle) {
+      let nextCorrect = correctIndex;
+      if (i === correctIndex) nextCorrect = 0;
+      else if (i < correctIndex) nextCorrect = Math.max(0, correctIndex - 1);
+      commit({ options: next, correctIndex: nextCorrect });
     } else {
-      newQuestions = [...(topic.questions || []), form];
+      const set = new Set(correctIndexes);
+      set.delete(i);
+      // شیفت ایندکس‌ها بعد از حذف
+      const shifted = Array.from(set).map((idx) => (idx > i ? idx - 1 : idx));
+      commit({ options: next, correctIndexes: shifted });
     }
-    const newTopics = [...unit.topics];
-    newTopics[topicIndex] = { ...topic, questions: newQuestions };
-    const newUnits = [...section.units];
-    newUnits[unitIndex] = { ...unit, topics: newTopics };
-    const newSections = [...course.sections];
-    newSections[sectionIndex] = { ...section, units: newUnits };
-    await fetch(`/api/courses/${course._id}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...course, sections: newSections }),
-      headers: { "Content-Type": "application/json" },
-    });
-    setShowForm(false);
-    setEditing(null);
-    setForm({
-      type: "multiple-choice",
-      text: "",
-      options: ["", "", "", ""],
-      correctIndex: 0,
-      explanation: "",
-    });
-    refreshCourses();
   };
 
-  const handleDeleteQuestion = async (idx) => {
-    const newQuestions = (topic.questions || []).filter((_, i) => i !== idx);
-    const newTopics = [...unit.topics];
-    newTopics[topicIndex] = { ...topic, questions: newQuestions };
-    const newUnits = [...section.units];
-    newUnits[unitIndex] = { ...unit, topics: newTopics };
-    const newSections = [...course.sections];
-    newSections[sectionIndex] = { ...section, units: newUnits };
-    await fetch(`/api/courses/${course._id}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...course, sections: newSections }),
-      headers: { "Content-Type": "application/json" },
-    });
-    refreshCourses();
+  const toggleMultiCorrect = (i) => {
+    const set = new Set(correctIndexes);
+    if (set.has(i)) set.delete(i);
+    else set.add(i);
+    commit({ correctIndexes: Array.from(set).sort((a, b) => a - b) });
   };
+
+  const setSingleCorrect = (i) => commit({ correctIndex: i });
+
+  if (!isSingle && !isMulti) return null;
 
   return (
-    <Box sx={{ mt: 1, pl: 3 }}>
-      <Button
-        variant="outlined"
-        size="small"
-        sx={{ mb: 1 }}
-        onClick={() => {
-          setShowForm(true);
-          setEditing(null);
-        }}
-      >
-        افزودن سوال چندگزینه‌ای
-      </Button>
-
-      {showForm && (
-        <Box mb={2} mt={1} display="flex" flexDirection="column" gap={1}>
-          {/* کادر بزرگ‌تر برای متن سؤال */}
-          <TextField
-            label="متن سوال"
-            size="small"
-            multiline
-            minRows={3}
-            fullWidth
-            value={form.text}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, text: e.target.value }))
-            }
-          />
-
-          {form.options.map((option, idx) => (
-            <TextField
-              key={idx}
-              label={`گزینه ${idx + 1}`}
-              size="small"
-              value={option}
-              onChange={(e) => handleOptionChange(idx, e.target.value)}
-            />
-          ))}
-
-          <FormControl size="small">
-            <InputLabel>گزینه صحیح</InputLabel>
-            <Select
-              value={form.correctIndex}
-              label="گزینه صحیح"
-              onChange={(e) =>
-                setForm((f) => ({ ...f, correctIndex: e.target.value }))
-              }
-            >
-              {[0, 1, 2, 3].map((idx) => (
-                <MenuItem key={idx} value={idx}>{`گزینه ${idx + 1}`}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <TextField
-            label="توضیح پس از پاسخ"
-            size="small"
-            multiline
-            minRows={2}
-            value={form.explanation}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, explanation: e.target.value }))
-            }
-          />
-
-          <Stack direction="row" gap={1}>
-            <Button size="small" variant="contained" onClick={addOrEditQuestion}>
-              ثبت
-            </Button>
-            <Button
-              size="small"
-              color="error"
-              onClick={() => {
-                setShowForm(false);
-                setEditing(null);
-              }}
-            >
-              انصراف
-            </Button>
-          </Stack>
-        </Box>
-      )}
-
-      {/* لیست نمایش سؤال‌ها */}
-      {(topic.questions || []).map((q, i) => (
-        <Card key={i} sx={{ mb: 1, pl: 2, background: "#e5ffe5" }}>
-          <CardContent sx={{ pb: 1 }}>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography sx={{ whiteSpace: "pre-line" /* نمایش \n */ }}>
-                {q.text}
-              </Typography>
-              <IconButton
-                size="small"
-                onClick={() => {
-                  setShowForm(true);
-                  setEditing(i);
-                  setForm(q);
-                }}
-              >
-                <EditIcon fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => handleDeleteQuestion(i)}>
-                <DeleteIcon fontSize="small" color="error" />
-              </IconButton>
-            </Stack>
-            <ol>
-              {(q.options || []).map((op, idx) => (
-                <li
-                  key={idx}
-                  style={{
-                    fontWeight: q.correctIndex === idx ? "bold" : "normal",
-                  }}
-                >
-                  {op}
-                </li>
-              ))}
-            </ol>
-            {q.explanation && (
-              <Typography variant="caption" color="primary">
-                {q.explanation}
-              </Typography>
+    <Box sx={{ mt: 2 }}>
+      <Typography fontWeight={800} mb={1}>
+        گزینه‌ها
+      </Typography>
+      <Stack spacing={1}>
+        {options.map((opt, i) => (
+          <Stack key={i} direction="row" alignItems="center" spacing={1.25}>
+            {isSingle ? (
+              <Radio
+                checked={correctIndex === i}
+                onChange={() => setSingleCorrect(i)}
+                sx={{ mr: -0.5 }}
+              />
+            ) : (
+              <Checkbox
+                checked={correctIndexes.includes(i)}
+                onChange={() => toggleMultiCorrect(i)}
+                sx={{ mr: -0.5 }}
+              />
             )}
-          </CardContent>
-        </Card>
-      ))}
+
+            <TextField
+              fullWidth
+              size="small"
+              value={opt}
+              onChange={(e) => setOption(i, e.target.value)}
+              placeholder={`گزینه ${i + 1}`}
+            />
+
+            <Tooltip title="حذف گزینه">
+              <span>
+                <IconButton
+                  onClick={() => removeOption(i)}
+                  disabled={options.length <= 2}
+                >
+                  <DeleteOutlineIcon />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
+        ))}
+      </Stack>
+
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        mt={1.5}
+      >
+        <Button
+          startIcon={<AddIcon />}
+          onClick={addOption}
+          sx={{ fontWeight: 700 }}
+        >
+          افزودن گزینه
+        </Button>
+
+        <Typography variant="caption" color="text.secondary">
+          {isSingle
+            ? "یک پاسخ را با رادیو انتخاب کن"
+            : "چند پاسخ را با چک‌باکس انتخاب کن"}
+        </Typography>
+      </Stack>
+
+      <Divider sx={{ mt: 1.5 }} />
     </Box>
   );
 }

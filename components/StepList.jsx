@@ -1,3 +1,6 @@
+// ===============================
+// FILE: components/StepList.jsx
+// ===============================
 "use client";
 import { useState } from "react";
 import {
@@ -12,7 +15,6 @@ import {
   Collapse,
   Tooltip,
   Chip,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -32,9 +34,9 @@ import SafeHtml from "./SafeHtml";
 
 const TYPE_LABELS = {
   explanation: "توضیحی",
-  "multiple-choice": "چندگزینه‌ای",
-  "multi-answer": "چندپاسخ",
-  "fill-in-the-blank": "جای‌خالی",
+  "multiple-choice": "چهار گزینه‌ای",
+  "multi-answer": "چند گزینه‌ای",
+  // "fill-in-the-blank": hidden from selector (برای سادگی)
   matching: "تطبیق",
 };
 
@@ -43,7 +45,7 @@ const EMPTY_STEP = {
   type: "explanation",
   content: "",
   text: "",
-  options: ["", "", "", ""],
+  options: ["", "", "", ""], // پیش‌فرض ۴ گزینه
   correctIndex: 0,
   correctIndexes: [],
   answer: "",
@@ -55,9 +57,11 @@ const EMPTY_STEP = {
   mediaUrl: "",
 };
 
+// نرمال‌سازی بر اساس نوع
 function normalizeStep(s) {
   const t = s.type;
   const base = { ...s };
+
   if (t === "explanation") {
     base.text = "";
     base.options = [];
@@ -67,11 +71,26 @@ function normalizeStep(s) {
     base.feedbackWrong = "";
     base.pairs = [{ left: "", right: "" }];
     base.matchingQuestion = "";
-  } else if (t === "multiple-choice" || t === "fill-in-the-blank") {
+  } else if (t === "multiple-choice") {
+    // چهار گزینه‌ای = دقیقاً ۴ گزینه
+    const opts = Array.isArray(base.options) ? base.options.slice(0, 4) : [];
+    while (opts.length < 4) opts.push("");
+    base.options = opts;
+    base.correctIndex = Math.min(Math.max(0, base.correctIndex ?? 0), 3);
     base.correctIndexes = [];
     base.pairs = [{ left: "", right: "" }];
     base.matchingQuestion = "";
   } else if (t === "multi-answer") {
+    // چند گزینه‌ای = تعداد متغیر؛ حداقل 2-4 اولیه
+    const opts =
+      Array.isArray(base.options) && base.options.length
+        ? base.options
+        : ["", "", "", ""];
+    base.options = opts;
+    // فیلتر ایندکس‌های صحیح بر اساس طول فعلی
+    base.correctIndexes = (base.correctIndexes || []).filter(
+      (i) => Number.isInteger(i) && i >= 0 && i < opts.length
+    );
     base.correctIndex = 0;
     base.pairs = [{ left: "", right: "" }];
     base.matchingQuestion = "";
@@ -79,7 +98,12 @@ function normalizeStep(s) {
     base.options = [];
     base.correctIndex = 0;
     base.correctIndexes = [];
+    // متن تطبیق اختیاری: پیش‌فرض اگر خالی بود
+    if (!base.matchingQuestion || !base.matchingQuestion.trim()) {
+      base.matchingQuestion = "موارد زیر را با هم تطبیق دهید";
+    }
   }
+
   return base;
 }
 
@@ -145,11 +169,24 @@ export default function StepList({
     notify("ترتیب گام‌ها تغییر کرد");
   };
 
-  const handlePairsChange = (i, side, val) => {
-    const pairs = [...(form.pairs || [])];
-    pairs[i] = { ...pairs[i], [side]: val };
-    setForm((f) => ({ ...f, pairs }));
-  };
+  // helpers برای گزینه‌ها
+  const addOption = () =>
+    setForm((f) => ({ ...f, options: [...(f.options || []), ""] }));
+
+  const removeOptionAt = (idx) =>
+    setForm((f) => {
+      const opts = [...(f.options || [])];
+      opts.splice(idx, 1);
+      // correctIndexes را نسبت به حذف هم‌تراز کنیم
+      const ci = (f.correctIndexes || [])
+        .filter((i) => i !== idx)
+        .map((i) => (i > idx ? i - 1 : i));
+      return { ...f, options: opts, correctIndexes: ci };
+    });
+
+  // تغییر نوع با نرمال‌سازی فوری
+  const changeType = (t) =>
+    setForm((prev) => normalizeStep({ ...prev, type: t }));
 
   return (
     <Box sx={{ mt: 1, pr: 1 }}>
@@ -173,13 +210,14 @@ export default function StepList({
         <Card variant="outlined" sx={{ mb: 1 }}>
           <CardContent sx={{ pt: 1.5 }}>
             <Typography variant="body2" sx={{ lineHeight: 2 }}>
-              • «توضیحی» فقط متن/رسانه دارد و گزینه ندارد.
+              • «توضیحی» فقط متن/رسانه دارد.
               <br />
-              • برای «چندگزینه‌ای/چندپاسخ» گزینه‌ها و فیدبک را پر کنید.
+              • «چهار گزینه‌ای» دقیقاً ۴ گزینه دارد و تنها یک پاسخ صحیح.
               <br />
-              • «جای‌خالی» معمولاً یک پاسخ صحیح دارد و بین گزینه‌ها انتخاب
-              می‌شود.
-              <br />• «تطبیق» را با جفت‌های چپ/راست بسازید.
+              • «چند گزینه‌ای» هر تعداد گزینه می‌تواند داشته باشد و چند پاسخ
+              صحیح را پشتیبانی می‌کند.
+              <br />• «تطبیق» متن سؤال اختیاری است؛ اگر خالی بماند یک متن
+              پیش‌فرض ذخیره می‌شود.
             </Typography>
           </CardContent>
         </Card>
@@ -206,11 +244,7 @@ export default function StepList({
             <div ref={p.innerRef} {...p.droppableProps}>
               {(unit.steps || []).map((st, i) => {
                 const showOptions =
-                  [
-                    "multiple-choice",
-                    "multi-answer",
-                    "fill-in-the-blank",
-                  ].includes(st.type) &&
+                  ["multiple-choice", "multi-answer"].includes(st.type) &&
                   Array.isArray(st.options) &&
                   st.options.some((o) => (o || "").toString().trim() !== "");
 
@@ -298,10 +332,11 @@ export default function StepList({
                                   {(st.matchingQuestion || st.text) && (
                                     <Typography sx={{ mb: 0.75 }}>
                                       سؤال تطبیق:{" "}
-                                      {st.matchingQuestion || st.text}
+                                      {st.matchingQuestion ||
+                                        st.text ||
+                                        "موارد زیر را با هم تطبیق دهید"}
                                     </Typography>
                                   )}
-
                                   {Array.isArray(st.pairs) &&
                                   st.pairs.length ? (
                                     <Box
@@ -363,38 +398,38 @@ export default function StepList({
                                       سؤال: {st.text}
                                     </Typography>
                                   )}
-                                  {Array.isArray(st.options) &&
-                                    st.options.some(
-                                      (o) => (o || "").trim() !== ""
-                                    ) && (
-                                      <>
-                                        <Typography variant="body2">
-                                          گزینه‌ها:
-                                        </Typography>
-                                        <ol style={{ marginTop: 4 }}>
-                                          {st.options.map((o, idx) => (
-                                            <li
-                                              key={idx}
-                                              style={{
-                                                fontWeight:
-                                                  st.correctIndex === idx ||
-                                                  (
-                                                    st.correctIndexes || []
-                                                  ).includes(idx)
+                                  {showOptions && (
+                                    <>
+                                      <Typography variant="body2">
+                                        گزینه‌ها:
+                                      </Typography>
+                                      <ol style={{ marginTop: 4 }}>
+                                        {st.options.map((o, idx) => (
+                                          <li
+                                            key={idx}
+                                            style={{
+                                              fontWeight:
+                                                st.type === "multiple-choice"
+                                                  ? st.correctIndex === idx
                                                     ? "bold"
-                                                    : "normal",
-                                              }}
-                                            >
-                                              {o || (
-                                                <span style={{ opacity: 0.5 }}>
-                                                  —
-                                                </span>
-                                              )}
-                                            </li>
-                                          ))}
-                                        </ol>
-                                      </>
-                                    )}
+                                                    : "normal"
+                                                  : (
+                                                      st.correctIndexes || []
+                                                    ).includes(idx)
+                                                  ? "bold"
+                                                  : "normal",
+                                            }}
+                                          >
+                                            {o || (
+                                              <span style={{ opacity: 0.5 }}>
+                                                —
+                                              </span>
+                                            )}
+                                          </li>
+                                        ))}
+                                      </ol>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </Box>
@@ -435,16 +470,13 @@ export default function StepList({
               <TextField
                 label="نوع گام"
                 value={form.type}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, type: e.target.value }))
-                }
+                onChange={(e) => changeType(e.target.value)}
                 select
                 sx={{ minWidth: 240 }}
               >
                 <MenuItem value="explanation">توضیحی</MenuItem>
-                <MenuItem value="multiple-choice">چندگزینه‌ای</MenuItem>
-                <MenuItem value="multi-answer">چندپاسخ</MenuItem>
-                <MenuItem value="fill-in-the-blank">جای‌خالی</MenuItem>
+                <MenuItem value="multiple-choice">چهار گزینه‌ای</MenuItem>
+                <MenuItem value="multi-answer">چند گزینه‌ای</MenuItem>
                 <MenuItem value="matching">تطبیق</MenuItem>
               </TextField>
 
@@ -471,14 +503,13 @@ export default function StepList({
               </>
             )}
 
-            {[
-              "multiple-choice",
-              "multi-answer",
-              "fill-in-the-blank",
-              "matching",
-            ].includes(form.type) && (
+            {["multiple-choice", "multi-answer", "matching"].includes(
+              form.type
+            ) && (
               <TextField
-                label="متن سؤال"
+                label={
+                  form.type === "matching" ? "متن سؤال (اختیاری)" : "متن سؤال"
+                }
                 value={form.text}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, text: e.target.value }))
@@ -488,31 +519,42 @@ export default function StepList({
               />
             )}
 
-            {["multiple-choice", "fill-in-the-blank"].includes(form.type) && (
+            {/* چهار گزینه‌ای: دقیقاً ۴ ورودی */}
+            {form.type === "multiple-choice" && (
               <>
-                <Typography fontWeight={700}>گزینه‌ها</Typography>
+                <Typography fontWeight={700}>گزینه‌ها (۴ مورد)</Typography>
                 <Stack gap={1}>
-                  {(form.options || []).map((op, i) => (
-                    <TextField
-                      key={i}
-                      label={`گزینه ${i + 1}`}
-                      value={op}
-                      onChange={(e) => {
-                        const options = [...(form.options || [])];
-                        options[i] = e.target.value;
-                        setForm((f) => ({ ...f, options }));
-                      }}
-                    />
-                  ))}
+                  {(() => {
+                    const opts =
+                      Array.isArray(form.options) && form.options.length === 4
+                        ? form.options
+                        : normalizeStep({ ...form, type: "multiple-choice" })
+                            .options;
+                    return opts.map((op, i) => (
+                      <TextField
+                        key={i}
+                        label={`گزینه ${i + 1}`}
+                        value={op}
+                        onChange={(e) => {
+                          const options = [...opts];
+                          options[i] = e.target.value;
+                          setForm((f) => ({ ...f, options }));
+                        }}
+                      />
+                    ));
+                  })()}
                 </Stack>
                 <TextField
-                  label="اندیس گزینه صحیح (۰…)"
+                  label="اندیس گزینه صحیح (۰ تا ۳)"
                   type="number"
                   value={form.correctIndex ?? 0}
                   onChange={(e) =>
                     setForm((f) => ({
                       ...f,
-                      correctIndex: Number(e.target.value),
+                      correctIndex: Math.max(
+                        0,
+                        Math.min(3, Number(e.target.value))
+                      ),
                     }))
                   }
                   sx={{ maxWidth: 260 }}
@@ -520,22 +562,38 @@ export default function StepList({
               </>
             )}
 
+            {/* چند گزینه‌ای: اضافه/حذف گزینه آزاد */}
             {form.type === "multi-answer" && (
               <>
                 <Typography fontWeight={700}>گزینه‌ها</Typography>
                 <Stack gap={1}>
                   {(form.options || []).map((op, i) => (
-                    <TextField
+                    <Stack
                       key={i}
-                      label={`گزینه ${i + 1}`}
-                      value={op}
-                      onChange={(e) => {
-                        const options = [...(form.options || [])];
-                        options[i] = e.target.value;
-                        setForm((f) => ({ ...f, options }));
-                      }}
-                    />
+                      direction={{ xs: "column", sm: "row" }}
+                      gap={1}
+                      alignItems="center"
+                    >
+                      <TextField
+                        label={`گزینه ${i + 1}`}
+                        value={op}
+                        onChange={(e) => {
+                          const options = [...(form.options || [])];
+                          options[i] = e.target.value;
+                          setForm((f) => ({ ...f, options }));
+                        }}
+                        fullWidth
+                      />
+                      <Button
+                        color="error"
+                        onClick={() => removeOptionAt(i)}
+                        disabled={(form.options || []).length <= 2}
+                      >
+                        حذف
+                      </Button>
+                    </Stack>
                   ))}
+                  <Button onClick={addOption}>افزودن گزینه</Button>
                 </Stack>
                 <TextField
                   label="اندیس‌های صحیح (با ویرگول)"
@@ -547,17 +605,24 @@ export default function StepList({
                       correctIndexes: e.target.value
                         .split(",")
                         .map((x) => Number(x.trim()))
-                        .filter((x) => !Number.isNaN(x)),
+                        .filter(
+                          (x) =>
+                            Number.isInteger(x) &&
+                            x >= 0 &&
+                            x < (f.options || []).length
+                        ),
                     }))
                   }
                 />
               </>
             )}
 
+            {/* تطبیق */}
             {form.type === "matching" && (
               <>
                 <TextField
-                  label="عنوان سؤال تطبیق"
+                  label="عنوان سؤال تطبیق (اختیاری)"
+                  helperText="اگر خالی بگذارید، به‌صورت خودکار «موارد زیر را با هم تطبیق دهید» ذخیره می‌شود."
                   value={form.matchingQuestion || ""}
                   onChange={(e) =>
                     setForm((f) => ({ ...f, matchingQuestion: e.target.value }))
@@ -576,17 +641,21 @@ export default function StepList({
                       <TextField
                         label="سمت راست"
                         value={p.left}
-                        onChange={(e) =>
-                          handlePairsChange(i, "left", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const pairs = [...(form.pairs || [])];
+                          pairs[i] = { ...pairs[i], left: e.target.value };
+                          setForm((f) => ({ ...f, pairs }));
+                        }}
                         fullWidth
                       />
                       <TextField
                         label="سمت چپ"
                         value={p.right}
-                        onChange={(e) =>
-                          handlePairsChange(i, "right", e.target.value)
-                        }
+                        onChange={(e) => {
+                          const pairs = [...(form.pairs || [])];
+                          pairs[i] = { ...pairs[i], right: e.target.value };
+                          setForm((f) => ({ ...f, pairs }));
+                        }}
                         fullWidth
                       />
                       <Button
@@ -616,6 +685,7 @@ export default function StepList({
               </>
             )}
 
+            {/* فیدبک‌ها برای همه‌ی انواع (به‌جز توضیحی) */}
             {form.type !== "explanation" && (
               <>
                 <TextField
