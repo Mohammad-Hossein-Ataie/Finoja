@@ -20,9 +20,8 @@ import {
   IconButton,
 } from "@mui/material";
 
-// آیکن‌ها برای نوع گام
+/* ---------- Icons ---------- */
 import StarIcon from "@mui/icons-material/Star";
-import HelpCenterOutlinedIcon from "@mui/icons-material/HelpCenterOutlined";
 import QuizOutlinedIcon from "@mui/icons-material/QuizOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import ShortTextOutlinedIcon from "@mui/icons-material/ShortTextOutlined";
@@ -30,7 +29,45 @@ import LinkOutlinedIcon from "@mui/icons-material/LinkOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import ArrowUpwardRoundedIcon from "@mui/icons-material/ArrowUpwardRounded";
+import SmartDisplayOutlinedIcon from "@mui/icons-material/SmartDisplayOutlined";
+import GraphicEqOutlinedIcon from "@mui/icons-material/GraphicEqOutlined";
 
+/* ---------- Labels (FA) ---------- */
+const TYPE_LABELS = {
+  explanation: "توضیحی",
+  "multiple-choice": "چهارگزینه‌ای",
+  "multi-answer": "چندگزینه‌ای (چند پاسخ صحیح)",
+  matching: "تطبیق",
+  video: "ویدیویی",
+  audio: "صوتی",
+  // برای داده‌های قدیمی:
+  "fill-in-the-blank": "جای‌خالی",
+};
+const typeLabel = (t) => TYPE_LABELS[t] || "گام";
+
+/* ---------- Icon mapper ---------- */
+const typeIcon = (t, sx) => {
+  switch (t) {
+    case "explanation":
+      return <MenuBookOutlinedIcon sx={sx} />;
+    case "multiple-choice":
+      return <QuizOutlinedIcon sx={sx} />;
+    case "multi-answer":
+      return <FactCheckOutlinedIcon sx={sx} />;
+    case "fill-in-the-blank":
+      return <ShortTextOutlinedIcon sx={sx} />;
+    case "matching":
+      return <LinkOutlinedIcon sx={sx} />;
+    case "video":
+      return <SmartDisplayOutlinedIcon sx={sx} />;
+    case "audio":
+      return <GraphicEqOutlinedIcon sx={sx} />;
+    default:
+      return <StarIcon sx={sx} />;
+  }
+};
+
+/* ---------- Colors ---------- */
 const UNIT_COLORS = [
   "#2477F3",
   "#66DE93",
@@ -43,39 +80,25 @@ const UNIT_COLORS = [
 const positions = ["flex-start", "center", "flex-end", "center"];
 const getUnitColor = (i) => UNIT_COLORS[i % UNIT_COLORS.length];
 
-const typeFa = (t) => {
-  switch (t) {
-    case "explanation":
-      return "توضیح";
-    case "multiple-choice":
-      return "چهارجوابی";
-    case "multi-answer":
-      return "چندپاسخی";
-    case "fill-in-the-blank":
-      return "جای‌خالی";
-    case "matching":
-      return "تطبیق";
-    default:
-      return "گام";
-  }
+const hexToRgb = (hex) => {
+  const h = hex.replace("#", "");
+  const bigint = parseInt(
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h,
+    16
+  );
+  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
 };
-const typeIcon = (t, sx) => {
-  switch (t) {
-    case "explanation":
-      return <HelpCenterOutlinedIcon sx={sx} />;
-    case "multiple-choice":
-      return <QuizOutlinedIcon sx={sx} />;
-    case "multi-answer":
-      return <FactCheckOutlinedIcon sx={sx} />;
-    case "fill-in-the-blank":
-      return <ShortTextOutlinedIcon sx={sx} />;
-    case "matching":
-      return <LinkOutlinedIcon sx={sx} />;
-    default:
-      return <StarIcon sx={sx} />;
-  }
+const withAlpha = (hex, a) => {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
+/* ---------- Components ---------- */
 function UnitSeparator({ unitTitle, color }) {
   return (
     <Box
@@ -105,6 +128,7 @@ function UnitSeparator({ unitTitle, color }) {
   );
 }
 
+/* =================================================================== */
 export default function CourseRoadmapPage() {
   const { id: courseId } = useParams();
   const router = useRouter();
@@ -132,7 +156,7 @@ export default function CourseRoadmapPage() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // دریافت داده
+  /* ---------- Fetch course + learning ---------- */
   useEffect(() => {
     const mobile = localStorage.getItem("student_mobile");
     if (!mobile) {
@@ -155,12 +179,11 @@ export default function CourseRoadmapPage() {
     });
   }, [courseId, router]);
 
-  // ساخت آیتم‌ها (با stepId برای سازگاری جدید)
+  /* ---------- Build flattened items ---------- */
   const { items: roadmapItems, totalSteps } = useMemo(() => {
     let items = [];
     let g = 0;
     unitAnchorIndex.current = {};
-
     if (!course) return { items, totalSteps: 0 };
 
     course.sections.forEach((section, secIdx) => {
@@ -172,7 +195,7 @@ export default function CourseRoadmapPage() {
           unitTitle: unit.title,
           color: getUnitColor(unitIdx),
         });
-        unitAnchorIndex.current[`${secIdx}-${unitIdx}`] = g; // شروع اندیس یونیت
+        unitAnchorIndex.current[`${secIdx}-${unitIdx}`] = g;
 
         unit.steps.forEach((st, stepIdxInUnit) => {
           const stepId = (
@@ -195,14 +218,27 @@ export default function CourseRoadmapPage() {
         });
       });
     });
-
     return { items, totalSteps: g };
   }, [course]);
 
-  // اسکرول اولیه به progress
-  const progress = learning.progress || 0;
-  const didInitialScroll = useRef(false);
+  /* ---------- Progress & section-of-progress ---------- */
+  const rawProgress = learning.progress || 0;
+  const startIndex = useMemo(
+    () =>
+      totalSteps > 0 ? Math.min(Math.max(rawProgress, 0), totalSteps - 1) : 0,
+    [rawProgress, totalSteps]
+  );
+  const progressStep = useMemo(
+    () =>
+      roadmapItems.find(
+        (it) => it.kind === "step" && it.globalStepIndex === startIndex
+      ),
+    [roadmapItems, startIndex]
+  );
+  const progressSecIdx = progressStep?.secIdx ?? 0;
 
+  /* ---------- Initial scroll to start ---------- */
+  const didInitialScroll = useRef(false);
   const scrollToIndex = (idx, { behavior = "smooth" } = {}) => {
     const el = stepRefs.current[idx];
     if (!el) return;
@@ -215,23 +251,21 @@ export default function CourseRoadmapPage() {
       });
     } catch {}
   };
-
   useEffect(() => {
     if (loading || !totalSteps || didInitialScroll.current) return;
-    const target = Math.min(Math.max(progress, 0), totalSteps - 1);
     requestAnimationFrame(() => {
-      scrollToIndex(target, { behavior: "auto" });
-      setTimeout(() => scrollToIndex(target), 30);
+      scrollToIndex(startIndex, { behavior: "auto" });
+      setTimeout(() => scrollToIndex(startIndex), 30);
     });
     didInitialScroll.current = true;
-  }, [loading, totalSteps, progress, headerOffset]);
+  }, [loading, totalSteps, startIndex, headerOffset]);
 
-  // محاسبه استپ فعال برای بنر
+  /* ---------- Keep header colored & centered ---------- */
   useEffect(() => {
     const onScroll = () => {
       const anchor = headerOffset + 8;
-      let minDiff = Infinity;
-      let activeIdx = 0;
+      let minDiff = Infinity,
+        activeIdx = 0;
       stepRefs.current.forEach((ref, idx) => {
         if (!ref) return;
         const diff = Math.abs(ref.getBoundingClientRect().top - anchor);
@@ -254,10 +288,9 @@ export default function CourseRoadmapPage() {
       ) || {},
     [roadmapItems, activeStepIdx]
   );
-
   const headerColor = currentStep.color || UNIT_COLORS[0];
 
-  // پرش سریع به یونیت
+  /* ---------- Quick jumps ---------- */
   const jumpToUnit = (secIdx, unitIdx) => {
     const firstIdx = unitAnchorIndex.current[`${secIdx}-${unitIdx}`];
     if (typeof firstIdx === "number") {
@@ -265,13 +298,43 @@ export default function CourseRoadmapPage() {
       setTimeout(() => scrollToIndex(firstIdx), 10);
     }
   };
+  const jumpToStart = () => scrollToIndex(startIndex);
 
-  // پرش به «شروع» (اولین گام باز)
-  const jumpToStart = () => {
-    const target = Math.min(Math.max(progress, 0), totalSteps - 1);
-    scrollToIndex(target);
-  };
+  /* ---------- Floating arrow (show/hide + direction + tooltip) ---------- */
+  const [showJump, setShowJump] = useState(false);
+  const [jumpDown, setJumpDown] = useState(true);
+  useEffect(() => {
+    const evaluate = () => {
+      const el = stepRefs.current[startIndex];
+      if (!el) {
+        setShowJump(false);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const pageYOfStart = rect.top + window.scrollY - headerOffset;
+      const scrollY = window.scrollY;
 
+      // آیا «شروع» روی صفحه است؟
+      const startVisible =
+        rect.top < window.innerHeight - 60 && rect.bottom > headerOffset - 60;
+
+      // جهت فلش
+      if (scrollY + 20 < pageYOfStart) setJumpDown(true);
+      else if (scrollY - 20 > pageYOfStart) setJumpDown(false);
+
+      // وقتی شروع دیده می‌شود، فلش نمایش داده نشود
+      setShowJump(!startVisible && totalSteps > 0);
+    };
+    evaluate();
+    window.addEventListener("scroll", evaluate, { passive: true });
+    window.addEventListener("resize", evaluate);
+    return () => {
+      window.removeEventListener("scroll", evaluate);
+      window.removeEventListener("resize", evaluate);
+    };
+  }, [startIndex, headerOffset, totalSteps]);
+
+  /* ---------- Loading / not-found ---------- */
   if (loading) {
     return (
       <Box
@@ -286,15 +349,15 @@ export default function CourseRoadmapPage() {
   }
   if (!course) return <Typography>دوره‌ای یافت نشد</Typography>;
 
-  const CIRCLE_SIZE = 66; // px
-  const LOCKED_OPACITY = 0.45;
-
-  const correctIds = new Set(learning.correctIds || []);
+  /* ---------- Sets for status ---------- */
+  const CIRCLE_SIZE = 66;
+  const doneIdsSet = new Set(learning.doneIds || []);
+  const correctIdsSet = new Set(learning.correctIds || []);
   const legacyCorrectIdxs = new Set(learning.correct || []);
 
   return (
     <Box maxWidth="40rem" mx="auto" mt={6} px={2} sx={{ minHeight: "100vh" }}>
-      {/* هدر چسبان */}
+      {/* Header */}
       <Box
         ref={headerRef}
         role="button"
@@ -316,7 +379,7 @@ export default function CourseRoadmapPage() {
           alignItems: "center",
           justifyContent: "space-between",
           gap: 1.5,
-          transition: "background-color 0.3s",
+          transition: "background-color .3s",
           cursor: "pointer",
         }}
       >
@@ -376,7 +439,7 @@ export default function CourseRoadmapPage() {
         </Button>
       </Box>
 
-      {/* مسیر */}
+      {/* Path */}
       <Box
         margin="auto"
         maxWidth="18rem"
@@ -396,23 +459,32 @@ export default function CourseRoadmapPage() {
             );
           }
 
+          // وضعیت‌ها
           const isDone =
-            correctIds.has(item.stepId) ||
+            doneIdsSet.has(item.stepId) ||
+            correctIdsSet.has(item.stepId) ||
             legacyCorrectIdxs.has(item.globalStepIndex);
-          const isLocked = item.globalStepIndex > (learning.progress || 0);
-          const isProgressStep =
-            item.globalStepIndex === (learning.progress || 0);
-          const alignSelf = positions[item.globalStepIndex % positions.length];
 
-          const tooltipText = `${typeFa(item.stepType)}${
-            item.stepTitle ? " — " + item.stepTitle : ""
-          }`;
+          const isFirstStepOfUnit = item.stepIdx === 0;
+          const inCurrentSection = item.secIdx === progressSecIdx;
+          const isProgressStep = item.globalStepIndex === startIndex;
+
+          // 🔒 منطق قفل/باز
+          const isUnlocked =
+            isDone || isProgressStep || (inCurrentSection && isFirstStepOfUnit);
+          const isLocked = !isUnlocked;
+
+          const alignSelf = positions[item.globalStepIndex % positions.length];
           const baseColor = item.color;
           const borderColor = isProgressStep
             ? "#fff"
             : isDone
             ? "#66DE93"
             : baseColor;
+
+          const tooltipText = `${typeLabel(item.stepType)}${
+            item.stepTitle ? " — " + item.stepTitle : ""
+          }`;
 
           return (
             <Box
@@ -434,6 +506,7 @@ export default function CourseRoadmapPage() {
                   justifyContent: "center",
                 }}
               >
+                {/* Badge "شروع" با رنگ گام فعال */}
                 {isProgressStep && (
                   <Box
                     sx={{
@@ -445,9 +518,9 @@ export default function CourseRoadmapPage() {
                       py: 0.6,
                       fontSize: 12,
                       fontWeight: 900,
-                      color: "#0b2",
-                      bgcolor: "#E9FFE9",
-                      border: "2px solid #0b2",
+                      color: baseColor,
+                      bgcolor: withAlpha(baseColor, 0.12),
+                      border: `2px solid ${baseColor}`,
                       borderRadius: 8,
                       boxShadow: "0 2px 8px rgba(0,0,0,.18)",
                       letterSpacing: ".5px",
@@ -460,7 +533,7 @@ export default function CourseRoadmapPage() {
                         transform: "translateX(-50%)",
                         borderLeft: "8px solid transparent",
                         borderRight: "8px solid transparent",
-                        borderTop: "8px solid #E9FFE9",
+                        borderTop: `8px solid ${withAlpha(baseColor, 0.12)}`,
                       },
                       "&::before": {
                         content: '""',
@@ -470,7 +543,7 @@ export default function CourseRoadmapPage() {
                         transform: "translateX(-50%)",
                         borderLeft: "10px solid transparent",
                         borderRight: "10px solid transparent",
-                        borderTop: "10px solid #0b2",
+                        borderTop: `10px solid ${baseColor}`,
                         zIndex: -1,
                       },
                     }}
@@ -536,40 +609,54 @@ export default function CourseRoadmapPage() {
         })}
       </Box>
 
-      {/* دکمه شناور پرش به «شروع» */}
-      <Box
-        onClick={jumpToStart}
-        role="button"
-        aria-label="پرش به شروع"
-        sx={{
-          position: "fixed",
-          bottom: 24,
-          left: 24,
-          zIndex: 40,
-          width: 56,
-          height: 56,
-          borderRadius: 14,
-          bgcolor: "rgba(10,16,24,.85)",
-          border: "1px solid rgba(255,255,255,.08)",
-          backdropFilter: "blur(6px)",
-          boxShadow:
-            "0 10px 25px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          transition: "transform .15s ease, background .2s ease",
-          "&:hover": {
-            transform: "translateY(-2px)",
-            bgcolor: "rgba(10,16,24,.92)",
-          },
-          "&:active": { transform: "translateY(0)" },
-        }}
-      >
-        <ArrowUpwardRoundedIcon sx={{ color: "#21A1FF", fontSize: 28 }} />
-      </Box>
+      {/* Floating jump-to-start button (hidden when start is visible) */}
+      {showJump && (
+        <Tooltip
+          title={jumpDown ? "پرش به پایین به «شروع»" : "پرش به بالا به «شروع»"}
+          placement="right"
+        >
+          <Box
+            onClick={jumpToStart}
+            role="button"
+            aria-label="پرش به شروع"
+            sx={{
+              position: "fixed",
+              bottom: 24,
+              left: 24,
+              zIndex: 40,
+              width: 56,
+              height: 56,
+              borderRadius: 14,
+              bgcolor: "rgba(10,16,24,.85)",
+              border: "1px solid rgba(255,255,255,.08)",
+              backdropFilter: "blur(6px)",
+              boxShadow:
+                "0 10px 25px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "transform .15s ease, background .2s ease",
+              "&:hover": {
+                transform: "translateY(-2px)",
+                bgcolor: "rgba(10,16,24,.92)",
+              },
+              "&:active": { transform: "translateY(0)" },
+            }}
+          >
+            <ArrowUpwardRoundedIcon
+              sx={{
+                color: "#21A1FF",
+                fontSize: 28,
+                transform: jumpDown ? "rotate(180deg)" : "none",
+                transition: "transform .15s ease",
+              }}
+            />
+          </Box>
+        </Tooltip>
+      )}
 
-      {/* مدال انتخاب سکشن/یونیت */}
+      {/* Unit picker dialog */}
       <Dialog
         open={unitPickerOpen}
         onClose={() => setUnitPickerOpen(false)}
