@@ -2,7 +2,7 @@
 // FILE: components/StepList.jsx
 // ===============================
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Box,
   Button,
@@ -154,6 +154,9 @@ export default function StepList({
   const [helperKey, setHelperKey] = useState("");
   const [helperSigned, setHelperSigned] = useState("");
 
+  // پیش‌نمایش ویدیو/صوت (URL امضاشده بر اساس ایندکس گام)
+  const [previewMap, setPreviewMap] = useState({}); // { [index]: signedUrl }
+
   const QUESTION_TYPES = ["multiple-choice", "multi-answer"];
   const SHOW_FEEDBACK = QUESTION_TYPES.includes(form.type);
 
@@ -162,11 +165,15 @@ export default function StepList({
     newUnits[unitIndex] = { ...unit, steps: newSteps };
     const newSections = [...course.sections];
     newSections[sectionIndex] = { ...section, units: newUnits };
-    await fetch(`/api/courses/${course._id}`, {
+    const res = await fetch(`/api/courses/${course._id}`, {
       method: "PUT",
       body: JSON.stringify({ ...course, sections: newSections }),
       headers: { "Content-Type": "application/json" },
     });
+    if (!res.ok) {
+      notify("ذخیره‌سازی با خطا مواجه شد", "error");
+      return;
+    }
     refreshCourses();
   };
 
@@ -308,6 +315,134 @@ export default function StepList({
       await copy(data.url);
       notify("لینک در کلیپ‌بورد کپی شد ✨");
     }
+  };
+
+  // ====== آماده‌سازی پیش‌نمایش مدیا (URL امضاشده) هنگام باز کردن آکاردئون ======
+  useEffect(() => {
+    const fetchSigned = async () => {
+      if (openIdx === null) return;
+      const st = (unit.steps || [])[openIdx];
+      if (!st) return;
+      if (
+        (st.type === "video" || st.type === "audio") &&
+        st.mediaKey &&
+        !previewMap[openIdx] &&
+        !st.mediaUrl // اگر لینک بیرونی داریم نیازی به presign نیست
+      ) {
+        try {
+          const r = await fetch("/api/storage/presigned", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: st.mediaKey }),
+          });
+          const data = await r.json();
+          if (data?.url) {
+            setPreviewMap((m) => ({ ...m, [openIdx]: data.url }));
+          }
+        } catch {
+          // بی‌صدا رد شو
+        }
+      }
+    };
+    fetchSigned();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openIdx, unit?.steps]);
+
+  // ====== ابزارهای تشخیص لینک و embed ویدیو ======
+  const isYouTube = (u = "") =>
+    u.includes("youtube.com/watch?v=") || u.includes("youtu.be/");
+  const isAparat = (u = "") => u.includes("aparat.com/");
+
+  const renderMediaPreview = (st, i) => {
+    const external = (st.mediaUrl || "").trim();
+    const signed = previewMap[i];
+    const src = external || signed;
+
+    // YouTube
+    if (external && isYouTube(external)) {
+      let id = "";
+      try {
+        id = external.includes("watch?v=")
+          ? new URL(external).searchParams.get("v") || ""
+          : external.split("/").pop() || "";
+      } catch {}
+      return id ? (
+        <Box
+          sx={{
+            position: "relative",
+            pt: "56.25%",
+            borderRadius: 2,
+            overflow: "hidden",
+            my: 1,
+          }}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${id}`}
+            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              border: 0,
+            }}
+            title="youtube"
+          />
+        </Box>
+      ) : null;
+    }
+
+    // Aparat
+    if (external && isAparat(external)) {
+      const id = external.split("/v/")[1]?.split(/[?&#]/)[0] || "";
+      return id ? (
+        <Box
+          sx={{
+            position: "relative",
+            pt: "56.25%",
+            borderRadius: 2,
+            overflow: "hidden",
+            my: 1,
+          }}
+        >
+          <iframe
+            src={`https://www.aparat.com/video/video/embed/videohash/${id}/vt/frame`}
+            allowFullScreen
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              border: 0,
+            }}
+            title="aparat"
+          />
+        </Box>
+      ) : null;
+    }
+
+    // فایل‌های mp4/mp3/... (چه خارجی چه امضاشده)
+    if (src) {
+      if (st.type === "video")
+        return (
+          <video
+            src={src}
+            controls
+            style={{ width: "100%", borderRadius: 8, marginTop: 8 }}
+          />
+        );
+      return (
+        <audio src={src} controls style={{ width: "100%", marginTop: 8 }} />
+      );
+    }
+
+    // هنوز URL آماده نیست
+    return (
+      <Typography variant="caption" color="text.secondary">
+        {st.mediaKey ? "در حال آماده‌سازی پیش‌نمایش…" : "بدون فایل"}
+      </Typography>
+    );
   };
 
   return (
@@ -486,12 +621,23 @@ export default function StepList({
                                     توضیح: {st.text}
                                   </Typography>
                                 )}
-                                <Typography variant="caption">
+
+                                {renderMediaPreview(st, i)}
+
+                                {/* برای دیباگ/اطلاعات اضافی */}
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    display: "block",
+                                    mt: 0.5,
+                                    opacity: 0.7,
+                                  }}
+                                >
                                   {st.mediaKey
                                     ? `S3 Key: ${st.mediaKey}`
                                     : st.mediaUrl
                                     ? `URL: ${st.mediaUrl}`
-                                    : "بدون فایل"}
+                                    : ""}
                                 </Typography>
                               </>
                             ) : (
@@ -588,7 +734,7 @@ export default function StepList({
               {/* لینک بیرونی فقط برای ویدیو/صوتی */}
               {(form.type === "video" || form.type === "audio") && (
                 <TextField
-                  label="לینک بیرونی (اختیاری)"
+                  label="لینک بیرونی (اختیاری)"
                   placeholder="https://aparat.com/... | https://...mp4"
                   value={form.mediaUrl || ""}
                   onChange={(e) =>
@@ -684,7 +830,7 @@ export default function StepList({
                       onClick={async () => {
                         if (helperSigned) {
                           await copy(helperSigned);
-                          notify("לینک در کلیپ‌بورد کپی شد ✨");
+                          notify("لینک در کلیپ‌بورد کپی شد ✨");
                         }
                       }}
                       disabled={!helperSigned}

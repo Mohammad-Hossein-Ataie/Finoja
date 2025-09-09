@@ -52,18 +52,49 @@ const makeShuffledOptions = (options = []) => {
 /* ========== media helpers (inline) ========== */
 const URL_RE = /(https?:\/\/[^\s"'<>]+)/g;
 
+const isImageUrl = (u = "") => {
+  const low = u.toLowerCase();
+  return (
+    low.startsWith("data:image/") ||
+    /\.(png|jpe?g|webp|gif|svg)(\?|#|$)/i.test(low)
+  );
+};
+
 const isMediaUrl = (u = "") => {
   const low = u.toLowerCase();
   return (
     low.includes("youtube.com/watch?v=") ||
     low.includes("youtu.be/") ||
     low.includes("aparat.com/v/") ||
+    isImageUrl(low) ||
     /\.(mp3|wav|ogg|mp4|webm|ogv)(\?|#|$)/i.test(low)
   );
 };
 
+const ImageEl = ({ src, alt = "" }) => (
+  <a
+    href={src}
+    target="_blank"
+    rel="noopener noreferrer nofollow"
+    style={{ display: "block", margin: "12px 0" }}
+  >
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      style={{ maxWidth: "100%", borderRadius: 8, display: "block" }}
+    />
+  </a>
+);
+
 const MediaEl = ({ src }) => {
   const low = (src || "").toLowerCase();
+
+  // تصاویر
+  if (isImageUrl(low)) {
+    return <ImageEl src={src} />;
+  }
+
   if (low.includes("youtube.com/watch?v=") || low.includes("youtu.be/")) {
     let id = "";
     try {
@@ -218,6 +249,14 @@ const HtmlInlineMedia = ({ html = "" }) => {
         );
       }
 
+      // پشتیبانی مستقیم از <img>
+      if (tag === "img") {
+        const src = node.getAttribute("src") || "";
+        const alt = node.getAttribute("alt") || "";
+        if (!src) return null;
+        return <ImageEl key={key} src={src} alt={alt} />;
+      }
+
       const children = Array.from(node.childNodes).map((ch, i) =>
         walk(ch, `${key}-${i}`)
       );
@@ -247,6 +286,7 @@ const HtmlInlineMedia = ({ html = "" }) => {
         "td",
         "div",
         "span",
+        "img",
       ]);
       const Tag = allowed.has(tag) ? tag : "span";
       return <Tag key={key}>{children}</Tag>;

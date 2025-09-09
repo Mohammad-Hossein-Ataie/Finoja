@@ -117,7 +117,7 @@ export default function StudentSidebar() {
           right: 0,
           width: WIDTH,
           height: "100vh",
-          bgcolor: "#0F1923",
+          bgcolor: "#0264c7ff",
           color: "#FFF",
           display: "flex",
           flexDirection: "column",
