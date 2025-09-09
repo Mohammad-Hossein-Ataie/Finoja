@@ -1,3 +1,6 @@
+// ===============================
+// FILE: components/RichTextEditor.jsx
+// ===============================
 import React from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -28,10 +31,6 @@ import RedoIcon from "@mui/icons-material/Redo";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import CodeIcon from "@mui/icons-material/Code";
 import FormatClearIcon from "@mui/icons-material/FormatClear";
-import FormatAlignLeftIcon from "@mui/icons-material/FormatAlignLeft";
-import FormatAlignCenterIcon from "@mui/icons-material/FormatAlignCenter";
-import FormatAlignRightIcon from "@mui/icons-material/FormatAlignRight";
-import FormatAlignJustifyIcon from "@mui/icons-material/FormatAlignJustify";
 import GridOnIcon from "@mui/icons-material/GridOn";
 import GridOffIcon from "@mui/icons-material/GridOff";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
@@ -53,7 +52,12 @@ export default function RichTextEditor({ value, onChange }) {
       TextStyle,
       Color,
       Underline,
-      Link.configure({ openOnClick: false }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        HTMLAttributes: { rel: "noopener noreferrer nofollow", target: "_blank" },
+      }),
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Table.configure({ resizable: true }),
@@ -85,6 +89,9 @@ export default function RichTextEditor({ value, onChange }) {
     setTblAnchor(null);
   };
 
+  // ارتفاع ناحیه نوشتن در حالت تمام‌صفحه
+  const editorAreaHeight = "calc(100dvh - 160px)";
+
   return (
     <Box>
       <Paper
@@ -95,7 +102,10 @@ export default function RichTextEditor({ value, onChange }) {
           zIndex: fullscreen ? 1300 : "auto",
           p: 1.5,
           bgcolor: "#fff",
-          borderRadius: 2
+          borderRadius: 2,
+          display: "flex",
+          flexDirection: "column",
+          height: fullscreen ? "100dvh" : "auto",
         }}
       >
         {/* Toolbar */}
@@ -191,16 +201,32 @@ export default function RichTextEditor({ value, onChange }) {
           </Popover>
         </Box>
 
-        {/* Editable area with table styling */}
-        <Box sx={{
-          border: "1px solid #eee", borderRadius: 2, minHeight: 160, p: 1.5, background: "#fff",
-          fontSize: 16,
-          "& .ProseMirror": { outline: "none" },
-          "& .ProseMirror table": { width: "100%", borderCollapse: "collapse", margin: "12px 0" },
-          "& .ProseMirror th, & .ProseMirror td": { border: "1px solid #e5e7eb", padding: "8px 10px" },
-          "& .ProseMirror th": { background: "#f3f4f6", fontWeight: 800, textAlign: "center" },
-          "& .ProseMirror tr:nth-of-type(even) td": { background: "#fafafa" },
-        }}>
+        {/* Editable area */}
+        <Box
+          onMouseDown={() => editor.chain().focus().run()} // کلیک روی هرجای باکس، فوکِس
+          sx={{
+            border: "1px solid #eee",
+            borderRadius: 2,
+            background: "#fff",
+            // در حالت تمام‌صفحه کل ارتفاع را بگیر
+            height: fullscreen ? editorAreaHeight : "auto",
+            flex: fullscreen ? 1 : "initial",
+            // استایل خود ProseMirror
+            "& .ProseMirror": {
+              outline: "none",
+              cursor: "text",
+              minHeight: fullscreen ? editorAreaHeight : 160,
+              padding: 1.5,
+              fontSize: 16,
+              overflowY: "auto",
+            },
+            // جدول‌ها
+            "& .ProseMirror table": { width: "100%", borderCollapse: "collapse", margin: "12px 0" },
+            "& .ProseMirror th, & .ProseMirror td": { border: "1px solid #e5e7eb", padding: "8px 10px" },
+            "& .ProseMirror th": { background: "#f3f4f6", fontWeight: 800, textAlign: "center" },
+            "& .ProseMirror tr:nth-of-type(even) td": { background: "#fafafa" },
+          }}
+        >
           <div dir="auto"><EditorContent editor={editor} /></div>
         </Box>
       </Paper>

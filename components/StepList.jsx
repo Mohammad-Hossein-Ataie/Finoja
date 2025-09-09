@@ -31,7 +31,235 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import RichTextEditor from "./RichTextEditor";
-import SafeHtml from "./SafeHtml";
+
+/* =======================
+   Embed media inside HTML
+   ======================= */
+const URL_RE = /(https?:\/\/[^\s"'<>]+)/g;
+const isMediaUrl = (u = "") => {
+  const low = u.toLowerCase();
+  return (
+    low.includes("youtube.com/watch?v=") ||
+    low.includes("youtu.be/") ||
+    low.includes("aparat.com/") ||
+    /\.(mp3|wav|ogg|mp4|webm|ogv|png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(low)
+  );
+};
+
+const MediaEl = ({ src }) => {
+  const low = (src || "").toLowerCase();
+
+  // YouTube
+  if (low.includes("youtube.com/watch?v=") || low.includes("youtu.be/")) {
+    let id = "";
+    try {
+      id = low.includes("watch?v=")
+        ? new URL(src).searchParams.get("v") || ""
+        : src.split("/").pop() || "";
+    } catch {}
+    return id ? (
+      <Box
+        sx={{
+          position: "relative",
+          pt: "56.25%",
+          borderRadius: 2,
+          overflow: "hidden",
+          my: 1.25,
+        }}
+      >
+        <iframe
+          src={`https://www.youtube.com/embed/${id}`}
+          allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: 0,
+          }}
+          title="youtube"
+        />
+      </Box>
+    ) : null;
+  }
+
+  // Aparat
+  if (low.includes("aparat.com/")) {
+    const vid = src.includes("/v/")
+      ? src.split("/v/")[1]?.split(/[?&#]/)[0] || ""
+      : "";
+    return vid ? (
+      <Box
+        sx={{
+          position: "relative",
+          pt: "56.25%",
+          borderRadius: 2,
+          overflow: "hidden",
+          my: 1.25,
+        }}
+      >
+        <iframe
+          src={`https://www.aparat.com/video/video/embed/videohash/${vid}/vt/frame`}
+          allowFullScreen
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            border: 0,
+          }}
+          title="aparat"
+        />
+      </Box>
+    ) : null;
+  }
+
+  // Audio
+  if (/\.(mp3|wav|ogg)(\?|#|$)/i.test(low)) {
+    return <audio src={src} controls style={{ width: "100%", margin: "10px 0" }} />;
+  }
+
+  // Video
+  if (/\.(mp4|webm|ogv)(\?|#|$)/i.test(low)) {
+    return (
+      <video
+        src={src}
+        controls
+        style={{ width: "100%", borderRadius: 8, margin: "10px 0" }}
+      />
+    );
+  }
+
+  // Image
+  if (/\.(png|jpe?g|gif|webp|svg)(\?|#|$)/i.test(low)) {
+    return (
+      <img
+        src={src}
+        alt=""
+        style={{
+          maxWidth: "100%",
+          height: "auto",
+          borderRadius: 8,
+          display: "block",
+          margin: "10px 0",
+        }}
+      />
+    );
+  }
+  return null;
+};
+
+const HtmlInlineMedia = ({ html = "" }) => {
+  if (!html) return null;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+  const root = doc.body.firstElementChild;
+
+  const walk = (node, key) => {
+    // متن: لینک‌ها را تشخیص بده و embed کن
+    if (node.nodeType === 3) {
+      const text = node.nodeValue || "";
+      const parts = text.split(URL_RE);
+      return parts.map((chunk, i) => {
+        if (i % 2 === 0)
+          return chunk ? <span key={`${key}-t-${i}`}>{chunk}</span> : null;
+        const url = chunk.replace(/[),.;]+$/, "");
+        return isMediaUrl(url) ? (
+          <MediaEl key={`${key}-m-${i}`} src={url} />
+        ) : (
+          <a
+            key={`${key}-a-${i}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            style={{ wordBreak: "break-all" }}
+          >
+            {url}
+          </a>
+        );
+      });
+    }
+
+    if (node.nodeType !== 1) return null;
+    const tag = node.tagName.toLowerCase();
+
+    // ⚠️ تگ‌های void باید self-closing باشن (بدون children)
+    if (tag === "br") return <br key={key} />;
+    if (tag === "hr") return <hr key={key} />;
+
+    if (tag === "a") {
+      const href = node.getAttribute("href") || "";
+      if (isMediaUrl(href)) return <MediaEl key={key} src={href} />;
+      const children = Array.from(node.childNodes).map((ch, i) =>
+        walk(ch, `${key}-${i}`)
+      );
+      return (
+        <a
+          key={key}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+        >
+          {children}
+        </a>
+      );
+    }
+
+    const children = Array.from(node.childNodes).map((ch, i) =>
+      walk(ch, `${key}-${i}`)
+    );
+    const allowed = new Set([
+      "p",
+      "strong",
+      "em",
+      "u",
+      "ul",
+      "ol",
+      "li",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "blockquote",
+      "pre",
+      "code",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+      "div",
+      "span",
+    ]);
+    const Tag = allowed.has(tag) ? tag : "span";
+    return <Tag key={key}>{children}</Tag>;
+  };
+
+  return (
+    <Box
+      sx={{
+        lineHeight: 1.9,
+        "& p": { m: 0, mb: 1 },
+        "& table": {
+          width: "100%",
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          overflow: "hidden",
+          borderRadius: 1,
+        },
+        "& th, & td": { border: "1px solid #e5e7eb", p: 1 },
+        "& th": { background: "#f3f4f6", fontWeight: 700 },
+      }}
+    >
+      {Array.from(root.childNodes).map((n, i) => walk(n, `n-${i}`))}
+    </Box>
+  );
+};
+/* ======================= */
 
 const TYPE_LABELS = {
   explanation: "توضیحی",
@@ -47,17 +275,14 @@ const EMPTY_STEP = {
   type: "explanation",
   content: "",
   text: "",
-  // فقط برای تست‌ها
   options: ["", "", "", ""],
   correctIndex: 0,
   correctIndexes: [],
   explanation: "",
   feedbackCorrect: "",
   feedbackWrong: "",
-  // برای matching
   pairs: [{ left: "", right: "" }],
   matchingQuestion: "",
-  // برای ویدیو/صوت
   mediaUrl: "",
   mediaKey: "",
 };
@@ -79,11 +304,9 @@ function normalizeStep(s) {
   };
 
   if (t === "explanation") {
-    // اجازه داریم content داشته باشیم؛ بقیه موارد پاک
     base.text = "";
     clearQA();
     clearMatching();
-    // mediaKey/mediaUrl ذخیره نمی‌کنیم؛ لینک‌ها را کاربر در ادیتور Paste می‌کند
     base.mediaKey = "";
     base.mediaUrl = "";
   } else if (t === "multiple-choice") {
@@ -101,21 +324,11 @@ function normalizeStep(s) {
     base.mediaUrl = "";
     base.mediaKey = "";
   } else if (t === "video" || t === "audio") {
-    // فقط توضیح کوتاه (text) + یکی از mediaUrl/mediaKey
     base.content = "";
     clearQA();
     clearMatching();
   }
   return base;
-}
-
-// نام‌گذاری فایل برای S3 (فعلاً استفاده نمی‌شود اما می‌ماند)
-function makeKey(file, kind /* video|audio|asset */) {
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
-  const folder =
-    kind === "audio" ? "audios" : kind === "video" ? "videos" : "assets";
-  const rand = Math.random().toString(36).slice(2, 12);
-  return `${folder}/${Date.now()}-${rand}.${ext}`;
 }
 
 async function copy(text) {
@@ -215,14 +428,12 @@ export default function StepList({
   const addOption = () =>
     setForm((f) => ({ ...f, options: [...(f.options || []), ""] }));
 
-  // حداقل 2 گزینه
   const removeOption = (idx) =>
     setForm((f) => {
       const opts = [...(f.options || [])];
       if (opts.length <= 2) return f;
       opts.splice(idx, 1);
 
-      // اصلاح پاسخ‌های صحیح
       let correctIndex = f.correctIndex ?? 0;
       if (f.type === "multiple-choice") {
         if (correctIndex === idx) correctIndex = 0;
@@ -317,7 +528,7 @@ export default function StepList({
     }
   };
 
-  // ====== آماده‌سازی پیش‌نمایش مدیا (URL امضاشده) هنگام باز کردن آکاردئون ======
+  // ====== آماده‌سازی پیش‌نمایش مدیا (URL امضاشده) هنگام باز شدن آیتم ======
   useEffect(() => {
     const fetchSigned = async () => {
       if (openIdx === null) return;
@@ -327,7 +538,7 @@ export default function StepList({
         (st.type === "video" || st.type === "audio") &&
         st.mediaKey &&
         !previewMap[openIdx] &&
-        !st.mediaUrl // اگر لینک بیرونی داریم نیازی به presign نیست
+        !st.mediaUrl
       ) {
         try {
           const r = await fetch("/api/storage/presigned", {
@@ -340,7 +551,7 @@ export default function StepList({
             setPreviewMap((m) => ({ ...m, [openIdx]: data.url }));
           }
         } catch {
-          // بی‌صدا رد شو
+          /* ignore */
         }
       }
     };
@@ -348,7 +559,6 @@ export default function StepList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openIdx, unit?.steps]);
 
-  // ====== ابزارهای تشخیص لینک و embed ویدیو ======
   const isYouTube = (u = "") =>
     u.includes("youtube.com/watch?v=") || u.includes("youtu.be/");
   const isAparat = (u = "") => u.includes("aparat.com/");
@@ -437,7 +647,6 @@ export default function StepList({
       );
     }
 
-    // هنوز URL آماده نیست
     return (
       <Typography variant="caption" color="text.secondary">
         {st.mediaKey ? "در حال آماده‌سازی پیش‌نمایش…" : "بدون فایل"}
@@ -467,13 +676,11 @@ export default function StepList({
         <Card variant="outlined" sx={{ mb: 1 }}>
           <CardContent sx={{ pt: 1.5 }}>
             <Typography variant="body2" sx={{ lineHeight: 2 }}>
-              • «توضیحی» متن (با ادیتور) دارد؛ می‌توانید فایل را آپلود کرده و
-              لینک را در متن Paste کنید. <br />
-              • «ویدیویی/صوتی» پاسخ و فیدبک ندارند؛ فقط توضیح کوتاه + فایل/لینک
-              دارند. <br />
-              • تست‌ها: «چهارگزینه‌ای» (یک پاسخ صحیح) و «چندگزینه‌ای (چند پاسخ
-              صحیح)» که می‌توانید هر تعداد گزینه اضافه کنید. <br />• «تطبیق» با
-              جفت‌های چپ/راست.
+              • «توضیحی» متن دارد؛ می‌توانید فایل آپلود کنید و لینک را در متن
+              Paste کنید (پیش‌نمایش خودکار). <br />
+              • «ویدیویی/صوتی» فقط توضیح کوتاه + فایل/لینک دارند. <br />
+              • تست‌ها: چهارگزینه‌ای و چندگزینه‌ای. <br />• «تطبیق» با جفت‌های
+              چپ/راست.
             </Typography>
           </CardContent>
         </Card>
@@ -538,7 +745,9 @@ export default function StepList({
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => setOpenIdx(openIdx === i ? null : i)}
+                            onClick={() =>
+                              setOpenIdx(openIdx === i ? null : i)
+                            }
                           >
                             <ExpandMoreIcon
                               sx={{
@@ -560,7 +769,7 @@ export default function StepList({
                         <Collapse in={openIdx === i}>
                           <Box sx={{ mt: 1, color: "text.secondary" }}>
                             {st.type === "explanation" ? (
-                              <SafeHtml
+                              <HtmlInlineMedia
                                 html={
                                   st.content ||
                                   '<p style="opacity:.6">— بدون محتوا —</p>'
@@ -624,7 +833,6 @@ export default function StepList({
 
                                 {renderMediaPreview(st, i)}
 
-                                {/* برای دیباگ/اطلاعات اضافی */}
                                 <Typography
                                   variant="caption"
                                   sx={{
@@ -715,8 +923,7 @@ export default function StepList({
                 label="نوع گام"
                 value={form.type}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, type: e.target.value }))
-                }
+                setForm((f) => ({ ...f, type: e.target.value }))}
                 select
                 sx={{ minWidth: 280 }}
               >
@@ -731,7 +938,6 @@ export default function StepList({
                 <MenuItem value="audio">صوتی</MenuItem>
               </TextField>
 
-              {/* لینک بیرونی فقط برای ویدیو/صوتی */}
               {(form.type === "video" || form.type === "audio") && (
                 <TextField
                   label="لینک بیرونی (اختیاری)"
@@ -745,7 +951,6 @@ export default function StepList({
               )}
             </Stack>
 
-            {/* توضیح/سوال/توضیح کوتاه برای همه انواع غیر-توضیحی */}
             {form.type !== "explanation" && (
               <TextField
                 label={
@@ -762,7 +967,6 @@ export default function StepList({
               />
             )}
 
-            {/* ادیتور برای توضیحی + باکس آپلود کمکـی */}
             {form.type === "explanation" && (
               <>
                 <Typography fontWeight={700} mt={1}>
@@ -773,7 +977,6 @@ export default function StepList({
                   onChange={(val) => setForm((f) => ({ ...f, content: val }))}
                 />
 
-                {/* آپلود کمکـی برای گرفتن لینک و پیست در ادیتور */}
                 <Box
                   sx={{
                     mt: 1.5,
@@ -855,15 +1058,13 @@ export default function StepList({
                     variant="caption"
                     sx={{ mt: 0.5, display: "block" }}
                   >
-                    نکته: لینک را هرجا خواستی داخل ادیتور بالا پیست کن. اگر لینک
-                    mp4/mp3/... باشد، پخش‌کننده به‌صورت خودکار نمایش داده
-                    می‌شود.
+                    نکته: لینک را داخل ادیتور بالا پیست کنید. اگر لینک mp4/mp3/…
+                    باشد، پیش‌نمایش خودکار نمایش داده می‌شود.
                   </Typography>
                 </Box>
               </>
             )}
 
-            {/* آپلود S3 فقط برای ویدیو/صوتی */}
             {(form.type === "video" || form.type === "audio") && (
               <Box
                 sx={{
@@ -910,7 +1111,6 @@ export default function StepList({
               </Box>
             )}
 
-            {/* گزینه‌ها و پاسخ‌ها — فقط برای انواع تستی */}
             {form.type === "multiple-choice" && (
               <>
                 <Typography fontWeight={700}>گزینه‌ها</Typography>
@@ -1067,7 +1267,6 @@ export default function StepList({
               </>
             )}
 
-            {/* فیدبک‌ها فقط برای تست‌ها */}
             {SHOW_FEEDBACK && (
               <>
                 <TextField
