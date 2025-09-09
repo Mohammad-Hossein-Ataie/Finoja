@@ -1,4 +1,3 @@
-// components/AuthStepperModal.jsx
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import {
@@ -105,7 +104,6 @@ export default function AuthStepperModal({
 
   /* ------------------ Reset on open/variant change ------------------ */
   useEffect(() => {
-    // هم وقتی مودال باز می‌شود و هم وقتی به‌عنوان صفحه استفاده می‌شود ریست کن
     if (open || asPage) {
       setActiveStep(defaultStep);
       setAlert(null);
@@ -117,6 +115,7 @@ export default function AuthStepperModal({
       setRegisterMobile("");
       setRegisterOtp("");
       setOtpVerified(false);
+      setShowPassword(false);
       setForm({
         name: "",
         family: "",
@@ -148,14 +147,10 @@ export default function AuthStepperModal({
     try {
       const res = await fetch("/api/login-student", {
         method: "POST",
-        body: JSON.stringify({
-          mobile: form.mobile,
-          password: form.password,
-        }),
+        body: JSON.stringify({ mobile: form.mobile, password: form.password }),
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        // اختیاری: ذخیره موبایل در localStorage
         try {
           localStorage.setItem("student_mobile", form.mobile);
         } catch {}
@@ -284,7 +279,6 @@ export default function AuthStepperModal({
         notify("ثبت‌نام با موفقیت انجام شد! در حال انتقال...", "success");
         setTimeout(() => {
           onClose?.();
-          // کاربر تازه ثبت‌نام شده -> به آنبوردینگ
           router.replace("/onboarding");
         }, 800);
       } else {
@@ -300,8 +294,7 @@ export default function AuthStepperModal({
 
   /* ------------------ Forgot Password ------------------ */
   const [forgotLoading, setForgotLoading] = useState(false);
-  const canSendForgotOtp =
-    /^09\d{9}$/.test(forgotMobile) && !forgotLoading;
+  const canSendForgotOtp = /^09\d{9}$/.test(forgotMobile) && !forgotLoading;
 
   const handleForgotSendOtp = async () => {
     setForgotLoading(true);
@@ -412,9 +405,7 @@ export default function AuthStepperModal({
             label="شماره موبایل"
             fullWidth
             value={registerMobile}
-            onChange={(e) =>
-              setRegisterMobile(onlyDigits(e.target.value, 11))
-            }
+            onChange={(e) => setRegisterMobile(onlyDigits(e.target.value, 11))}
             inputProps={{
               maxLength: 11,
               inputMode: "numeric",
@@ -562,7 +553,7 @@ export default function AuthStepperModal({
           <TextField
             name="password"
             label="رمز عبور"
-            type="password"
+            type={showPassword ? "text" : "password"}
             fullWidth
             margin="normal"
             value={form.password}
@@ -575,6 +566,17 @@ export default function AuthStepperModal({
                 : " "
             }
             InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={showPassword ? "مخفی کردن رمز" : "نمایش رمز"}
+                    onClick={() => setShowPassword((s) => !s)}
+                    edge="end"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
               startAdornment: (
                 <InputAdornment position="start">
                   <KeyIcon fontSize="small" />
@@ -936,7 +938,6 @@ export default function AuthStepperModal({
       <Box sx={pageWrapStyle}>
         <Container maxWidth="sm">
           <Paper elevation={0} sx={pageCardStyle}>
-            {/* عنوان صفحه */}
             <Typography
               variant="h5"
               sx={{ mb: 2.5, fontWeight: "bold", textAlign: "center" }}
@@ -951,7 +952,7 @@ export default function AuthStepperModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} aria-labelledby="auth-modal-title">
       <Box sx={modalBoxStyle}>
         <IconButton
           sx={{ position: "absolute", right: 12, top: 12 }}

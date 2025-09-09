@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import {
   Box,
   Typography,
@@ -17,17 +18,25 @@ import {
   Slide,
   Fade,
   Skeleton,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AuthStepperModal from "../components/AuthStepperModal";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import SchoolIcon from "@mui/icons-material/School";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import DevicesIcon from "@mui/icons-material/Devices";
+import InstagramIcon from "@mui/icons-material/Instagram";
+import TelegramIcon from "@mui/icons-material/Telegram";
+import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import TwitterIcon from "@mui/icons-material/Twitter";
+import StarIcon from "@mui/icons-material/Star";
+import Groups2Icon from "@mui/icons-material/Groups2";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-import SecurityIcon from "@mui/icons-material/Security";
-import UpdateIcon from "@mui/icons-material/Update";
+import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import { motion } from "framer-motion";
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
@@ -61,6 +70,7 @@ const features = [
     img: "/images/work.webp",
   },
 ];
+
 const testimonials = [
   {
     name: "محمد رضایی",
@@ -80,48 +90,16 @@ const testimonials = [
     avatar: "/images/avatar.webp",
     text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
   },
-  {
-    name: "محمد رضایی",
-    job: "دانشجوی مدیریت مالی",
-    avatar: "/images/avatar.webp",
-    text: "فینوجا واقعا انقلابی در یادگیری مفاهیم مالی ایجاد کرده. با روش جذاب و بازی‌گونه‌اش تونستم مفاهیم پیچیده رو به راحتی یاد بگیرم. حالا دیگه به امور مالی شخصی‌ام تسلط بیشتری دارم.",
-  },
-  {
-    name: "سارا احمدی",
-    job: "کارمند حسابداری",
-    avatar: "/images/avatar.webp",
-    text: "دوره‌های فینوجا خیلی کاربردی بودن. هم مدرک گرفتم، هم تونستم تو مصاحبه کاری خودم از مهارت‌هایی که اینجا یاد گرفتم استفاده کنم. همه چیز ساده و قابل فهم بود.",
-  },
-  {
-    name: "رضا اکبری",
-    job: "کارآفرین",
-    avatar: "/images/avatar.webp",
-    text: "سیستم یادگیری فینوجا واقعا خلاقانه‌ست. همه‌چیز مرحله به مرحله، با تمرین و مینی‌گیم. مهم‌تر از همه، پشتیبانی عالی و سریع تیم فینوجاست که همیشه کنارته.",
-  },
-];
-const howItWorks = [
-  {
-    step: "۱",
-    title: "ثبت‌نام رایگان",
-    description: "در کمتر از ۱ دقیقه ثبت‌نام کن و پروفایل بساز",
-  },
-  {
-    step: "۲",
-    title: "تعیین سطح",
-    description: "سطح فعلی خودت رو در آزمون کوتاه مشخص کن",
-  },
-  {
-    step: "۳",
-    title: "شروع یادگیری",
-    description: "اولین درس رو شروع کن و روزانه پیشرفت کن",
-  },
-  {
-    step: "۴",
-    title: "دریافت مدرک",
-    description: "پس از اتمام دوره، مدرک دریافت کن",
-  },
 ];
 
+const howItWorks = [
+  { step: "۱", title: "ثبت‌نام رایگان", description: "در کمتر از ۱ دقیقه ثبت‌نام کن و پروفایل بساز" },
+  { step: "۲", title: "تعیین سطح", description: "سطح فعلی خودت رو در آزمون کوتاه مشخص کن" },
+  { step: "۳", title: "شروع یادگیری", description: "اولین درس رو شروع کن و روزانه پیشرفت کن" },
+  { step: "۴", title: "دریافت مدرک", description: "پس از اتمام دوره، مدرک دریافت کن" },
+];
+
+/* — متن بلند مزایا — */
 const webAppBenefits = [
   {
     title: "بدون نیاز به نصب",
@@ -145,30 +123,56 @@ const webAppBenefits = [
   },
 ];
 
-/* ---------- کامپوننت‌های استایل ---------- */
-const StyledFeatureCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(4),
-  borderRadius: 24,
-  textAlign: "center",
-  height: "100%",
-  transition: "transform 0.3s, box-shadow 0.3s",
-  "&:hover": {
-    transform: "translateY(-8px)",
-    boxShadow: theme.shadows[8],
-  },
+/* ---------- FAQ ---------- */
+const faqItems = [
+  { q: "فینوجا برای چه سنی مناسبه؟", a: "از نوجوانان تا بزرگسالان. محتوا سطح‌بندی شده و بعد از تعیین سطح، مسیر مناسب پیشنهاد می‌شود." },
+  { q: "آیا شروع رایگانه؟", a: "بله. اولین درس‌ها رایگان هستند و برای شروع هیچ کارت بانکی لازم نیست." },
+  { q: "مدرک فینوجا چه اعتباری داره؟", a: "پس از اتمام دوره، مدرک با کُد رهگیری دریافت می‌کنید که قابل ارائه در رزومه است." },
+  { q: "اگر رمز رو فراموش کنم چی؟", a: "با وارد کردن شماره موبایل، کد تایید دریافت می‌کنید و می‌توانید رمز جدید تعریف کنید." },
+  { q: "آیا روی موبایل هم خوب کار می‌کند؟", a: "کاملاً. فینوجا وب‌اپ است و روی همه نمایشگرها تجربه روانی دارد." },
+];
+
+/* ---------- استایل ---------- */
+const StatCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2.5),
+  borderRadius: 16,
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  border: "1px solid #E6EEF8",
+  boxShadow: "0 6px 24px rgba(36,119,243,0.06)",
 }));
 
-/* =========================================================
-   Main Component
-========================================================= */
+/* ===== شمارنده‌ی نرم (CountUp) + فرمت فارسی ===== */
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+function useCountUp(end, { duration = 1200, start = 0, decimals = 0 } = {}) {
+  const [val, setVal] = useState(start);
+  useEffect(() => {
+    let raf;
+    const t0 = performance.now();
+    const tick = (t) => {
+      const p = Math.min((t - t0) / duration, 1);
+      setVal(start + (end - start) * easeOutCubic(p));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [end, duration, start]);
+  // نمایش برگردانده‌شده:
+  const formatted = new Intl.NumberFormat("fa-IR", {
+    maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
+  }).format(val);
+  return formatted;
+}
+
+/* ========================================================= */
 export default function LandingPage() {
-  /* حالت لودینگ صفحه */
   const [isLoaded, setIsLoaded] = useState(false);
   useEffect(() => {
     const handleLoad = () => setIsLoaded(true);
-    if (document.readyState === "complete") {
-      handleLoad();
-    } else {
+    if (document.readyState === "complete") handleLoad();
+    else {
       window.addEventListener("load", handleLoad);
       return () => window.removeEventListener("load", handleLoad);
     }
@@ -186,28 +190,14 @@ export default function LandingPage() {
     setAuthOpen(true);
   };
 
-  /* منطق نوار بالای صفحه */
-  const heroRef = useRef(null);
-  const [heroHeight, setHeroHeight] = useState(0);
-  const [showCTA, setShowCTA] = useState(false);
-
+  /* اسکرول نرم سراسری */
   useEffect(() => {
-    if (!isLoaded) return;
-    const measure = () => setHeroHeight(heroRef.current?.offsetHeight || 0);
-
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [isLoaded]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!heroHeight) return;
-      setShowCTA(window.scrollY > heroHeight - 80);
+    const prev = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = "smooth";
+    return () => {
+      document.documentElement.style.scrollBehavior = prev;
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [heroHeight]);
+  }, []);
 
   /* ---------- Structured data ---------- */
   const orgSchema = {
@@ -220,10 +210,45 @@ export default function LandingPage() {
       "https://instagram.com/finoja",
       "https://t.me/finoja",
       "https://linkedin.com/company/finoja",
+      "https://twitter.com/finoja",
     ],
   };
 
-  /* ---------- Meta + Head ---------- */
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqItems.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
+
+  const howToSchema = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: "شروع کار با فینوجا",
+    step: howItWorks.map((s, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: s.title,
+      text: s.description,
+    })),
+  };
+
+  const aggregateRatingSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "فینوجا",
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: "4.9",
+      reviewCount: "120",
+      bestRating: "5",
+      worstRating: "1",
+    },
+  };
+
   const headContent = (
     <Head>
       <title>فینوجا | یادگیری مالی سرگرم‌کننده و موثر</title>
@@ -233,11 +258,10 @@ export default function LandingPage() {
       />
       <meta
         name="keywords"
-        content="فینوجا یک وب‌اپلیکیشن تعاملی آموزش مالی است که با بازی‌وارسازی، یادگیری اصول مالی، مدیریت هزینه و سرمایه‌گذاری را برای همه آسان و جذاب می‌کند. همین حالا شروع کنید، مدرک بگیرید و آماده ورود به بازار کار شوید!"
+        content="آموزش مالی, فینوجا, بازی‌وارسازی, مدیریت هزینه, سرمایه‌گذاری, دوره مالی, یادگیری تعاملی"
       />
       <meta name="robots" content="index,follow" />
       <link rel="canonical" href="https://finoja.ir" />
-      {/* Open Graph */}
       <meta property="og:type" content="website" />
       <meta
         property="og:title"
@@ -249,7 +273,6 @@ export default function LandingPage() {
       />
       <meta property="og:url" content="https://finoja.ir" />
       <meta property="og:image" content="https://finoja.ir/og.webp" />
-      {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta
         name="twitter:title"
@@ -260,15 +283,27 @@ export default function LandingPage() {
         content="با فینوجا مفاهیم مالی را به ساده‌ترین شکل یاد بگیرید و مدرک دریافت کنید."
       />
       <meta name="twitter:image" content="https://finoja.ir/og.webp" />
-      {/* Structured data */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(howToSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(aggregateRatingSchema),
+        }}
+      />
     </Head>
   );
 
-  /* ---------- Loading Skeleton ---------- */
   if (!isLoaded) {
     return (
       <>
@@ -292,20 +327,18 @@ export default function LandingPage() {
     );
   }
 
-  /* ---------- Main Render ---------- */
   return (
     <>
       {headContent}
       <Box sx={{ bgcolor: "#F9FAFB", overflowX: "hidden" }}>
-        {/* نوار بالا */}
+        {/* هدر ثابت */}
         <AppBar
           position="fixed"
-          elevation={showCTA ? 4 : 0}
+          elevation={2}
           sx={{
-            bgcolor: showCTA ? "#D2E7FF" : "#D2E7FF",
-            color: showCTA ? "#1A2233" : "inherit",
-            transition: "background-color 0.3s",
-            zIndex: (theme) => theme.zIndex.drawer + 1,
+            bgcolor: "#D2E7FF",
+            color: "#1A2233",
+            zIndex: (t) => t.zIndex.drawer + 1,
           }}
         >
           <Container maxWidth="lg">
@@ -313,57 +346,90 @@ export default function LandingPage() {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: showCTA ? "space-between" : "center",
-                transition: "justify-content 0.3s",
+                justifyContent: "space-between",
                 minHeight: { xs: 56, sm: 64 },
+                gap: 2,
               }}
             >
               <Box
-                component="img"
-                src="/images/logo.webp"
-                alt="لوگو فینوجا"
-                loading="eager"
-                sx={{ height: { xs: 80, sm: 88 }, width: "auto" }}
-              />
-              {showCTA && (
-                <Button
-                  variant="contained"
-                  size="small"
-                  onClick={handleSignupClick}
-                  sx={{
-                    bgcolor: "#66DE93",
-                    color: "#1A2233",
-                    fontWeight: "bold",
-                    borderRadius: 8,
-                    px: 4,
-                    py: 0.8,
-                    minWidth: 140,
-                    "&:hover": { bgcolor: "#4dca80" },
-                  }}
-                >
-                  همین حالا شروع کنید
-                </Button>
-              )}
+                component={Link}
+                href="/"
+                sx={{ display: "inline-flex", alignItems: "center" }}
+              >
+                <Box
+                  component="img"
+                  src="/images/logo.webp"
+                  alt="لوگو فینوجا"
+                  loading="eager"
+                  sx={{ height: { xs: 60, sm: 72 }, width: "auto" }}
+                />
+              </Box>
+
+              <Stack
+                component="nav"
+                direction="row"
+                spacing={3}
+                sx={{ display: { xs: "none", md: "flex" }, alignItems: "center" }}
+              >
+                <NavLink href="#features" label="چرا فینوجا؟" />
+                <NavLink href="#how" label="چطور کار می‌کند؟" />
+                <NavLink href="#benefits" label="مزایا" />
+                <NavLink href="#testimonials" label="نظرات" />
+                <NavLink href="#faq" label="سؤالات متداول" />
+              </Stack>
+
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => {
+                  setAuthTab(1);
+                  setAuthOpen(true);
+                }}
+                sx={{
+                  bgcolor: "#66DE93",
+                  color: "#1A2233",
+                  fontWeight: "bold",
+                  borderRadius: 8,
+                  px: 4,
+                  py: 0.8,
+                  minWidth: 140,
+                  "&:hover": { bgcolor: "#4dca80" },
+                }}
+              >
+                همین حالا شروع کنید
+              </Button>
             </Toolbar>
           </Container>
         </AppBar>
-
-        {/* Spacer زیر نوار ثابت */}
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }} />
 
-        {/* سکشن هِرو */}
+        {/* هرو */}
         <HeroSection
-          heroRef={heroRef}
-          handleSignupClick={handleSignupClick}
-          handleLoginClick={handleLoginClick}
+          handleSignupClick={() => {
+            setAuthTab(1);
+            setAuthOpen(true);
+          }}
+          handleLoginClick={() => {
+            setAuthTab(0);
+            setAuthOpen(true);
+          }}
         />
 
-        {/* سایر سکشن‌ها */}
+        {/* آمار وسط‌چین با کانت‌آپ */}
+        <StatsBar />
+
+        {/* سکشن‌ها */}
         <FeaturesSection />
         <HowItWorksSection />
         <BenefitsSection />
         <TestimonialsSection />
-        <FinalCTASection handleSignupClick={handleSignupClick} />
+        <FAQSection />
+        <FinalCTASection
+          handleSignupClick={() => {
+            setAuthTab(1);
+            setAuthOpen(true);
+          }}
+        />
         <FooterSection />
 
         {/* مودال احراز هویت */}
@@ -377,20 +443,35 @@ export default function LandingPage() {
   );
 }
 
-/* =========================================================
-   Hero Section
-========================================================= */
-const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
+/* ===== Helper: لینک ناوبری ===== */
+const NavLink = ({ href, label }) => (
+  <Typography
+    component="a"
+    href={href}
+    sx={{
+      color: "#1A2233",
+      fontWeight: 600,
+      textDecoration: "none",
+      "&:hover": { color: "#2477F3" },
+    }}
+  >
+    {label}
+  </Typography>
+);
+
+/* ================= Hero ================= */
+const HeroSection = ({ handleSignupClick, handleLoginClick }) => (
   <Box
-    ref={heroRef}
+    id="hero"
     sx={{
       py: 8,
       background: "linear-gradient(135deg,#D2E7FF 0%,#FFFFFF 100%)",
       position: "relative",
       overflow: "hidden",
+      scrollMarginTop: { xs: 72, md: 84 },
     }}
   >
-    {/* دایره‌های تزئینی */}
+    {/* تزئینی */}
     <Box
       sx={{
         position: "absolute",
@@ -415,13 +496,8 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
     />
 
     <Container maxWidth="lg">
-      <Grid
-        container
-        spacing={6}
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        {/* متن و CTA‌ها */}
+      <Grid container spacing={6} alignItems="center" justifyContent="space-between">
+        {/* متن */}
         <Grid item xs={12} md={7} sx={{ zIndex: 1 }}>
           <Slide in direction="right" timeout={500}>
             <Box>
@@ -431,18 +507,13 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
                 gutterBottom
                 color="#1A2233"
                 sx={{
-                  fontSize: {
-                    xs: "2rem",
-                    sm: "2.3rem",
-                    md: "2.7rem",
-                    lg: "3rem",
-                  },
+                  fontSize: { xs: "2rem", sm: "2.3rem", md: "2.7rem", lg: "3rem" },
                   lineHeight: 1.2,
                   mb: 2,
                 }}
               >
-                یادگیری مالی{" "}
-                <span style={{ color: "#2477F3" }}>سرگرم‌کننده</span> و موثر
+                یادگیری مالی <span style={{ color: "#2477F3" }}>سرگرم‌کننده</span> و
+                موثر
               </Typography>
               <Typography
                 variant="h6"
@@ -454,8 +525,8 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
                   maxWidth: 500,
                 }}
               >
-                با روشی مشابه دولینگو، مفاهیم پیچیده مالی را به ساده‌ترین شکل
-                یاد بگیرید. مدرک دریافت کنید و وارد بازار کار شوید!
+                با روشی مشابه دولینگو، مفاهیم پیچیده مالی را به ساده‌ترین شکل یاد
+                بگیرید. مدرک دریافت کنید و وارد بازار کار شوید!
               </Typography>
               <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
                 <Button
@@ -493,9 +564,7 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
                   قبلاً ثبت‌نام کرده‌ام
                 </Button>
               </Box>
-              <Box
-                sx={{ mt: 3, display: "flex", alignItems: "center", gap: 1 }}
-              >
+              <Box sx={{ mt: 3, display: "flex", alignItems: "center", gap: 1 }}>
                 <CheckCircleIcon sx={{ color: "#66DE93" }} />
                 <Typography variant="body2" color="#1A2233">
                   بدون نیاز به کارت بانکی
@@ -505,7 +574,7 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
           </Slide>
         </Grid>
 
-        {/* تصویر بنر */}
+        {/* تصویر */}
         <Grid item xs={12} md={5}>
           <Fade in timeout={800}>
             <Box
@@ -522,12 +591,7 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
                 src="/images/banner.webp"
                 alt="بنر فینوجا"
                 loading="eager"
-                sx={{
-                  width: "100%",
-                  maxWidth: 300,
-                  height: "auto",
-                  mx: "auto",
-                }}
+                sx={{ width: "100%", maxWidth: 300, height: "auto", mx: "auto" }}
               />
             </Box>
           </Fade>
@@ -537,9 +601,142 @@ const HeroSection = ({ heroRef, handleSignupClick, handleLoginClick }) => (
   </Box>
 );
 
+/* ============ Stats Bar (وسط‌چین + کارت‌های هم‌اندازه + CountUp) ============ */
+const StatsBar = () => {
+  const rating = useCountUp(4.9, { duration: 1100, decimals: 1 });
+  const users = useCountUp(3500, { duration: 1300, decimals: 0 });
+  const minutes = useCountUp(2, { duration: 900, decimals: 0 });
+
+  return (
+    <Box
+      sx={{
+        py: 3,
+        bgcolor: "white",
+        borderTop: "1px solid #eef2f7",
+        borderBottom: "1px solid #eef2f7",
+      }}
+    >
+      <Container maxWidth="lg">
+        {/* ظرف باریک برای وسط‌چین شدن روی اسکرین‌های بزرگ */}
+        <Grid
+          container
+          spacing={2}
+          justifyContent="center"
+          sx={{ maxWidth: 1100, mx: "auto" }}
+        >
+          {/** هر آیتم: ستون مساوی + کارت فول‌ویدث و ارتفاع یکسان */}
+          <Grid item xs={12} sm={6} md={3} display="flex">
+            <StatCard sx={{ width: "100%", minHeight: 96 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(102,148,255,.14)",
+                }}
+              >
+                <StarIcon sx={{ color: "#2477F3" }} />
+              </Box>
+              <Box sx={{ ml: "auto" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  {rating}
+                  <span style={{ opacity: 0.7, fontWeight: 700 }}>/۵</span>
+                </Typography>
+                <Typography sx={{ color: "#667085", fontSize: 13 }}>
+                  میانگین امتیاز کاربران
+                </Typography>
+              </Box>
+            </StatCard>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3} display="flex">
+            <StatCard sx={{ width: "100%", minHeight: 96 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(34,197,94,.15)",
+                }}
+              >
+                <Groups2Icon sx={{ color: "#22C55E" }} />
+              </Box>
+              <Box sx={{ ml: "auto" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  +{users}
+                </Typography>
+                <Typography sx={{ color: "#667085", fontSize: 13 }}>
+                  کاربر فعال
+                </Typography>
+              </Box>
+            </StatCard>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3} display="flex">
+            <StatCard sx={{ width: "100%", minHeight: 96 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(255,215,0,.18)",
+                }}
+              >
+                <AccessTimeIcon sx={{ color: "#b58900" }} />
+              </Box>
+              <Box sx={{ ml: "auto" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  {minutes} دقیقه
+                </Typography>
+                <Typography sx={{ color: "#667085", fontSize: 13 }}>
+                  زمان ثبت‌نام
+                </Typography>
+              </Box>
+            </StatCard>
+          </Grid>
+
+          <Grid item xs={12} sm={6} md={3} display="flex">
+            <StatCard sx={{ width: "100%", minHeight: 96 }}>
+              <Box
+                sx={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  display: "grid",
+                  placeItems: "center",
+                  bgcolor: "rgba(102,222,147,.18)",
+                }}
+              >
+                <WorkspacePremiumIcon sx={{ color: "#16a34a" }} />
+              </Box>
+              <Box sx={{ ml: "auto" }}>
+                <Typography sx={{ fontWeight: 800, color: "#0f172a" }}>
+                  گواهی معتبر
+                </Typography>
+                <Typography sx={{ color: "#667085", fontSize: 13 }}>
+                  برای رزومه و مصاحبه
+                </Typography>
+              </Box>
+            </StatCard>
+          </Grid>
+        </Grid>
+      </Container>
+    </Box>
+  );
+};
+
 /* ------------------------ Features ------------------------ */
 const FeaturesSection = () => (
-  <Box sx={{ py: 10, bgcolor: "white" }}>
+  <Box
+    id="features"
+    sx={{ py: 10, bgcolor: "white", scrollMarginTop: { xs: 72, md: 84 } }}
+  >
     <Container maxWidth="lg">
       <Typography
         variant="h3"
@@ -566,80 +763,48 @@ const FeaturesSection = () => (
             key={i}
             alignItems="center"
             direction={{
-              xs: "column-reverse", // موبایل: عکس بالا، متن پایین
-              md: i % 2 === 0 ? "row-reverse" : "row", // دسکتاپ: یکی در میان
+              xs: "column-reverse",
+              md: i % 2 === 0 ? "row-reverse" : "row",
             }}
             spacing={0}
-            sx={{
-              minHeight: { md: 320 },
-            }}
+            sx={{ minHeight: { md: 320 } }}
           >
             {/* متن */}
             <Grid
               item
               xs={12}
               md={6}
-              key={i}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                direction: "rtl",
-              }}
+              sx={{ display: "flex", justifyContent: "center", direction: "rtl" }}
             >
               <Box
                 sx={{
                   width: "100%",
-                  maxWidth: 400,
+                  maxWidth: 520,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
                   height: "100%",
-                  textAlign: { xs: "left", md: "left" },
-                  ml: {
-                    xs: 0, // موبایل: عکس بالا، متن پایین
-                    md: i % 2 === 0 ? "20rem" : "0rem ",
-                  },
+                  textAlign: "left",
+                  ml: { xs: 0, md: i % 2 === 0 ? "14rem" : 0 },
                 }}
               >
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  color="#1A2233"
-                  sx={{ mb: 2 }}
-                >
+                <Typography variant="h4" fontWeight="bold" color="#1A2233" sx={{ mb: 2 }}>
                   {feature.title}
                 </Typography>
-                <Typography
-                  color="#666"
-                  sx={{ fontSize: "1.18rem", lineHeight: 2 }}
-                >
+                <Typography color="#666" sx={{ fontSize: "1.1rem", lineHeight: 2 }}>
                   {feature.description}
                 </Typography>
               </Box>
             </Grid>
 
-            {/* عکس/آیکن */}
+            {/* تصویر */}
             <Grid
               item
               xs={12}
               md={6}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                ml: {
-                  xs: 0, // موبایل: عکس بالا، متن پایین
-                  md: i % 2 === 0 ? "0rem" : "20rem ",
-                },
-              }}
+              sx={{ display: "flex", justifyContent: "center", ml: { xs: 0, md: i % 2 === 0 ? 0 : "14rem" } }}
             >
-              <Box
-                sx={{
-                  alignItems: "center",
-                  height: { xs: 180, md: 280 },
-                  minHeight: 120,
-                  width: "100%",
-                }}
-              >
+              <Box sx={{ alignItems: "center", height: { xs: 180, md: 280 }, minHeight: 120, width: "100%" }}>
                 {feature.img ? (
                   <Box
                     component="img"
@@ -647,7 +812,7 @@ const FeaturesSection = () => (
                     alt={feature.title}
                     loading="lazy"
                     sx={{
-                      width: { xs: 160, sm: 210, md: 250 },
+                      width: { xs: 180, sm: 220, md: 260 },
                       maxWidth: "100%",
                       height: "auto",
                       display: "block",
@@ -681,7 +846,10 @@ const FeaturesSection = () => (
 
 /* -------------------- How it Works -------------------- */
 const HowItWorksSection = () => (
-  <Box sx={{ py: 10, bgcolor: "#1A2233" }}>
+  <Box
+    id="how"
+    sx={{ py: 10, bgcolor: "#1A2233", scrollMarginTop: { xs: 72, md: 84 } }}
+  >
     <Container maxWidth="lg">
       <Typography
         variant="h3"
@@ -707,7 +875,10 @@ const HowItWorksSection = () => (
 
 /* -------------------- Benefits -------------------- */
 const BenefitsSection = () => (
-  <Box sx={{ py: 10, bgcolor: "white" }}>
+  <Box
+    id="benefits"
+    sx={{ py: 10, bgcolor: "white", scrollMarginTop: { xs: 72, md: 84 } }}
+  >
     <Container maxWidth="lg">
       <Typography
         variant="h3"
@@ -734,52 +905,35 @@ const BenefitsSection = () => (
             key={i}
             alignItems="center"
             direction={{
-              xs: "column-reverse", // موبایل: عکس بالا
-              md: i % 2 === 0 ? "row-reverse" : "row", // یکی در میان جابه‌جا
+              xs: "column-reverse",
+              md: i % 2 === 0 ? "row-reverse" : "row",
             }}
             spacing={0}
-            sx={{
-              minHeight: { md: 320 },
-            }}
+            sx={{ minHeight: { md: 320 } }}
           >
             {/* متن */}
             <Grid
               item
               xs={12}
               md={6}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                direction: "rtl",
-              }}
+              sx={{ display: "flex", justifyContent: "center", direction: "rtl" }}
             >
               <Box
                 sx={{
                   width: "100%",
-                  maxWidth: 400,
+                  maxWidth: 520,
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
                   height: "100%",
-                  textAlign: { xs: "left", md: "left" },
-                  ml: {
-                    xs: 0,
-                    md: i % 2 === 0 ? "20rem" : "0rem ",
-                  },
+                  textAlign: "left",
+                  ml: { xs: 0, md: i % 2 === 0 ? "14rem" : 0 },
                 }}
               >
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  color="#1A2233"
-                  sx={{ mb: 2 }}
-                >
+                <Typography variant="h4" fontWeight="bold" color="#1A2233" sx={{ mb: 2 }}>
                   {benefit.title}
                 </Typography>
-                <Typography
-                  color="#666"
-                  sx={{ fontSize: "1.18rem", lineHeight: 2 }}
-                >
+                <Typography color="#666" sx={{ fontSize: "1.1rem", lineHeight: 2 }}>
                   {benefit.description}
                 </Typography>
               </Box>
@@ -789,30 +943,16 @@ const BenefitsSection = () => (
               item
               xs={12}
               md={6}
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                ml: {
-                  xs: 0,
-                  md: i % 2 === 0 ? "0rem" : "20rem ",
-                },
-              }}
+              sx={{ display: "flex", justifyContent: "center", ml: { xs: 0, md: i % 2 === 0 ? 0 : "14rem" } }}
             >
-              <Box
-                sx={{
-                  alignItems: "center",
-                  height: { xs: 180, md: 280 },
-                  minHeight: 120,
-                  width: "100%",
-                }}
-              >
+              <Box sx={{ alignItems: "center", height: { xs: 180, md: 280 }, minHeight: 120, width: "100%" }}>
                 <Box
                   component="img"
                   src={benefit.img}
                   alt={benefit.title}
                   loading="lazy"
                   sx={{
-                    width: { xs: 160, sm: 210, md: 250 },
+                    width: { xs: 180, sm: 220, md: 260 },
                     maxWidth: "100%",
                     height: "auto",
                     display: "block",
@@ -831,7 +971,14 @@ const BenefitsSection = () => (
 
 /* -------------------- Testimonials -------------------- */
 const TestimonialsSection = () => (
-  <Box sx={{ py: 10, bgcolor: "#F9FAFB" }}>
+  <Box
+    id="testimonials"
+    sx={{
+      py: 10,
+      bgcolor: "#F9FAFB",
+      scrollMarginTop: { xs: 72, md: 84 },
+    }}
+  >
     <Container maxWidth="lg">
       <Typography
         variant="h3"
@@ -872,7 +1019,7 @@ const TestimonialsSection = () => (
                   transform: "translateY(-8px) scale(1.03)",
                   boxShadow: "0 8px 48px rgba(36,119,243,0.13)",
                 },
-                minHeight: { xs: 300, sm: 340, md: 380 }, // برای ظاهر یکنواخت‌تر
+                minHeight: { xs: 300, sm: 340, md: 380 },
               }}
             >
               <Avatar src={item.avatar} sx={{ width: 70, height: 70, mb: 2 }} />
@@ -887,7 +1034,7 @@ const TestimonialsSection = () => (
                 sx={{
                   lineHeight: 2,
                   mb: 2,
-                  flex: 1, // این باعث میشه متن فضای وسط رو بگیره و بقیه پایین باشه
+                  flex: 1,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -907,6 +1054,34 @@ const TestimonialsSection = () => (
           </SwiperSlide>
         ))}
       </Swiper>
+    </Container>
+  </Box>
+);
+
+/* -------------------- FAQ -------------------- */
+const FAQSection = () => (
+  <Box id="faq" sx={{ py: 10, bgcolor: "white", scrollMarginTop: { xs: 72, md: 84 } }}>
+    <Container maxWidth="lg">
+      <Typography variant="h3" fontWeight="bold" textAlign="center" color="#1A2233" sx={{ mb: 2 }}>
+        سؤالات متداول
+      </Typography>
+      <Typography variant="h6" textAlign="center" color="#666" sx={{ mb: 6, maxWidth: 700, mx: "auto" }}>
+        اگر جواب سؤال‌تان را اینجا پیدا نکردید، با ما در شبکه‌های اجتماعی در تماس باشید.
+      </Typography>
+      <Grid container spacing={2} justifyContent="center">
+        <Grid item xs={12} md={10} lg={8}>
+          {faqItems.map((f, i) => (
+            <Accordion key={i} sx={{ borderRadius: 2, mb: 1, overflow: "hidden" }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-controls={`faq-${i}-content`} id={`faq-${i}-header`}>
+                <Typography fontWeight={700}>{f.q}</Typography>
+              </AccordionSummary>
+              <AccordionDetails>
+                <Typography color="#555">{f.a}</Typography>
+              </AccordionDetails>
+            </Accordion>
+          ))}
+        </Grid>
+      </Grid>
     </Container>
   </Box>
 );
@@ -990,19 +1165,51 @@ const FooterSection = () => (
           <Typography variant="h6" fontWeight="bold" gutterBottom>
             فینوجا
           </Typography>
-          <Typography variant="body2" sx={{ mb: 2, maxWidth: 300 }}>
+          <Typography variant="body2" sx={{ mb: 2, maxWidth: 320 }}>
             یادگیری مالی به سبک دولینگو! با ما مفاهیم مالی را به ساده‌ترین و
             جذاب‌ترین شکل یاد بگیرید.
           </Typography>
-          <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-            {["instagram", "telegram", "linkedin"].map((icon) => (
-              <IconButton
-                key={icon}
-                sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)" }}
-              >
-                <Box component="span" className={`fab fa-${icon}`} />
-              </IconButton>
-            ))}
+          <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
+            <IconButton
+              component="a"
+              href="https://instagram.com/finoja"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Instagram"
+              sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)" }}
+            >
+              <InstagramIcon />
+            </IconButton>
+            <IconButton
+              component="a"
+              href="https://t.me/finoja"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Telegram"
+              sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)" }}
+            >
+              <TelegramIcon />
+            </IconButton>
+            <IconButton
+              component="a"
+              href="https://linkedin.com/company/finoja"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn"
+              sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)" }}
+            >
+              <LinkedInIcon />
+            </IconButton>
+            <IconButton
+              component="a"
+              href="https://twitter.com/finoja"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Twitter"
+              sx={{ color: "white", bgcolor: "rgba(255,255,255,0.1)" }}
+            >
+              <TwitterIcon />
+            </IconButton>
           </Box>
         </Grid>
 
@@ -1011,13 +1218,10 @@ const FooterSection = () => (
             لینک‌های مفید
           </Typography>
           <Stack spacing={1}>
-            {["درباره ما", "تماس با ما", "سوالات متداول", "بلاگ"].map(
-              (link) => (
-                <Typography key={link} variant="body2">
-                  {link}
-                </Typography>
-              )
-            )}
+            <FooterLink href="/#about" label="درباره ما" />
+            <FooterLink href="/#contact" label="تماس با ما" />
+            <FooterLink href="#faq" label="سوالات متداول" />
+            <FooterLink href="/blog" label="بلاگ" />
           </Stack>
         </Grid>
 
@@ -1026,11 +1230,10 @@ const FooterSection = () => (
             محصولات
           </Typography>
           <Stack spacing={1}>
-            {["دوره‌ها", "وب‌اپلیکیشن", "مدرک", "توصیه‌نامه"].map((link) => (
-              <Typography key={link} variant="body2">
-                {link}
-              </Typography>
-            ))}
+            <FooterLink href="/#courses" label="دوره‌ها" />
+            <FooterLink href="/#benefits" label="وب‌اپلیکیشن" />
+            <FooterLink href="/#features" label="مدرک" />
+            <FooterLink href="/#features" label="توصیه‌نامه" />
           </Stack>
         </Grid>
 
@@ -1041,10 +1244,11 @@ const FooterSection = () => (
           <Typography variant="body2" sx={{ mb: 2 }}>
             برای دریافت جدیدترین دوره‌ها و تخفیف‌ها ایمیل خود را وارد کنید
           </Typography>
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box component="form" onSubmit={(e) => e.preventDefault()} sx={{ display: "flex", gap: 1 }}>
             <input
               type="email"
               placeholder="ایمیل شما"
+              aria-label="ایمیل"
               style={{
                 flex: 1,
                 padding: "12px 16px",
@@ -1056,6 +1260,7 @@ const FooterSection = () => (
               }}
             />
             <Button
+              type="submit"
               variant="contained"
               sx={{
                 bgcolor: "#66DE93",
@@ -1086,44 +1291,38 @@ const FooterSection = () => (
   </Box>
 );
 
+const FooterLink = ({ href, label }) => (
+  <Typography
+    component={Link}
+    href={href}
+    variant="body2"
+    sx={{
+      color: "rgba(255,255,255,0.85)",
+      textDecoration: "none",
+      "&:hover": { color: "white" },
+    }}
+  >
+    {label}
+  </Typography>
+);
+
 /* -------------------- Animated Steps -------------------- */
 const AnimatedSteps = () => {
   const [cardAnimStep, setCardAnimStep] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCardAnimStep((v) => (v + 1) % 5);
-    }, 1200);
+    const timer = setInterval(() => setCardAnimStep((v) => (v + 1) % 5), 1200);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <Grid
-      container
-      spacing={4}
-      justifyContent="center"
-      alignItems="stretch"
-      sx={{ mb: 2 }}
-    >
+    <Grid container spacing={4} justifyContent="center" alignItems="stretch" sx={{ mb: 2 }}>
       {howItWorks.map((step, i) => {
-        // روشن بودن کارت‌ها
-        let isLit = cardAnimStep === 4 ? false : i <= cardAnimStep;
-        // مشخص کردن اینکه آیا این مرحله آخر است و باید طلایی شود
-        const isFinalStep = i === 3;
-        const isGolden = isFinalStep && isLit;
+        const isLit = cardAnimStep === 4 ? false : i <= cardAnimStep;
+        const isGolden = i === 3 && isLit;
 
         return (
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={3}
-            key={i}
-            sx={{
-              display: "flex",
-              alignItems: "stretch",
-            }}
-          >
+          <Grid item xs={12} sm={6} md={3} key={i} sx={{ display: "flex", alignItems: "stretch" }}>
             <motion.div
               animate={{
                 boxShadow: isGolden
@@ -1168,11 +1367,7 @@ const AnimatedSteps = () => {
                 <Box
                   sx={{
                     display: "flex",
-                    bgcolor: isGolden
-                      ? "#FFD700"
-                      : isLit
-                      ? "#66DE93"
-                      : "#6AD5B6",
+                    bgcolor: isGolden ? "#FFD700" : isLit ? "#66DE93" : "#6AD5B6",
                     color: "white",
                     width: 60,
                     height: 60,
