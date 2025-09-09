@@ -497,7 +497,7 @@ export default function CourseRoadmapPage() {
                         background: `radial-gradient(circle at 30% 30%, ${baseColor} 0%, ${baseColor}CC 70%, ${baseColor}BB 100%)`,
                         color: "#fff",
                         cursor: isLocked ? "not-allowed" : "pointer",
-                        opacity: isLocked ? LOCKED_OPACITY : 1,
+                        opacity: isLocked ? 0.45 : 1,
                         transition:
                           "transform .2s, box-shadow .2s, border-color .2s, opacity .2s",
                         boxShadow: `
@@ -536,7 +536,7 @@ export default function CourseRoadmapPage() {
         })}
       </Box>
 
-      {/* دکمه شناور پرش به «شروع» (استایل مربع‌گرد مثل تصویر) */}
+      {/* دکمه شناور پرش به «شروع» */}
       <Box
         onClick={jumpToStart}
         role="button"

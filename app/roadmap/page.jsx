@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
   Box,
   Container,
@@ -43,7 +43,7 @@ export default function RoadmapPage() {
     }
 
     (async () => {
-      /* پروفایل → اگر آنبوردینگ کامل نبود ریدایرکت شود */
+      // پروفایل → اگر آنبوردینگ کامل نبود ریدایرکت شود
       const prof = await fetch("/api/students/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,9 +56,9 @@ export default function RoadmapPage() {
       }
       setProfile(prof);
 
-      /* دوره‌ها و وضعیت یادگیری */
+      // دوره‌ها (خلاصه) و وضعیت یادگیری
       const [coursesRes, learningRes] = await Promise.all([
-        fetch("/api/courses").then((r) => r.json()),
+        fetch("/api/courses?summary=1").then((r) => r.json()),
         fetch("/api/students/learning", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -75,16 +75,23 @@ export default function RoadmapPage() {
   }, [router]);
 
   /* ---------- Helpers ---------- */
-  const getTotalSteps = (course) =>
-    course.sections?.reduce(
-      (acc, sec) =>
-        acc +
-        sec.units?.reduce(
-          (uAcc, u) => uAcc + (u.steps ? u.steps.length : 0),
-          0
-        ),
-      0
-    ) ?? 0;
+  const getTotalSteps = (course) => {
+    // اگر API خلاصه‌ی totalSteps را برگردانده بود، از همان استفاده کن
+    if (course?.stats?.totalSteps != null) return course.stats.totalSteps;
+
+    // سازگاری: در صورتی که کل ساختار آمده باشد
+    return (
+      course.sections?.reduce(
+        (acc, sec) =>
+          acc +
+          sec.units?.reduce(
+            (uAcc, u) => uAcc + (u.steps ? u.steps.length : 0),
+            0
+          ),
+        0
+      ) ?? 0
+    );
+  };
 
   const handleStart = async (course) => {
     const mobile = localStorage.getItem("student_mobile");
@@ -109,13 +116,15 @@ export default function RoadmapPage() {
 
   /** کارت دوره (یک ستون) */
   const CourseCard = ({ course }) => {
-    const learn = learningMap[course._id] || {};
+    const learn = learningMap[course._id]; // ❗ دیگه {} پیش‌فرض نمی‌ذاریم
     const total = getTotalSteps(course);
-    const progress = total
-      ? Math.floor(((learn.progress || 0) / total) * 100)
+    const percent = total
+      ? Math.floor(((learn?.progress || 0) / total) * 100)
       : 0;
-    const isDone = !!learn.finished;
-    const isInProgress = !!learn && !isDone;
+
+    const hasRecord = !!learn;
+    const isDone = !!learn?.finished;
+    const isInProgress = hasRecord && !isDone; // فقط اگر رکورد دارد و تمام نشده
 
     return (
       <Paper
@@ -160,6 +169,7 @@ export default function RoadmapPage() {
             <Typography fontWeight="bold" color={colors.text}>
               {course.title}
             </Typography>
+
             <SafeHtml
               html={course.description || ""}
               sx={{
@@ -170,9 +180,7 @@ export default function RoadmapPage() {
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
                 overflow: "hidden",
-
-                // استایل‌های داخلی برای HTML توضیح
-                "& p": { m: 0 }, // حذف مارجین پیش‌فرض <p>
+                "& p": { m: 0 },
                 "& ul, & ol": { m: 0, pl: 2 },
                 "& h1, & h2, & h3": { mt: 0.5, mb: 0.25 },
                 "& table": {
@@ -195,7 +203,7 @@ export default function RoadmapPage() {
               <Box mt={1}>
                 <LinearProgress
                   variant="determinate"
-                  value={progress}
+                  value={percent}
                   sx={{
                     height: 8,
                     borderRadius: 2,
@@ -208,7 +216,7 @@ export default function RoadmapPage() {
                   fontWeight="bold"
                   color={colors.primary}
                 >
-                  {progress.toLocaleString("fa-IR")}%
+                  {percent.toLocaleString("fa-IR")}%
                 </Typography>
               </Box>
             )}
@@ -268,9 +276,9 @@ export default function RoadmapPage() {
   const doneCourses = courses.filter((c) => learningMap[c._id]?.finished);
   const working = courses.filter((c) => {
     const l = learningMap[c._id];
-    return l && !l.finished; // وجود رکورد کافی‌ست
+    return !!l && !l.finished;
   });
-  const fresh = courses.filter((c) => !learningMap[c._id]); // فقط بدون رکورد
+  const fresh = courses.filter((c) => !learningMap[c._id]);
 
   /* ---------- UI ---------- */
   return (
@@ -293,7 +301,7 @@ export default function RoadmapPage() {
         }}
       >
         <Typography variant="h4" fontWeight="bold" color={colors.text}>
-          نقشه یادگیری شما
+          لیست دوره های آموزشی
         </Typography>
         {profile && (
           <Typography
