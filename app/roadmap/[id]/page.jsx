@@ -40,7 +40,6 @@ const TYPE_LABELS = {
   matching: "تطبیق",
   video: "ویدیویی",
   audio: "صوتی",
-  // برای داده‌های قدیمی:
   "fill-in-the-blank": "جای‌خالی",
 };
 const typeLabel = (t) => TYPE_LABELS[t] || "گام";
@@ -68,29 +67,11 @@ const typeIcon = (t, sx) => {
 };
 
 /* ---------- Colors ---------- */
-const UNIT_COLORS = [
-  "#2477F3",
-  "#66DE93",
-  "#FDA949",
-  "#AC7FF4",
-  "#F35C4A",
-  "#5DC6EE",
-  "#F9C846",
-];
-const positions = ["flex-start", "center", "flex-end", "center"];
+const UNIT_COLORS = ["#2477F3", "#66DE93", "#FDA949", "#AC7FF4", "#F35C4A", "#5DC6EE", "#F9C846"];
 const getUnitColor = (i) => UNIT_COLORS[i % UNIT_COLORS.length];
-
 const hexToRgb = (hex) => {
   const h = hex.replace("#", "");
-  const bigint = parseInt(
-    h.length === 3
-      ? h
-          .split("")
-          .map((c) => c + c)
-          .join("")
-      : h,
-    16
-  );
+  const bigint = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
   return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
 };
 const withAlpha = (hex, a) => {
@@ -98,32 +79,30 @@ const withAlpha = (hex, a) => {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
+/* ---------- Smooth serpentine path ---------- */
+/** تنظیمات موج (می‌تونی با این 3 تا بازی کنی تا دقیقاً به حس دلخواهت برسه) */
+const WAVE_CENTER = 0.5;     // مرکز موج (نسبت عرض ظرف)
+const WAVE_AMPL = 0.38;      // دامنه موج (0..0.5) → هرچه بیشتر، نزدیک‌تر به لبه‌ها
+const WAVE_PERIOD = 9;       // هر چند «گام» یک سیکل کامل بزند (بزرگ‌تر = نرم‌تر)
+
+/** موقعیت افقی نرم بین 0..1 (RTL/LTR-safe چون بعداً insetInlineStart می‌زنیم) */
+const softPhase = (i) => {
+  const t = (i / WAVE_PERIOD) * 2 * Math.PI;      // 0..2π
+  // موج اصلی + هارمونیک دوم خیلی کم برای حس «S» طبیعی‌تر
+  const s = Math.sin(t) * 0.9 + Math.sin(2 * t) * 0.1;
+  // Clamp تا به لبه ظرف نچسبد
+  const p = WAVE_CENTER + WAVE_AMPL * s;
+  return Math.min(0.92, Math.max(0.08, p));
+};
+
 /* ---------- Components ---------- */
 function UnitSeparator({ unitTitle, color }) {
   return (
-    <Box
-      sx={{
-        width: "100%",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        my: 2,
-      }}
-    >
-      <Typography
-        variant="body1"
-        fontWeight="bold"
-        sx={{ color, mb: 1, px: 2, borderRadius: 2 }}
-      >
+    <Box sx={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", my: 2 }}>
+      <Typography variant="body1" fontWeight="bold" sx={{ color, mb: 1, px: 2, borderRadius: 2 }}>
         {unitTitle}
       </Typography>
-      <Box
-        sx={{
-          width: "100%",
-          height: 2,
-          background: `linear-gradient(to right, transparent, ${color}, transparent)`,
-        }}
-      />
+      <Box sx={{ width: "100%", height: 2, background: `linear-gradient(to right, transparent, ${color}, transparent)` }} />
     </Box>
   );
 }
@@ -172,8 +151,7 @@ export default function CourseRoadmapPage() {
       }).then((r) => r.json()),
     ]).then(([c, lRes]) => {
       setCourse(c);
-      const l =
-        (lRes.learning || []).find((lr) => lr.courseId === courseId) || {};
+      const l = (lRes.learning || []).find((lr) => lr.courseId === courseId) || {};
       setLearning(l || {});
       setLoading(false);
     });
@@ -198,9 +176,7 @@ export default function CourseRoadmapPage() {
         unitAnchorIndex.current[`${secIdx}-${unitIdx}`] = g;
 
         unit.steps.forEach((st, stepIdxInUnit) => {
-          const stepId = (
-            st._id || `${secIdx}-${unitIdx}-${stepIdxInUnit}`
-          ).toString();
+          const stepId = (st._id || `${secIdx}-${unitIdx}-${stepIdxInUnit}`).toString();
           items.push({
             kind: "step",
             stepType: st.type,
@@ -224,15 +200,11 @@ export default function CourseRoadmapPage() {
   /* ---------- Progress & section-of-progress ---------- */
   const rawProgress = learning.progress || 0;
   const startIndex = useMemo(
-    () =>
-      totalSteps > 0 ? Math.min(Math.max(rawProgress, 0), totalSteps - 1) : 0,
+    () => (totalSteps > 0 ? Math.min(Math.max(rawProgress, 0), totalSteps - 1) : 0),
     [rawProgress, totalSteps]
   );
   const progressStep = useMemo(
-    () =>
-      roadmapItems.find(
-        (it) => it.kind === "step" && it.globalStepIndex === startIndex
-      ),
+    () => roadmapItems.find((it) => it.kind === "step" && it.globalStepIndex === startIndex),
     [roadmapItems, startIndex]
   );
   const progressSecIdx = progressStep?.secIdx ?? 0;
@@ -245,10 +217,7 @@ export default function CourseRoadmapPage() {
     const top = el.getBoundingClientRect().top + window.scrollY - headerOffset;
     window.scrollTo({ top, behavior });
     try {
-      el.animate([{ filter: "brightness(1.2)" }, { filter: "brightness(1)" }], {
-        duration: 800,
-        easing: "ease-out",
-      });
+      el.animate([{ filter: "brightness(1.2)" }, { filter: "brightness(1)" }], { duration: 800, easing: "ease-out" });
     } catch {}
   };
   useEffect(() => {
@@ -264,8 +233,7 @@ export default function CourseRoadmapPage() {
   useEffect(() => {
     const onScroll = () => {
       const anchor = headerOffset + 8;
-      let minDiff = Infinity,
-        activeIdx = 0;
+      let minDiff = Infinity, activeIdx = 0;
       stepRefs.current.forEach((ref, idx) => {
         if (!ref) return;
         const diff = Math.abs(ref.getBoundingClientRect().top - anchor);
@@ -282,10 +250,7 @@ export default function CourseRoadmapPage() {
   }, [headerOffset, totalSteps]);
 
   const currentStep = useMemo(
-    () =>
-      roadmapItems.find(
-        (it) => it.kind === "step" && it.globalStepIndex === activeStepIdx
-      ) || {},
+    () => roadmapItems.find((it) => it.kind === "step" && it.globalStepIndex === activeStepIdx) || {},
     [roadmapItems, activeStepIdx]
   );
   const headerColor = currentStep.color || UNIT_COLORS[0];
@@ -300,7 +265,7 @@ export default function CourseRoadmapPage() {
   };
   const jumpToStart = () => scrollToIndex(startIndex);
 
-  /* ---------- Floating arrow (show/hide + direction + tooltip) ---------- */
+  /* ---------- Floating arrow visibility ---------- */
   const [showJump, setShowJump] = useState(false);
   const [jumpDown, setJumpDown] = useState(true);
   useEffect(() => {
@@ -314,15 +279,11 @@ export default function CourseRoadmapPage() {
       const pageYOfStart = rect.top + window.scrollY - headerOffset;
       const scrollY = window.scrollY;
 
-      // آیا «شروع» روی صفحه است؟
-      const startVisible =
-        rect.top < window.innerHeight - 60 && rect.bottom > headerOffset - 60;
+      const startVisible = rect.top < window.innerHeight - 60 && rect.bottom > headerOffset - 60;
 
-      // جهت فلش
       if (scrollY + 20 < pageYOfStart) setJumpDown(true);
       else if (scrollY - 20 > pageYOfStart) setJumpDown(false);
 
-      // وقتی شروع دیده می‌شود، فلش نمایش داده نشود
       setShowJump(!startVisible && totalSteps > 0);
     };
     evaluate();
@@ -337,12 +298,7 @@ export default function CourseRoadmapPage() {
   /* ---------- Loading / not-found ---------- */
   if (loading) {
     return (
-      <Box
-        minHeight="50vh"
-        display="flex"
-        alignItems="center"
-        justifyContent="center"
-      >
+      <Box minHeight="50vh" display="flex" alignItems="center" justifyContent="center">
         <CircularProgress />
       </Box>
     );
@@ -351,9 +307,12 @@ export default function CourseRoadmapPage() {
 
   /* ---------- Sets for status ---------- */
   const CIRCLE_SIZE = 66;
+  const ROW_HEIGHT = 84; // کمی بیشتر، تا موج نرم‌تر دیده شود
   const doneIdsSet = new Set(learning.doneIds || []);
   const correctIdsSet = new Set(learning.correctIds || []);
   const legacyCorrectIdxs = new Set(learning.correct || []);
+  const isGradable = (t) =>
+    t === "multiple-choice" || t === "multi-answer" || t === "matching" || t === "fill-in-the-blank";
 
   return (
     <Box maxWidth="40rem" mx="auto" mt={6} px={2} sx={{ minHeight: "100vh" }}>
@@ -402,11 +361,7 @@ export default function CourseRoadmapPage() {
         </Tooltip>
 
         <Box sx={{ textAlign: "center", flex: 1 }}>
-          <Typography
-            variant="h6"
-            fontWeight="bold"
-            sx={{ mt: 0.5, opacity: 0.95 }}
-          >
+          <Typography variant="h6" fontWeight="bold" sx={{ mt: 0.5, opacity: 0.95 }}>
             {currentStep.unitTitle || ""}
           </Typography>
           <Typography variant="subtitle1" fontWeight="bold">
@@ -440,23 +395,10 @@ export default function CourseRoadmapPage() {
       </Box>
 
       {/* Path */}
-      <Box
-        margin="auto"
-        maxWidth="18rem"
-        display="flex"
-        flexDirection="column"
-        gap={0.5}
-        alignItems="stretch"
-      >
+      <Box margin="auto" maxWidth="18rem" display="flex" flexDirection="column" gap={0.5} alignItems="stretch">
         {roadmapItems.map((item) => {
           if (item.kind === "unit-separator") {
-            return (
-              <UnitSeparator
-                key={item.key}
-                unitTitle={item.unitTitle}
-                color={item.color}
-              />
-            );
+            return <UnitSeparator key={item.key} unitTitle={item.unitTitle} color={item.color} />;
           }
 
           // وضعیت‌ها
@@ -469,36 +411,39 @@ export default function CourseRoadmapPage() {
           const inCurrentSection = item.secIdx === progressSecIdx;
           const isProgressStep = item.globalStepIndex === startIndex;
 
-          // 🔒 منطق قفل/باز
-          const isUnlocked =
-            isDone || isProgressStep || (inCurrentSection && isFirstStepOfUnit);
+          // 🔒 قفل/باز
+          const isUnlocked = isDone || isProgressStep || (inCurrentSection && isFirstStepOfUnit);
           const isLocked = !isUnlocked;
 
-          const alignSelf = positions[item.globalStepIndex % positions.length];
-          const baseColor = item.color;
-          const borderColor = isProgressStep
-            ? "#fff"
-            : isDone
-            ? "#66DE93"
-            : baseColor;
+          // ❌ پاسخِ غلط (فقط برای گام‌های قابل تصحیح)
+          const isWrong =
+            isGradable(item.stepType) &&
+            doneIdsSet.has(item.stepId) &&
+            !correctIdsSet.has(item.stepId) &&
+            !legacyCorrectIdxs.has(item.globalStepIndex);
 
-          const tooltipText = `${typeLabel(item.stepType)}${
-            item.stepTitle ? " — " + item.stepTitle : ""
-          }`;
+          const baseColor = item.color;
+          const ringColor = isProgressStep ? "#fff" : isWrong ? "#FF6B6B" : isDone ? "#66DE93" : baseColor;
+          const glowColor = isWrong ? "#FF6B6B" : baseColor;
+
+          const tooltipText = `${typeLabel(item.stepType)}${item.stepTitle ? " — " + item.stepTitle : ""}`;
+
+          // ← موقعیت افقی نرم (مثل دولینگو)
+          const phase = softPhase(item.globalStepIndex); // 0..1
+          const inlinePos = `calc(${(phase * 100).toFixed(2)}% - ${CIRCLE_SIZE / 2}px)`;
+          const topPos = `calc((${ROW_HEIGHT}px - ${CIRCLE_SIZE}px)/2)`;
 
           return (
             <Box
               key={`${item.secIdx}-${item.unitIdx}-${item.stepIdx}`}
-              display="flex"
-              flexDirection="column"
-              alignItems={alignSelf}
-              sx={{ width: "100%", position: "relative" }}
-              mb={0.4}
+              sx={{ width: "100%", position: "relative", height: ROW_HEIGHT }}
               ref={(el) => (stepRefs.current[item.globalStepIndex] = el)}
             >
               <Box
                 sx={{
-                  position: "relative",
+                  position: "absolute",
+                  top: topPos,
+                  insetInlineStart: inlinePos, // RTL/LTR-safe
                   width: CIRCLE_SIZE,
                   height: CIRCLE_SIZE,
                   display: "inline-flex",
@@ -506,13 +451,13 @@ export default function CourseRoadmapPage() {
                   justifyContent: "center",
                 }}
               >
-                {/* Badge "شروع" با رنگ گام فعال */}
+                {/* Badge "شروع" */}
                 {isProgressStep && (
                   <Box
                     sx={{
                       position: "absolute",
                       top: -40,
-                      left: "50%",
+                      insetInlineStart: "50%",
                       transform: "translateX(-50%)",
                       px: 1.8,
                       py: 0.6,
@@ -529,20 +474,20 @@ export default function CourseRoadmapPage() {
                         content: '""',
                         position: "absolute",
                         bottom: -8,
-                        left: "50%",
+                        insetInlineStart: "50%",
                         transform: "translateX(-50%)",
-                        borderLeft: "8px solid transparent",
-                        borderRight: "8px solid transparent",
+                        borderInlineStart: "8px solid transparent",
+                        borderInlineEnd: "8px solid transparent",
                         borderTop: `8px solid ${withAlpha(baseColor, 0.12)}`,
                       },
                       "&::before": {
                         content: '""',
                         position: "absolute",
                         bottom: -10,
-                        left: "50%",
+                        insetInlineStart: "50%",
                         transform: "translateX(-50%)",
-                        borderLeft: "10px solid transparent",
-                        borderRight: "10px solid transparent",
+                        borderInlineStart: "10px solid transparent",
+                        borderInlineEnd: "10px solid transparent",
                         borderTop: `10px solid ${baseColor}`,
                         zIndex: -1,
                       },
@@ -556,10 +501,7 @@ export default function CourseRoadmapPage() {
                   <span>
                     <Button
                       onClick={() =>
-                        !isLocked &&
-                        router.push(
-                          `/course/${course._id}/step/${item.globalStepIndex}`
-                        )
+                        !isLocked && router.push(`/course/${course._id}/step/${item.globalStepIndex}`)
                       }
                       sx={{
                         width: CIRCLE_SIZE,
@@ -571,25 +513,18 @@ export default function CourseRoadmapPage() {
                         color: "#fff",
                         cursor: isLocked ? "not-allowed" : "pointer",
                         opacity: isLocked ? 0.45 : 1,
-                        transition:
-                          "transform .2s, box-shadow .2s, border-color .2s, opacity .2s",
+                        transition: "transform .2s, box-shadow .2s, border-color .2s, opacity .2s",
                         boxShadow: `
-                          0 6px 0 ${
-                            isLocked ? `${baseColor}33` : `${baseColor}66`
-                          },
-                          0 12px 18px ${
-                            isLocked ? `${baseColor}26` : `${baseColor}4D`
-                          },
+                          0 6px 0 ${isLocked ? `${glowColor}33` : `${glowColor}66`},
+                          0 12px 18px ${isLocked ? `${glowColor}26` : `${glowColor}4D`},
                           inset 0 -6px 8px rgba(0,0,0,0.18),
                           inset 0  6px 8px rgba(255,255,255,0.25)
-                          ${isProgressStep ? `, 0 0 24px ${baseColor}80` : ""}
+                          ${isProgressStep ? `, 0 0 24px ${glowColor}80` : ""}
                         `,
-                        border: `4px solid ${
-                          isLocked ? `${baseColor}99` : borderColor
-                        }`,
+                        border: `4px solid ${isLocked ? `${baseColor}99` : ringColor}`,
                         "&:hover": !isLocked && {
                           transform: "translateY(-3px) scale(1.06)",
-                          boxShadow: `0 10px 20px ${baseColor}80, inset 0 -6px 8px rgba(0,0,0,.18), inset 0 6px 8px rgba(255,255,255,.28)`,
+                          boxShadow: `0 10px 20px ${glowColor}80, inset 0 -6px 8px rgba(0,0,0,.18), inset 0 6px 8px rgba(255,255,255,.28)`,
                         },
                         display: "flex",
                         alignItems: "center",
@@ -609,12 +544,9 @@ export default function CourseRoadmapPage() {
         })}
       </Box>
 
-      {/* Floating jump-to-start button (hidden when start is visible) */}
+      {/* Floating jump-to-start */}
       {showJump && (
-        <Tooltip
-          title={jumpDown ? "پرش به پایین به «شروع»" : "پرش به بالا به «شروع»"}
-          placement="right"
-        >
+        <Tooltip title={jumpDown ? "پرش به پایین به «شروع»" : "پرش به بالا به «شروع»"} placement="right">
           <Box
             onClick={jumpToStart}
             role="button"
@@ -630,17 +562,13 @@ export default function CourseRoadmapPage() {
               bgcolor: "rgba(10,16,24,.85)",
               border: "1px solid rgba(255,255,255,.08)",
               backdropFilter: "blur(6px)",
-              boxShadow:
-                "0 10px 25px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06)",
+              boxShadow: "0 10px 25px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: "pointer",
               transition: "transform .15s ease, background .2s ease",
-              "&:hover": {
-                transform: "translateY(-2px)",
-                bgcolor: "rgba(10,16,24,.92)",
-              },
+              "&:hover": { transform: "translateY(-2px)", bgcolor: "rgba(10,16,24,.92)" },
               "&:active": { transform: "translateY(0)" },
             }}
           >
@@ -657,42 +585,24 @@ export default function CourseRoadmapPage() {
       )}
 
       {/* Unit picker dialog */}
-      <Dialog
-        open={unitPickerOpen}
-        onClose={() => setUnitPickerOpen(false)}
-        fullWidth
-        maxWidth="sm"
-      >
-        <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>
-          پرش سریع به یونیت
-        </DialogTitle>
+      <Dialog open={unitPickerOpen} onClose={() => setUnitPickerOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 900, pb: 1 }}>پرش سریع به یونیت</DialogTitle>
         <DialogContent dividers>
           <List dense sx={{ width: "100%" }}>
             {course.sections.map((sec, sIdx) => (
               <Box key={sIdx}>
                 <ListSubheader
                   disableSticky
-                  sx={{
-                    bgcolor: "transparent",
-                    color: "text.primary",
-                    fontWeight: 800,
-                    px: 0,
-                  }}
+                  sx={{ bgcolor: "transparent", color: "text.primary", fontWeight: 800, px: 0 }}
                 >
                   {sec.title}
                 </ListSubheader>
                 {sec.units.map((u, uIdx) => (
-                  <ListItemButton
-                    key={`${sIdx}-${uIdx}`}
-                    sx={{ borderRadius: 2, my: 0.25 }}
-                    onClick={() => jumpToUnit(sIdx, uIdx)}
-                  >
+                  <ListItemButton key={`${sIdx}-${uIdx}`} sx={{ borderRadius: 2, my: 0.25 }} onClick={() => jumpToUnit(sIdx, uIdx)}>
                     {u.title}
                   </ListItemButton>
                 ))}
-                {sIdx !== course.sections.length - 1 && (
-                  <Divider sx={{ my: 1 }} />
-                )}
+                {sIdx !== course.sections.length - 1 && <Divider sx={{ my: 1 }} />}
               </Box>
             ))}
           </List>
