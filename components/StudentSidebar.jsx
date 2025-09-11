@@ -1,3 +1,4 @@
+// components/StudentSidebar.jsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -26,14 +27,13 @@ const NAV_ITEMS = [
   { href: "/student/profile", icon: <PersonIcon />, label: "پروفایل" },
 ];
 
-// رنگ‌ها در یک جا
 const COLORS = {
-  bg: "#2477F3", // پس‌زمینه جدید
+  bg: "#2477F3",
   text: "#FFFFFF",
   textDim: "rgba(255,255,255,0.9)",
   divider: "#FFFFFF22",
   hover: "#FFFFFF33",
-  activeText: "#66DE93", // رنگ آیتم فعال (هم دسکتاپ هم موبایل)
+  activeText: "#66DE93",
   activeBg: "#FFFFFF22",
 };
 
@@ -41,14 +41,13 @@ export default function StudentSidebar() {
   const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isRTL = theme.direction === "rtl";
 
-  /* ---------- خروج ---------- */
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/"; // بازگشت به لندینگ
+    window.location.href = "/";
   };
 
-  /* ---------- وضعیت باز / بسته برای دسکتاپ ---------- */
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     setCollapsed(localStorage.getItem("sidebar_collapsed") === "1");
@@ -59,20 +58,17 @@ export default function StudentSidebar() {
     localStorage.setItem("sidebar_collapsed", next ? "1" : "0");
   };
 
-  /* ╔══════════════════════╗
-     ║   نسخه موبایل (Bottom Nav)  ║
-     ╚══════════════════════╝ */
+  // موبایل
   if (isMobile) {
     const currentIndex = NAV_ITEMS.findIndex((n) =>
       pathname.startsWith(n.href)
     );
-
     return (
       <Box
         sx={{
           position: "fixed",
           bottom: 0,
-          right: 0,
+          insetInlineStart: 0, // ← به‌جای right/left
           width: "100vw",
           borderTop: `1px solid ${COLORS.divider}`,
           bgcolor: COLORS.bg,
@@ -84,7 +80,7 @@ export default function StudentSidebar() {
           value={currentIndex}
           sx={{ bgcolor: "transparent" }}
         >
-          {NAV_ITEMS.map((item, idx) => (
+          {NAV_ITEMS.map((item) => (
             <BottomNavigationAction
               key={item.href}
               icon={item.icon}
@@ -93,52 +89,32 @@ export default function StudentSidebar() {
               sx={{
                 minWidth: 0,
                 paddingY: 1,
-                // رنگ پیش‌فرض آیکن‌ها
                 color: COLORS.textDim,
-                // وقتی انتخاب می‌شود، به‌جای primary.main (که همون 2477F3 بود) این رنگ اعمال شود
-                "&.Mui-selected": {
-                  color: COLORS.activeText,
-                },
+                "&.Mui-selected": { color: COLORS.activeText },
               }}
             />
           ))}
-
-          {/* دکمه خروج */}
           <BottomNavigationAction
             icon={<LogoutIcon />}
             onClick={handleLogout}
-            sx={{
-              minWidth: 0,
-              paddingY: 1,
-              color: COLORS.text,
-            }}
+            sx={{ minWidth: 0, paddingY: 1, color: COLORS.text }}
           />
         </BottomNavigation>
       </Box>
     );
   }
 
-  /* ╔══════════════════════╗
-     ║  نسخه دسکتاپ (Sidebar) ║
-     ╚══════════════════════╝ */
-
+  // دسکتاپ
   const WIDTH = collapsed ? 84 : 220;
 
   return (
-    /* ظرفی که در جریان لِـی‌اوت شرکت می‌کند  */
-    <Box
-      sx={{
-        width: WIDTH,
-        flexShrink: 0,
-      }}
-    >
-      {/* سایدبار «واقعی» که فیکس می‌شود  */}
+    <Box sx={{ width: WIDTH, flexShrink: 0 }}>
       <Box
         component="aside"
         sx={{
           position: "fixed",
           top: 0,
-          right: 0,
+          insetInlineStart: 0, // ← فقط همین کافی‌ست (RTL/LTR خودکار)
           width: WIDTH,
           height: "100vh",
           bgcolor: COLORS.bg,
@@ -147,18 +123,17 @@ export default function StudentSidebar() {
           flexDirection: "column",
           zIndex: 1200,
           transition: "width 0.25s",
-          overflowY: "auto", // ← اگر آیتم‌ها زیاد شد Scroll داخلی
+          overflowY: "auto",
         }}
       >
-        {/* دکمه باز/بستن */}
         <IconButton
           onClick={toggleCollapsed}
           sx={{ color: COLORS.text, alignSelf: "center", mt: 1, mb: 3 }}
+          aria-label={collapsed ? "باز کردن منو" : "بستن منو"}
         >
           {collapsed ? <MenuIcon /> : <MenuOpenIcon />}
         </IconButton>
 
-        {/* لینک‌ها */}
         {NAV_ITEMS.map((item) => {
           const active =
             pathname.startsWith(item.href) ||
@@ -168,7 +143,7 @@ export default function StudentSidebar() {
             <Tooltip
               key={item.href}
               title={collapsed ? item.label : ""}
-              placement="left"
+              placement={isRTL ? "left" : "right"}
             >
               <Box
                 component={Link}
@@ -201,8 +176,7 @@ export default function StudentSidebar() {
 
         <Box flexGrow={1} />
 
-        {/* دکمه خروج */}
-        <Tooltip title="خروج" placement="left">
+        <Tooltip title="خروج" placement={isRTL ? "left" : "right"}>
           <IconButton
             onClick={handleLogout}
             sx={{ color: COLORS.text, mb: 2, alignSelf: "center" }}
