@@ -160,8 +160,8 @@ export default function AuthStepperModal({
           router.replace("/student");
         }, 800);
       } else {
-        const j = await res.json().catch(() => ({}));
-        notify(j.error || "شماره یا رمز عبور اشتباه است", "error");
+        // پیام عمومی بدون دکمه‌ی اضافه
+        notify("شماره یا رمز عبور نادرست است.", "error");
       }
     } catch {
       notify("خطایی رخ داد. اتصال اینترنت را بررسی کنید.", "error");
@@ -242,27 +242,14 @@ export default function AuthStepperModal({
     e.preventDefault();
     setLoading(true);
     setAlert(null);
+
+    if (form.password.length < 4 || form.password !== form.confirm) {
+      notify("رمز معتبر نیست.", "error");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const checkRes = await fetch("/api/check-user", {
-        method: "POST",
-        body: JSON.stringify({ mobile: registerMobile }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (checkRes.ok) {
-        const { exists } = await checkRes.json();
-        if (exists) {
-          notify("این شماره قبلاً ثبت شده است.", "error");
-          setLoading(false);
-          return;
-        }
-      }
-
-      if (form.password.length < 4 || form.password !== form.confirm) {
-        notify("رمز معتبر نیست.", "error");
-        setLoading(false);
-        return;
-      }
-
       const res = await fetch("/api/register-student", {
         method: "POST",
         body: JSON.stringify({
@@ -283,7 +270,18 @@ export default function AuthStepperModal({
         }, 800);
       } else {
         const err = await res.json().catch(() => ({}));
-        notify(err.error || "خطا در ثبت نام", "error");
+        if ((err.error || "").includes("قبلاً ثبت")) {
+          // سوییچ خودکار به تب ورود + پر کردن شماره
+          setActiveStep(0);
+          setForm((f) => ({ ...f, mobile: registerMobile }));
+          setRegisterStep(0);
+          notify(
+            "این شماره قبلاً ثبت شده؛ وارد شوید یا رمز را بازیابی کنید.",
+            "warning"
+          );
+        } else {
+          notify(err.error || "خطا در ثبت نام", "error");
+        }
       }
     } catch {
       notify("خطا در ثبت نام", "error");
@@ -442,6 +440,7 @@ export default function AuthStepperModal({
             onClick={() => {
               setActiveStep(0);
               setRegisterStep(0);
+              setForm((f) => ({ ...f, mobile: registerMobile })); // شماره را به فرم ورود هم منتقل کن
               setAlert(null);
             }}
           >
@@ -910,6 +909,8 @@ export default function AuthStepperModal({
             onClick={() => {
               setActiveStep(1);
               setRegisterStep(0);
+              // شماره وارد‌شده در فرم ورود، به ثبت‌نام منتقل شود
+              setRegisterMobile(form.mobile || "");
               setAlert(null);
             }}
           >
@@ -921,6 +922,8 @@ export default function AuthStepperModal({
             variant="text"
             onClick={() => {
               setForgotStep("mobile");
+              // شماره وارد‌شده در فرم ورود، به فراموشی رمز منتقل شود
+              setForgotMobile(form.mobile || "");
               setAlert(null);
             }}
           >
