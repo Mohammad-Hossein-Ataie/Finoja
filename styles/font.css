@@ -33,3 +33,6 @@
     url('/fonts/IRANSansWeb(FaNum)_Medium.woff') format('woff'),
     url('/fonts/IRANSansWeb(FaNum)_Medium.ttf') format('truetype');
 }
+* {
+  user-select: none;
+}
