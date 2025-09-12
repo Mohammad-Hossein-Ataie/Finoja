@@ -1,7 +1,7 @@
 // ================= app/student/profile/page.jsx =================
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -17,6 +17,11 @@ import {
   Tooltip,
   Alert,
   Collapse,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Slider,
 } from "@mui/material";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -26,15 +31,22 @@ import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import Cropper from "react-easy-crop";
 
-/* ---------- Design tokens (تیز و حرفه‌ای) ---------- */
+/* ---------- Design tokens ---------- */
 const BRAND = "#2477F3";
 const GREY_BG = "#F6F8FB";
-const R_CARD = 3; // کارت اصلی و کارت‌ها
-const R_SECTION = 3; // باکس رزومه و آیتم دوره‌ها
+const R_CARD = 3;
+const R_SECTION = 3;
 
-/* ---------- Helper: آواتار ---------- */
-const avatarURL = (n = "", f = "") =>
+/* ✅ آدرس عمومی استوریج: اگر NEXT_PUBLIC_LIARA_BASE_URL تنظیم شد از همون استفاده کن */
+const PUBLIC_S3_BASE =
+  process.env.NEXT_PUBLIC_LIARA_BASE_URL ||
+  "https://storage.c2.liara.space/finoja";
+
+/* ---------- Helper: آواتار جایگزین ---------- */
+const fallbackAvatarURL = (n = "", f = "") =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(
     `${n} ${f}`
   )}&background=2477F3&color=fff`;
@@ -46,17 +58,58 @@ const fmtBytes = (n) => {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+/* ---------- Canvas crop helper (to Blob) ---------- */
+async function getCroppedBlob(imageSrc, cropPixels, size = 512) {
+  const img = document.createElement("img");
+  img.src = imageSrc;
+  await img.decode();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+
+  const { x, y, width, height } = cropPixels;
+
+  ctx.drawImage(img, x, y, width, height, 0, 0, size, size);
+
+  return await new Promise((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.9);
+  });
+}
+
+/* ---------- خواندن فایل به DataURL ---------- */
+const fileToDataUrl = (file) =>
+  new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(file);
+  });
+
 export default function StudentProfilePage() {
   const [data, setData] = useState(null);
   const [loading, setLoad] = useState(true);
   const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState(null);
+
+  // رزومه
   const fileInputRef = useRef(null);
+  // آواتار
+  const avatarInputRef = useRef(null);
+  const [avatarUrl, setAvatarUrl] = useState(null); // URL نهایی (عمومی)
+
+  // Crop dialog
+  const [cropOpen, setCropOpen] = useState(false);
+  const [rawImage, setRawImage] = useState(null); // dataURL
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1.2);
+  const [croppedPixels, setCroppedPixels] = useState(null);
 
   const notify = (text, severity = "info") => setAlert({ text, severity });
 
   /* ---------- Fetch profile ---------- */
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     const mobile =
       typeof window !== "undefined"
         ? localStorage.getItem("student_mobile")
@@ -73,15 +126,24 @@ export default function StudentProfilePage() {
       });
       const j = await res.json();
       setData(j);
+
+      // ✅ اگر آواتار دارد، URL عمومی بساز
+      const key = j?.avatar?.key || j?.avatarKey;
+      if (key) {
+        setAvatarUrl(`${PUBLIC_S3_BASE}/${key}?ts=${Date.now()}`); // bust cache
+      } else {
+        setAvatarUrl(null);
+      }
     } catch {
       setData(null);
     } finally {
       setLoad(false);
     }
-  };
+  }, []);
+
   useEffect(() => {
     fetchProfile();
-  }, []);
+  }, [fetchProfile]);
 
   /* ---------- Resume actions ---------- */
   const onUploadClick = () => fileInputRef.current?.click();
@@ -134,9 +196,7 @@ export default function StudentProfilePage() {
     const hasResume = data?.resume?.key || data?.resumeKey;
     if (!hasResume) return notify("رزومه‌ای ثبت نشده.", "info");
     try {
-      const res = await fetch("/api/students/resume/presigned", {
-        method: "GET",
-      });
+      const res = await fetch("/api/students/resume/presigned");
       const j = await res.json();
       if (!res.ok) return notify(j.error || "خطا در دریافت لینک", "error");
       window.open(j.url, "_blank", "noopener,noreferrer");
@@ -161,6 +221,104 @@ export default function StudentProfilePage() {
       }
     } catch {
       notify("خطا در حذف رزومه", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ---------- Avatar actions ---------- */
+  const onAvatarClick = () => avatarInputRef.current?.click();
+
+  const handleAvatarChoose = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
+    const MAX = 5 * 1024 * 1024;
+    if (!ALLOWED.includes(file.type)) {
+      notify("فقط عکس‌های JPG/PNG/WEBP مجاز است.", "warning");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX) {
+      notify("حداکثر حجم ۵ مگابایت.", "warning");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setRawImage(dataUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1.2);
+      setCroppedPixels(null);
+      setCropOpen(true);
+    } catch {
+      notify("خواندن فایل ناموفق بود.", "error");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const onCropComplete = useCallback((_, croppedAreaPixels) => {
+    setCroppedPixels(croppedAreaPixels);
+  }, []);
+
+  const saveCroppedAvatar = async () => {
+    if (!rawImage || !croppedPixels) return;
+    setBusy(true);
+    setAlert(null);
+    try {
+      const blob = await getCroppedBlob(rawImage, croppedPixels, 512); // 512x512
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+
+      const fd = new FormData();
+      fd.append("file", file);
+
+      const res = await fetch("/api/students/avatar/upload", {
+        method: "POST",
+        body: fd,
+      });
+      const j = await res.json();
+      if (!res.ok) {
+        notify(j.error || "خطا در ذخیره آواتار", "error");
+      } else {
+        notify("آواتار ذخیره شد.", "success");
+        setCropOpen(false);
+        setRawImage(null);
+
+        // ✅ URL عمومی جدید از کلیدی که API برگردانده
+        if (j?.key) {
+          setAvatarUrl(`${PUBLIC_S3_BASE}/${j.key}?ts=${Date.now()}`);
+        } else {
+          // بک‌آپ: پروفایل را دوباره بگیر
+          await fetchProfile();
+        }
+      }
+    } catch {
+      notify("خطا در ذخیره آواتار", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteAvatar = async () => {
+    if (!confirm("آواتار حذف شود؟")) return;
+    setBusy(true);
+    setAlert(null);
+    try {
+      const res = await fetch("/api/students/avatar/delete", {
+        method: "DELETE",
+      });
+      const j = await res.json();
+      if (!res.ok) notify(j.error || "خطا در حذف آواتار", "error");
+      else {
+        notify("آواتار حذف شد.", "success");
+        setAvatarUrl(null);
+        await fetchProfile();
+      }
+    } catch {
+      notify("خطا در حذف آواتار", "error");
     } finally {
       setBusy(false);
     }
@@ -205,31 +363,28 @@ export default function StudentProfilePage() {
     <Box sx={{ maxWidth: 820, mx: "auto", px: { xs: 1.5, sm: 2 }, py: 4 }}>
       <Paper
         elevation={2}
-        sx={{
-          borderRadius: R_CARD, // ← تیز (۸px)
-          overflow: "hidden",
-          bgcolor: "#fff",
-        }}
+        sx={{ borderRadius: R_CARD, overflow: "hidden", bgcolor: "#fff" }}
       >
-        {/* Header بدون گوشه گرد اضافه */}
+        {/* Header */}
         <Box
           sx={{
             height: 112,
             bgcolor: BRAND,
             background: "linear-gradient(180deg, #2B7BF5 0%, #1F69E6 100%)",
-            borderRadius: 0, // ← صفر
+            borderRadius: 0,
           }}
         />
-        {/* Avatar */}
+        {/* Avatar + camera button */}
         <Box sx={{ position: "relative" }}>
           <Avatar
-            src={avatarURL(data.name, data.family)}
+            src={avatarUrl || undefined}
             alt={`${data.name} ${data.family}`}
+            imgProps={{ referrerPolicy: "no-referrer" }}
             sx={{
-              width: 88,
-              height: 88,
+              width: 96,
+              height: 96,
               position: "absolute",
-              top: -44,
+              top: -48,
               left: "50%",
               transform: "translateX(-50%)",
               border: "4px solid #fff",
@@ -237,6 +392,59 @@ export default function StudentProfilePage() {
               bgcolor: BRAND,
               fontSize: 26,
             }}
+          >
+            {!avatarUrl && (
+              <img
+                src={fallbackAvatarURL(data.name, data.family)}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            )}
+          </Avatar>
+
+          <IconButton
+            aria-label="تغییر آواتار"
+            onClick={onAvatarClick}
+            sx={{
+              position: "absolute",
+              top: 8,
+              left: "calc(50% + 34px)",
+              transform: "translateX(-50%)",
+              bgcolor: "#fff",
+              border: "1px solid #E6EAF2",
+              "&:hover": { bgcolor: "#f7f9fc" },
+              zIndex: 2,
+            }}
+          >
+            <PhotoCameraIcon fontSize="small" />
+          </IconButton>
+
+          {avatarUrl && (
+            <IconButton
+              aria-label="حذف آواتار"
+              onClick={deleteAvatar}
+              sx={{
+                position: "absolute",
+                top: 8,
+                left: "calc(50% - 68px)",
+                transform: "translateX(-50%)",
+                bgcolor: "#fff",
+                border: "1px solid #F3D3D3",
+                color: "error.main",
+                "&:hover": { bgcolor: "#fff4f4" },
+                zIndex: 2,
+              }}
+            >
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          )}
+
+          <input
+            ref={avatarInputRef}
+            type="file"
+            hidden
+            accept="image/*"
+            onChange={handleAvatarChoose}
           />
         </Box>
 
@@ -290,7 +498,7 @@ export default function StudentProfilePage() {
               arrow
               title={
                 <Box sx={{ fontSize: 12, lineHeight: 1.8 }}>
-                  مجموع امتیاز از تمام دوره‌ها. با حل تمرین‌ها XP می‌گیرید.
+                  مجموع امتیاز از همه دوره‌ها. با انجام تمرین‌ها XP می‌گیرید.
                 </Box>
               }
             >
@@ -304,7 +512,7 @@ export default function StudentProfilePage() {
             </Tooltip>
           </Stack>
 
-          {/* Resume card – radius ≤ والد */}
+          {/* Resume card */}
           <Paper
             variant="outlined"
             sx={{
@@ -460,6 +668,59 @@ export default function StudentProfilePage() {
           </Stack>
         </Box>
       </Paper>
+
+      {/* Avatar Crop Dialog */}
+      <Dialog
+        open={cropOpen}
+        onClose={() => setCropOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle fontWeight={800}>برش تصویر پروفایل</DialogTitle>
+        <DialogContent
+          dividers
+          sx={{ position: "relative", height: 360, bgcolor: "#000" }}
+        >
+          {rawImage && (
+            <Cropper
+              image={rawImage}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={(_, area) => setCroppedPixels(area)}
+              restrictPosition
+              objectFit="contain"
+              showGrid={false}
+            />
+          )}
+        </DialogContent>
+        <Box px={3} pt={2}>
+          <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+            بزرگ‌نمایی
+          </Typography>
+          <Slider
+            value={zoom}
+            min={1}
+            max={3}
+            step={0.01}
+            onChange={(_, v) => setZoom(v)}
+          />
+        </Box>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setCropOpen(false)} disabled={busy}>
+            انصراف
+          </Button>
+          <Button
+            variant="contained"
+            onClick={saveCroppedAvatar}
+            disabled={busy || !croppedPixels}
+          >
+            ذخیره
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

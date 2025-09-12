@@ -1,13 +1,7 @@
-// ======================= app/api/students/profile/route.js =======================
 import dbConnect from "../../../../lib/dbConnect";
-import Student   from "../../../../models/Student";
-import Course    from "../../../../models/Course";
+import Student from "../../../../models/Student";
+import Course from "../../../../models/Course";
 
-/**
- *  🔹  مسیر:  /api/students/profile
- *  توضیح:   یک بار با شمارهٔ همراه فراخوانی می‌شود و پروفایل کامل دانشجو
- *           به‌همراه عنوان دوره‌ها و XP هر دوره برمی‌گردد.
- */
 export async function POST(req) {
   await dbConnect();
 
@@ -19,47 +13,65 @@ export async function POST(req) {
   if (!student)
     return Response.json({ error: "Student not found" }, { status: 404 });
 
-  /* ---------- نگاشت عنوان دوره ---------- */
   const courseIds = (student.learning || []).map((l) => l.courseId);
-  const courseDocs = await Course.find({ _id: { $in: courseIds } }).select("_id title");
+  const courseDocs = await Course.find({ _id: { $in: courseIds } }).select(
+    "_id title"
+  );
   const titleMap = courseDocs.reduce((acc, c) => {
     acc[String(c._id)] = c.title;
     return acc;
   }, {});
 
   const learning = (student.learning || []).map((l) => ({
-    courseId : l.courseId,
-    title    : titleMap[l.courseId] || "دوره نامشخص",
-    progress : l.progress ?? 0,
-    xp       : l.xp       ?? 0,
-    finished : !!l.finished,
+    courseId: l.courseId,
+    title: titleMap[l.courseId] || "دوره نامشخص",
+    progress: l.progress ?? 0,
+    xp: l.xp ?? 0,
+    finished: !!l.finished,
   }));
 
-  // رزومه در قالب آبجکت واحد (سازگار با فیلدهای مجزا)
-  const resume = student.resumeKey ? {
-    key      : student.resumeKey,
-    name     : student.resumeName ?? null,
-    size     : student.resumeSize ?? null,
-    type     : student.resumeType ?? null,
-    updatedAt: student.resumeUpdatedAt ?? null,
-  } : null;
+  const resume = student.resumeKey
+    ? {
+        key: student.resumeKey,
+        name: student.resumeName ?? null,
+        size: student.resumeSize ?? null,
+        type: student.resumeType ?? null,
+        updatedAt: student.resumeUpdatedAt ?? null,
+      }
+    : null;
+
+  const avatar = student.avatarKey
+    ? {
+        key: student.avatarKey,
+        type: student.avatarType ?? null,
+        size: student.avatarSize ?? null,
+        updatedAt: student.avatarUpdatedAt ?? null,
+      }
+    : null;
 
   return Response.json({
-    id         : student._id,
-    name       : student.name,
-    family     : student.family,
-    mobile     : student.mobile,
-    email      : student.email ?? null,
-    onboarding : student.onboarding ?? null,
-    totalXp    : student.totalXp ?? 0,
-    createdAt  : student.createdAt,
+    id: student._id,
+    name: student.name,
+    family: student.family,
+    mobile: student.mobile,
+    email: student.email ?? null,
+    onboarding: student.onboarding ?? null,
+    totalXp: student.totalXp ?? 0,
+    createdAt: student.createdAt,
     learning,
-    resume, // ← اضافه شد
-    // برای سازگاری عقب (اگر جایی از UI قدیم می‌خوانَد)
-    resumeKey       : student.resumeKey ?? undefined,
-    resumeName      : student.resumeName ?? undefined,
-    resumeSize      : student.resumeSize ?? undefined,
-    resumeType      : student.resumeType ?? undefined,
-    resumeUpdatedAt : student.resumeUpdatedAt ?? undefined,
+    resume,
+    avatar,
+
+    // سازگاری عقب:
+    resumeKey: student.resumeKey ?? undefined,
+    resumeName: student.resumeName ?? undefined,
+    resumeSize: student.resumeSize ?? undefined,
+    resumeType: student.resumeType ?? undefined,
+    resumeUpdatedAt: student.resumeUpdatedAt ?? undefined,
+
+    avatarKey: student.avatarKey ?? undefined,
+    avatarType: student.avatarType ?? undefined,
+    avatarSize: student.avatarSize ?? undefined,
+    avatarUpdatedAt: student.avatarUpdatedAt ?? undefined,
   });
 }

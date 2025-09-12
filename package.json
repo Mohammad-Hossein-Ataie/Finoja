@@ -39,6 +39,7 @@
     "node-fetch": "^2.7.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-easy-crop": "^5.5.0",
     "stylis-plugin-rtl": "^2.1.1",
     "swiper": "^11.2.10"
   },
