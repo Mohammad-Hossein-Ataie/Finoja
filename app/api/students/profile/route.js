@@ -20,7 +20,7 @@ export async function POST(req) {
     return Response.json({ error: "Student not found" }, { status: 404 });
 
   /* ---------- نگاشت عنوان دوره ---------- */
-  const courseIds = student.learning.map((l) => l.courseId);
+  const courseIds = (student.learning || []).map((l) => l.courseId);
   const courseDocs = await Course.find({ _id: { $in: courseIds } }).select("_id title");
   const titleMap = courseDocs.reduce((acc, c) => {
     acc[String(c._id)] = c.title;
@@ -35,6 +35,15 @@ export async function POST(req) {
     finished : !!l.finished,
   }));
 
+  // رزومه در قالب آبجکت واحد (سازگار با فیلدهای مجزا)
+  const resume = student.resumeKey ? {
+    key      : student.resumeKey,
+    name     : student.resumeName ?? null,
+    size     : student.resumeSize ?? null,
+    type     : student.resumeType ?? null,
+    updatedAt: student.resumeUpdatedAt ?? null,
+  } : null;
+
   return Response.json({
     id         : student._id,
     name       : student.name,
@@ -45,5 +54,12 @@ export async function POST(req) {
     totalXp    : student.totalXp ?? 0,
     createdAt  : student.createdAt,
     learning,
+    resume, // ← اضافه شد
+    // برای سازگاری عقب (اگر جایی از UI قدیم می‌خوانَد)
+    resumeKey       : student.resumeKey ?? undefined,
+    resumeName      : student.resumeName ?? undefined,
+    resumeSize      : student.resumeSize ?? undefined,
+    resumeType      : student.resumeType ?? undefined,
+    resumeUpdatedAt : student.resumeUpdatedAt ?? undefined,
   });
 }
