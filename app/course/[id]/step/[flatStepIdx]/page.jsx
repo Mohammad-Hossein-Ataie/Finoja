@@ -937,7 +937,7 @@ export default function StepPage() {
   return (
     <Box maxWidth="sm" mx="auto" mt={5}>
       {/* progress */}
-      <Box mb={2}>
+      <Box mb={2} paddingX={5}>
         <LinearProgress
           variant="determinate"
           value={Math.max(0, Math.min(100, unitProgress))}
@@ -958,7 +958,7 @@ export default function StepPage() {
         </Typography>
       </Box>
 
-      <Paper sx={{ p: 4, borderRadius: 4, position: "relative" }}>
+      <Paper sx={{ p: 4, borderRadius: 2, position: "relative" }}>
         <Tooltip title="گزارش اشکال این سؤال">
           <IconButton
             onClick={() => setIssueOpen(true)}
