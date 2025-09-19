@@ -20,11 +20,13 @@ import PersonIcon from "@mui/icons-material/Person";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
+import DescriptionIcon from "@mui/icons-material/Description";
 
 const NAV_ITEMS = [
   { href: "/student/courses", icon: <HomeIcon />, label: "دوره‌ها" },
   { href: "/student/best", icon: <EmojiEventsIcon />, label: "بهترین‌ها" },
   { href: "/student/profile", icon: <PersonIcon />, label: "پروفایل" },
+  { href: "/student/resume", icon: <DescriptionIcon />, label: "رزومه" }, // ← جدید
 ];
 
 const COLORS = {
@@ -58,7 +60,6 @@ export default function StudentSidebar() {
     localStorage.setItem("sidebar_collapsed", next ? "1" : "0");
   };
 
-  // موبایل
   if (isMobile) {
     const currentIndex = NAV_ITEMS.findIndex((n) =>
       pathname.startsWith(n.href)
@@ -68,18 +69,14 @@ export default function StudentSidebar() {
         sx={{
           position: "fixed",
           bottom: 0,
-          insetInlineStart: 0, // ← به‌جای right/left
+          insetInlineStart: 0,
           width: "100vw",
           borderTop: `1px solid ${COLORS.divider}`,
           bgcolor: COLORS.bg,
           zIndex: 1300,
         }}
       >
-        <BottomNavigation
-          showLabels={false}
-          value={currentIndex}
-          sx={{ bgcolor: "transparent" }}
-        >
+        <BottomNavigation showLabels={false} value={currentIndex} sx={{ bgcolor: "transparent" }}>
           {NAV_ITEMS.map((item) => (
             <BottomNavigationAction
               key={item.href}
@@ -104,7 +101,6 @@ export default function StudentSidebar() {
     );
   }
 
-  // دسکتاپ
   const WIDTH = collapsed ? 84 : 220;
 
   return (
@@ -114,7 +110,7 @@ export default function StudentSidebar() {
         sx={{
           position: "fixed",
           top: 0,
-          insetInlineStart: 0, // ← فقط همین کافی‌ست (RTL/LTR خودکار)
+          insetInlineStart: 0,
           width: WIDTH,
           height: "100vh",
           bgcolor: COLORS.bg,
@@ -137,14 +133,9 @@ export default function StudentSidebar() {
         {NAV_ITEMS.map((item) => {
           const active =
             pathname.startsWith(item.href) ||
-            (item.href === "/student/courses" &&
-              pathname.startsWith("/roadmap"));
+            (item.href === "/student/courses" && pathname.startsWith("/roadmap"));
           return (
-            <Tooltip
-              key={item.href}
-              title={collapsed ? item.label : ""}
-              placement={isRTL ? "left" : "right"}
-            >
+            <Tooltip key={item.href} title={collapsed ? item.label : ""} placement={isRTL ? "left" : "right"}>
               <Box
                 component={Link}
                 href={item.href}
@@ -177,10 +168,7 @@ export default function StudentSidebar() {
         <Box flexGrow={1} />
 
         <Tooltip title="خروج" placement={isRTL ? "left" : "right"}>
-          <IconButton
-            onClick={handleLogout}
-            sx={{ color: COLORS.text, mb: 2, alignSelf: "center" }}
-          >
+          <IconButton onClick={handleLogout} sx={{ color: COLORS.text, mb: 2, alignSelf: "center" }}>
             <LogoutIcon />
           </IconButton>
         </Tooltip>
