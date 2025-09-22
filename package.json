@@ -39,6 +39,7 @@
     "mongoose": "^8.15.1",
     "next": "15.3.3",
     "node-fetch": "^2.7.0",
+    "nodemailer": "^7.0.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-easy-crop": "^5.5.0",

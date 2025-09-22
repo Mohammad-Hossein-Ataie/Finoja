@@ -33,8 +33,18 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+
+import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
+import LocalPhoneOutlinedIcon from "@mui/icons-material/LocalPhoneOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import CalendarMonthOutlinedIcon from "@mui/icons-material/CalendarMonthOutlined";
+import MilitaryTechOutlinedIcon from "@mui/icons-material/MilitaryTechOutlined";
+import WorkOutlineIcon from "@mui/icons-material/WorkOutline";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
+import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
+import PaidOutlinedIcon from "@mui/icons-material/PaidOutlined";
+import BuildOutlinedIcon from "@mui/icons-material/BuildOutlined";
 
 /* ------------------- ثابت‌های UI ------------------- */
 const BRAND = "#2563eb"; // آبی ملایم
@@ -88,8 +98,8 @@ const DEFAULT_FORM = {
   basic: {
     name: "",
     family: "",
-    gender: "male",
-    marital: "single",
+    gender: "",
+    marital: "",
     city: "",
     birthYear: "",
     birthMonth: "",
@@ -112,6 +122,44 @@ const DEFAULT_FORM = {
   progress: 0,
 };
 
+/* ------------------- ابزار: Select با placeholder واقعی ------------------- */
+function SelectWithPlaceholder({
+  value,
+  onChange,
+  label,
+  placeholder,
+  children,
+  fullWidth = true,
+  disabled = false,
+  minWidth,
+  size = "medium",
+  sx,
+}) {
+  const mergedSx = minWidth ? { minWidth, ...(sx || {}) } : (sx || {});
+  return (
+    <FormControl fullWidth={fullWidth} sx={mergedSx} disabled={disabled} size={size}>
+      <InputLabel>{label}</InputLabel>
+      <Select
+        label={label}
+        value={value || ""}
+        onChange={onChange}
+        displayEmpty
+        renderValue={(selected) =>
+          selected !== "" && selected !== undefined
+            ? selected
+            : <Typography sx={{ color: "text.disabled" }}>{placeholder || `انتخاب ${label}`}</Typography>
+        }
+        MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+      >
+        <MenuItem value="">
+          <Typography sx={{ color: "text.disabled" }}>{placeholder || `انتخاب ${label}`}</Typography>
+        </MenuItem>
+        {children}
+      </Select>
+    </FormControl>
+  );
+}
+
 /* ------------------- کمک‌کامپوننت: کارت بخش ------------------- */
 function SectionCard({ title, children, subtitle, actions, sx }) {
   return (
@@ -119,7 +167,7 @@ function SectionCard({ title, children, subtitle, actions, sx }) {
       elevation={0}
       sx={{
         p: 2,
-        borderRadius: 2,           // شعاع معقول؛ نه اغراق‌شده
+        borderRadius: 2,
         border: "1px solid",
         borderColor: "divider",
         ...sx,
@@ -147,6 +195,32 @@ function SectionCard({ title, children, subtitle, actions, sx }) {
   );
 }
 
+/* ------------------- کمک‌کامپوننت: چیپ آیکن‌دار و تیتر سکشن ------------------- */
+function IconChip({ icon, label, variant = "outlined" }) {
+  return (
+    <Chip
+      size="small"
+      variant={variant}
+      icon={icon}
+      label={label}
+      sx={{
+        direction: "rtl",
+        "& .MuiChip-icon": { mr: 0, ml: 0.75 },
+      }}
+    />
+  );
+}
+
+function SectionTitle({ icon, text }) {
+  return (
+    <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 1.5, mb: 0.75 }}>
+      {icon}
+      <Typography fontWeight={800}>{text}</Typography>
+      <Box sx={{ flex: 1, height: 1, bgcolor: "divider" }} />
+    </Stack>
+  );
+}
+
 /* =============================================================== */
 
 export default function ResumePage() {
@@ -154,11 +228,7 @@ export default function ResumePage() {
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  /** حالت صفحه:
-   *  - "edit": فرم ساز رزومه
-   *  - "view": فقط پیش‌نمایش/نمایش
-   * اگر رزومه خالی باشد => edit؛ در غیر این صورت => view
-   */
+  /** حالت صفحه */
   const [mode, setMode] = useState/** @type {"edit"|"view"} */("view");
 
   /** مراحل فرم فقط وقتی mode === "edit" لازم است */
@@ -171,6 +241,9 @@ export default function ResumePage() {
 
   const mobile =
     typeof window !== "undefined" ? localStorage.getItem("student_mobile") : null;
+
+  /* آواتار برای PDF (Data URL) */
+  const [avatarDataUrl, setAvatarDataUrl] = useState("");
 
   /* ------------ Load from API ------------ */
   useEffect(() => {
@@ -204,6 +277,19 @@ export default function ResumePage() {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* آواتار را به Data URL بگیر */
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!mobile) return;
+        const r = await fetch(`/api/students/avatar-dataurl?mobile=${mobile}`);
+        if (!r.ok) return;
+        const j = await r.json();
+        setAvatarDataUrl(j?.dataUrl || "");
+      } catch {}
+    })();
+  }, [mobile]);
 
   /* ------------ helpers ------------ */
   const notify = (msg, severity = "info") => setAlert({ msg, severity });
@@ -293,12 +379,10 @@ export default function ResumePage() {
     try {
       notify("در حال ساخت PDF ...", "info");
 
-      // import در زمان اجرا برای کاهش وزن باندل کلاینت
       const html2canvas = (await import("html2canvas")).default;
       const jsPDF = (await import("jspdf")).default;
 
       const el = pdfRef.current;
-      // عرض A4 در 96dpi ≈ 794px
       const canvas = await html2canvas(el, {
         scale: 2.2,
         useCORS: true,
@@ -308,8 +392,8 @@ export default function ResumePage() {
 
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF("p", "mm", "a4");
-      const pageW = pdf.internal.pageSize.getWidth();  // 210
-      const pageH = pdf.internal.pageSize.getHeight(); // 297
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
 
       const imgW = pageW;
       const imgH = (canvas.height * imgW) / canvas.width;
@@ -338,6 +422,8 @@ export default function ResumePage() {
     return { p };
   }, [form.progress]);
 
+  const isComplete = PROG.p === 100;
+
   /* ------------ لودینگ ------------ */
   if (loading) {
     return (
@@ -351,44 +437,17 @@ export default function ResumePage() {
    *                        UI
    * =============================================================== */
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto", px: { xs: 1.5, md: 3 }, py: 3, position: "relative" }}>
-      {/* اکشن‌های بالای صفحه */}
-      <Stack direction="row" gap={1} sx={{ mb: 1 }}>
-        <Tooltip title="دانلود نسخه PDF استاندارد A4">
-          <span>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={downloadPDF}
-            >
-              دانلود PDF
-            </Button>
-          </span>
-        </Tooltip>
-
-        {mode === "view" ? (
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<EditIcon />}
-            onClick={() => setMode("edit")}
-          >
-            ویرایش رزومه
-          </Button>
-        ) : (
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<VisibilityIcon />}
-            onClick={() => setMode("view")}
-          >
-            مشاهده
-          </Button>
-        )}
-      </Stack>
-
-      {/* سایدبار پیشرفت (راست) */}
+    <Box
+      sx={{
+        maxWidth: 1200,
+        mx: "auto",
+        px: { xs: 1.5, md: 3 },
+        py: 3,
+        position: "relative",
+        pb: { xs: 10, md: 3 }, // جا برای نوار اکشن موبایل
+      }}
+    >
+      {/* سایدبار پیشرفت (راست) + اکشن‌ها */}
       <Box
         sx={{
           position: "fixed",
@@ -399,11 +458,11 @@ export default function ResumePage() {
         }}
       >
         <Paper sx={{ p: 2, borderRadius: 2 }} elevation={0}>
-          <Stack alignItems="center" spacing={1}>
+          <Stack alignItems="center" spacing={1.25}>
             <Box
               sx={{
-                width: 104,
-                height: 104,
+                width: 112,
+                height: 112,
                 borderRadius: "50%",
                 position: "relative",
                 background: `conic-gradient(${BRAND} ${PROG.p * 3.6}deg, #E7ECF4 0)`,
@@ -412,7 +471,7 @@ export default function ResumePage() {
               <Box
                 sx={{
                   position: "absolute",
-                  inset: 6,
+                  inset: 7,
                   borderRadius: "50%",
                   bgcolor: "#fff",
                   display: "flex",
@@ -420,13 +479,20 @@ export default function ResumePage() {
                   justifyContent: "center",
                   fontWeight: 800,
                   color: BRAND,
+                  fontSize: 18,
                 }}
               >
                 {PROG.p}٪
               </Box>
             </Box>
+
             <Typography fontWeight={800}>رزومه فارسی</Typography>
+            <Typography color="text.secondary" fontSize={12}>
+              {isComplete ? "رزومه تکمیل شده ✅" : "لطفاً مراحل را کامل کنید"}
+            </Typography>
+
             <Divider sx={{ width: "100%", my: 1 }} />
+
             <Stack spacing={1} sx={{ width: "100%" }}>
               {[
                 { i: 0, label: "اطلاعات اولیه" },
@@ -456,7 +522,7 @@ export default function ResumePage() {
                         : "default"
                     }
                     variant={s.i === step && mode === "edit" ? "filled" : "outlined"}
-                    sx={{ minWidth: 100 }}
+                    sx={{ minWidth: 104 }}
                   />
                   <Typography color={s.i === step && mode === "edit" ? "text.primary" : "text.secondary"}>
                     {s.label}
@@ -464,17 +530,51 @@ export default function ResumePage() {
                 </Stack>
               ))}
             </Stack>
+
+            {/* اکشن‌ها: همین‌جا داخل کارت پروگرس */}
+            <Stack sx={{ width: "100%", mt: 1.5 }} spacing={1}>
+              {mode === "view" ? (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  startIcon={<EditIcon />}
+                  onClick={() => setMode("edit")}
+                >
+                  ویرایش رزومه
+                </Button>
+              ) : (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="secondary"
+                  startIcon={<VisibilityIcon />}
+                  onClick={() => setMode("view")}
+                >
+                  مشاهده
+                </Button>
+              )}
+
+              <Tooltip title={isComplete ? "دانلود نسخه PDF استاندارد A4" : "پس از تکمیل ۱۰۰٪ فعال می‌شود"}>
+                <span>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    startIcon={<DownloadIcon />}
+                    onClick={downloadPDF}
+                    disabled={!isComplete}
+                  >
+                    دانلود PDF
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
           </Stack>
         </Paper>
       </Box>
 
       {/* هشدارها */}
       {alert && (
-        <Alert
-          sx={{ mb: 1 }}
-          severity={alert.severity}
-          onClose={() => setAlert(null)}
-        >
+        <Alert sx={{ mb: 1 }} severity={alert.severity} onClose={() => setAlert(null)}>
           {alert.msg}
         </Alert>
       )}
@@ -488,24 +588,17 @@ export default function ResumePage() {
       <Typography color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
         {mode === "edit"
           ? `مرحله ${step + 1} از 4 • با تکمیل این مرحله رزومه‌تان کامل‌تر می‌شود.`
-          : "اگر نیاز به ویرایش دارید، روی «ویرایش رزومه» کلیک کنید."}
+          : "برای ویرایش از دکمه‌ها در کارت پیشرفت استفاده کنید."}
       </Typography>
 
-      <Grid
-        container
-        spacing={2}
-        sx={{ pr: { md: `${RIGHT_SIDEBAR_W + 24}px` } }}
-      >
+      <Grid container spacing={2} sx={{ pr: { md: `${RIGHT_SIDEBAR_W + 24}px` } }}>
         {/* === حالت EDIT: فرم‌ها === */}
         {mode === "edit" && (
           <>
             {/* مرحله 1: اطلاعات اولیه */}
             {step === 0 && (
               <Grid item xs={12}>
-                <SectionCard
-                  title="اطلاعات اولیه"
-                  subtitle="فیلدهای ستاره‌دار ضروری هستند."
-                >
+                <SectionCard title="اطلاعات اولیه" subtitle="فیلدهای ستاره‌دار ضروری هستند.">
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
                       <TextField
@@ -527,32 +620,28 @@ export default function ResumePage() {
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>جنسیت</InputLabel>
-                        <Select
-                          label="جنسیت"
-                          value={form.basic.gender}
-                          onChange={(e) => update(["basic", "gender"], e.target.value)}
-                        >
-                          <MenuItem value="male">مرد</MenuItem>
-                          <MenuItem value="female">زن</MenuItem>
-                          <MenuItem value="other">سایر</MenuItem>
-                        </Select>
-                      </FormControl>
+                      <SelectWithPlaceholder
+                        label="جنسیت"
+                        placeholder="انتخاب جنسیت"
+                        value={form.basic.gender}
+                        onChange={(e) => update(["basic", "gender"], e.target.value)}
+                      >
+                        <MenuItem value="male">مرد</MenuItem>
+                        <MenuItem value="female">زن</MenuItem>
+                        <MenuItem value="other">سایر</MenuItem>
+                      </SelectWithPlaceholder>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>وضعیت تأهل</InputLabel>
-                        <Select
-                          label="وضعیت تأهل"
-                          value={form.basic.marital}
-                          onChange={(e) => update(["basic", "marital"], e.target.value)}
-                        >
-                          <MenuItem value="single">مجرد</MenuItem>
-                          <MenuItem value="married">متأهل</MenuItem>
-                        </Select>
-                      </FormControl>
+                      <SelectWithPlaceholder
+                        label="وضعیت تأهل"
+                        placeholder="انتخاب وضعیت تأهل"
+                        value={form.basic.marital}
+                        onChange={(e) => update(["basic", "marital"], e.target.value)}
+                      >
+                        <MenuItem value="single">مجرد</MenuItem>
+                        <MenuItem value="married">متأهل</MenuItem>
+                      </SelectWithPlaceholder>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
@@ -570,48 +659,53 @@ export default function ResumePage() {
                       <FormControl fullWidth>
                         <FormLabel sx={{ mb: 0.75 }}>تاریخ تولد</FormLabel>
                         <Stack direction="row" gap={1}>
-                          <FormControl sx={{ minWidth: 96 }}>
-                            <InputLabel>روز</InputLabel>
-                            <Select
-                              label="روز"
-                              value={form.basic.birthDay || ""}
-                              onChange={(e) => update(["basic", "birthDay"], e.target.value)}
-                            >
-                              {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                                <MenuItem key={d} value={String(d)}>
-                                  {d}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormControl sx={{ minWidth: 140 }}>
-                            <InputLabel>ماه</InputLabel>
-                            <Select
-                              label="ماه"
-                              value={form.basic.birthMonth || ""}
-                              onChange={(e) => update(["basic", "birthMonth"], e.target.value)}
-                            >
-                              {MONTHS.map((m) => (
-                                <MenuItem key={m} value={m}>
-                                  {m}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                          <FormControl sx={{ minWidth: 120 }}>
-                            <InputLabel>سال</InputLabel>
-                            <Select
-                              label="سال"
-                              value={form.basic.birthYear || ""}
-                              onChange={(e) => update(["basic", "birthYear"], e.target.value)}
-                            >
-                              {Array.from({ length: 60 }, (_, i) => 1405 - i).map((y) => (
-                                <MenuItem key={y} value={String(y)}>
-                                  {y}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          <SelectWithPlaceholder
+                            label="روز"
+                            placeholder="روز"
+                            value={form.basic.birthDay}
+                            onChange={(e) => update(["basic", "birthDay"], e.target.value)}
+                            fullWidth={false}
+                            minWidth={110}
+                            size="small"
+                          >
+                            {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                              <MenuItem key={d} value={String(d)}>
+                                {d}
+                              </MenuItem>
+                            ))}
+                          </SelectWithPlaceholder>
+
+                          <SelectWithPlaceholder
+                            label="ماه"
+                            placeholder="ماه"
+                            value={form.basic.birthMonth}
+                            onChange={(e) => update(["basic", "birthMonth"], e.target.value)}
+                            fullWidth={false}
+                            minWidth={150}
+                            size="small"
+                          >
+                            {MONTHS.map((m) => (
+                              <MenuItem key={m} value={m}>
+                                {m}
+                              </MenuItem>
+                            ))}
+                          </SelectWithPlaceholder>
+
+                          <SelectWithPlaceholder
+                            label="سال"
+                            placeholder="سال"
+                            value={form.basic.birthYear}
+                            onChange={(e) => update(["basic", "birthYear"], e.target.value)}
+                            fullWidth={false}
+                            minWidth={130}
+                            size="small"
+                          >
+                            {Array.from({ length: 60 }, (_, i) => 1405 - i).map((y) => (
+                              <MenuItem key={y} value={String(y)}>
+                                {y}
+                              </MenuItem>
+                            ))}
+                          </SelectWithPlaceholder>
                         </Stack>
                         <FormHelperText>نمونه: ۲۰ شهریور ۱۳۷۹</FormHelperText>
                       </FormControl>
@@ -620,37 +714,33 @@ export default function ResumePage() {
                     {/* نظام وظیفه فقط برای مرد */}
                     {form.basic.gender === "male" && (
                       <Grid item xs={12} md={6}>
-                        <FormControl fullWidth>
-                          <InputLabel>وضعیت نظام‌وظیفه</InputLabel>
-                          <Select
-                            label="وضعیت نظام‌وظیفه"
-                            value={form.basic.militaryStatus || ""}
-                            onChange={(e) => update(["basic", "militaryStatus"], e.target.value)}
-                          >
-                            <MenuItem value="انجام‌شده">انجام‌شده</MenuItem>
-                            <MenuItem value="معافیت">معافیت</MenuItem>
-                            <MenuItem value="در حال خدمت">در حال خدمت</MenuItem>
-                            <MenuItem value="معافیت تحصیلی">معافیت تحصیلی</MenuItem>
-                          </Select>
-                        </FormControl>
+                        <SelectWithPlaceholder
+                          label="وضعیت نظام‌وظیفه"
+                          placeholder="انتخاب وضعیت"
+                          value={form.basic.militaryStatus}
+                          onChange={(e) => update(["basic", "militaryStatus"], e.target.value)}
+                        >
+                          <MenuItem value="انجام‌شده">انجام‌شده</MenuItem>
+                          <MenuItem value="معافیت">معافیت</MenuItem>
+                          <MenuItem value="در حال خدمت">در حال خدمت</MenuItem>
+                          <MenuItem value="معافیت تحصیلی">معافیت تحصیلی</MenuItem>
+                        </SelectWithPlaceholder>
                       </Grid>
                     )}
 
                     <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>حقوق درخواستی</InputLabel>
-                        <Select
-                          label="حقوق درخواستی"
-                          value={form.basic.salaryRange || ""}
-                          onChange={(e) => update(["basic", "salaryRange"], e.target.value)}
-                        >
-                          {SALARY_RANGES.map((s) => (
-                            <MenuItem key={s} value={s}>
-                              {s}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <SelectWithPlaceholder
+                        label="حقوق درخواستی"
+                        placeholder="انتخاب بازه حقوق"
+                        value={form.basic.salaryRange}
+                        onChange={(e) => update(["basic", "salaryRange"], e.target.value)}
+                      >
+                        {SALARY_RANGES.map((s) => (
+                          <MenuItem key={s} value={s}>
+                            {s}
+                          </MenuItem>
+                        ))}
+                      </SelectWithPlaceholder>
                     </Grid>
 
                     <Grid item xs={12}>
@@ -677,9 +767,7 @@ export default function ResumePage() {
                         onChange={(e) => update(["basic", "email"], e.target.value)}
                         placeholder="name@example.com"
                         InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">@</InputAdornment>
-                          ),
+                          endAdornment: <InputAdornment position="end">@</InputAdornment>,
                         }}
                       />
                     </Grid>
@@ -761,18 +849,16 @@ export default function ResumePage() {
                       <Paper key={idx} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
                         <Grid container spacing={2}>
                           <Grid item xs={12} md={4}>
-                            <FormControl fullWidth>
-                              <InputLabel>مقطع</InputLabel>
-                              <Select
-                                label="مقطع"
-                                value={e.degree || ""}
-                                onChange={(ev) => update(["educations", idx, "degree"], ev.target.value)}
-                              >
-                                {["زیر دیپلم","دیپلم","کاردانی","کارشناسی","کارشناسی ارشد","دکترا"].map((d) => (
-                                  <MenuItem key={d} value={d}>{d}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="مقطع"
+                              placeholder="انتخاب مقطع"
+                              value={e.degree}
+                              onChange={(ev) => update(["educations", idx, "degree"], ev.target.value)}
+                            >
+                              {["زیر دیپلم","دیپلم","کاردانی","کارشناسی","کارشناسی ارشد","دکترا"].map((d) => (
+                                <MenuItem key={d} value={d}>{d}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
                           <Grid item xs={12} md={4}>
                             <TextField
@@ -801,34 +887,30 @@ export default function ResumePage() {
                           </Grid>
 
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>سال شروع</InputLabel>
-                              <Select
-                                label="سال شروع"
-                                value={e.startYear || ""}
-                                onChange={(ev) => update(["educations", idx, "startYear"], ev.target.value)}
-                              >
-                                {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
-                                  <MenuItem key={y} value={String(y)}>{y}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="سال شروع"
+                              placeholder="سال شروع"
+                              value={e.startYear}
+                              onChange={(ev) => update(["educations", idx, "startYear"], ev.target.value)}
+                            >
+                              {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
+                                <MenuItem key={y} value={String(y)}>{y}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
 
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>سال پایان</InputLabel>
-                              <Select
-                                label="سال پایان"
-                                value={e.endYear || ""}
-                                onChange={(ev) => update(["educations", idx, "endYear"], ev.target.value)}
-                                disabled={e.stillStudying}
-                              >
-                                {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
-                                  <MenuItem key={y} value={String(y)}>{y}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="سال پایان"
+                              placeholder="سال پایان"
+                              value={e.endYear}
+                              onChange={(ev) => update(["educations", idx, "endYear"], ev.target.value)}
+                              disabled={e.stillStudying}
+                            >
+                              {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
+                                <MenuItem key={y} value={String(y)}>{y}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
 
                           <Grid item xs={12} md={3}>
@@ -903,18 +985,16 @@ export default function ResumePage() {
                           </Grid>
 
                           <Grid item xs={12} md={4}>
-                            <FormControl fullWidth>
-                              <InputLabel>رده سازمانی</InputLabel>
-                              <Select
-                                label="رده سازمانی"
-                                value={j.level || ""}
-                                onChange={(e) => update(["jobs", idx, "level"], e.target.value)}
-                              >
-                                {ORG_LEVELS.map((x) => (
-                                  <MenuItem key={x} value={x}>{x}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="رده سازمانی"
+                              placeholder="انتخاب رده"
+                              value={j.level}
+                              onChange={(e) => update(["jobs", idx, "level"], e.target.value)}
+                            >
+                              {ORG_LEVELS.map((x) => (
+                                <MenuItem key={x} value={x}>{x}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
 
                           <Grid item xs={12} md={4}>
@@ -935,63 +1015,55 @@ export default function ResumePage() {
                           </Grid>
 
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>ماه شروع</InputLabel>
-                              <Select
-                                label="ماه شروع"
-                                value={j.startMonth || ""}
-                                onChange={(e) => update(["jobs", idx, "startMonth"], e.target.value)}
-                              >
-                                {MONTHS.map((m) => (
-                                  <MenuItem key={m} value={m}>{m}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="ماه شروع"
+                              placeholder="ماه شروع"
+                              value={j.startMonth}
+                              onChange={(e) => update(["jobs", idx, "startMonth"], e.target.value)}
+                            >
+                              {MONTHS.map((m) => (
+                                <MenuItem key={m} value={m}>{m}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>سال شروع</InputLabel>
-                              <Select
-                                label="سال شروع"
-                                value={j.startYear || ""}
-                                onChange={(e) => update(["jobs", idx, "startYear"], e.target.value)}
-                              >
-                                {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
-                                  <MenuItem key={y} value={String(y)}>{y}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="سال شروع"
+                              placeholder="سال شروع"
+                              value={j.startYear}
+                              onChange={(e) => update(["jobs", idx, "startYear"], e.target.value)}
+                            >
+                              {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
+                                <MenuItem key={y} value={String(y)}>{y}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
 
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>ماه پایان</InputLabel>
-                              <Select
-                                label="ماه پایان"
-                                value={j.endMonth || ""}
-                                onChange={(e) => update(["jobs", idx, "endMonth"], e.target.value)}
-                                disabled={j.current}
-                              >
-                                {MONTHS.map((m) => (
-                                  <MenuItem key={m} value={m}>{m}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="ماه پایان"
+                              placeholder="ماه پایان"
+                              value={j.endMonth}
+                              onChange={(e) => update(["jobs", idx, "endMonth"], e.target.value)}
+                              disabled={j.current}
+                            >
+                              {MONTHS.map((m) => (
+                                <MenuItem key={m} value={m}>{m}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
                           <Grid item xs={12} md={3}>
-                            <FormControl fullWidth>
-                              <InputLabel>سال پایان</InputLabel>
-                              <Select
-                                label="سال پایان"
-                                value={j.endYear || ""}
-                                onChange={(e) => update(["jobs", idx, "endYear"], e.target.value)}
-                                disabled={j.current}
-                              >
-                                {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
-                                  <MenuItem key={y} value={String(y)}>{y}</MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
+                            <SelectWithPlaceholder
+                              label="سال پایان"
+                              placeholder="سال پایان"
+                              value={j.endYear}
+                              onChange={(e) => update(["jobs", idx, "endYear"], e.target.value)}
+                              disabled={j.current}
+                            >
+                              {Array.from({ length: 40 }, (_, i) => 1405 - i).map((y) => (
+                                <MenuItem key={y} value={String(y)}>{y}</MenuItem>
+                              ))}
+                            </SelectWithPlaceholder>
                           </Grid>
 
                           <Grid item xs={12} md={6}>
@@ -1019,7 +1091,12 @@ export default function ResumePage() {
                           </Grid>
                         </Grid>
 
-                        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+                        <Stack
+                          direction="row"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          sx={{ mt: 1 }}
+                        >
                           <Chip
                             size="small"
                             icon={<CheckCircleIcon color="success" />}
@@ -1052,18 +1129,18 @@ export default function ResumePage() {
                             onChange={(e) => update(["languages", idx, "name"], e.target.value)}
                             sx={{ flex: 1 }}
                           />
-                          <FormControl sx={{ flex: 2 }}>
-                            <InputLabel>سطح مهارت</InputLabel>
-                            <Select
-                              label="سطح مهارت"
-                              value={ln.level || ""}
-                              onChange={(e) => update(["languages", idx, "level"], e.target.value)}
-                            >
-                              {LANGUAGE_LEVELS.map((l) => (
-                                <MenuItem key={l} value={l}>{l}</MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
+                          <SelectWithPlaceholder
+                            label="سطح مهارت"
+                            placeholder="انتخاب سطح"
+                            value={ln.level}
+                            onChange={(e) => update(["languages", idx, "level"], e.target.value)}
+                            fullWidth={false}
+                            sx={{ flex: 2 }}
+                          >
+                            {LANGUAGE_LEVELS.map((l) => (
+                              <MenuItem key={l} value={l}>{l}</MenuItem>
+                            ))}
+                          </SelectWithPlaceholder>
                           <IconButton color="error" onClick={() => removeItem("languages", idx)}>
                             <DeleteOutlineIcon />
                           </IconButton>
@@ -1121,40 +1198,46 @@ export default function ResumePage() {
 
             {/* کنترل‌ها */}
             <Grid item xs={12}>
-              <Stack direction="row" justifyContent="space-between" sx={{ mt: 1 }}>
-                <Button
-                  startIcon={<ChevronRightIcon />}
-                  variant="text"
-                  disabled={step === 0 || saving}
-                  onClick={prev}
-                >
-                  قبلی
-                </Button>
-                <Stack direction="row" spacing={1}>
+              <SectionCard sx={{ p: 1.5 }}>
+                <Stack direction="row" justifyContent="space_between" sx={{ mt: 0.5 }}>
                   <Button
-                    variant="outlined"
-                    startIcon={<SaveIcon />}
-                    onClick={() => save()}
-                    disabled={saving}
+                    startIcon={<ChevronRightIcon />}
+                    variant="text"
+                    disabled={step === 0 || saving}
+                    onClick={prev}
                   >
-                    ذخیره
+                    قبلی
                   </Button>
-                  {step < 3 ? (
-                    <Button variant="contained" onClick={next} disabled={saving}>
-                      ذخیره و مرحله بعد
-                    </Button>
-                  ) : (
+                  <Stack direction="row" spacing={1}>
                     <Button
-                      variant="contained"
-                      startIcon={<DownloadIcon />}
-                      onClick={downloadPDF}
+                      variant="outlined"
+                      startIcon={<SaveIcon />}
+                      onClick={() => save()}
                       disabled={saving}
                     >
-                      دانلود PDF
+                      ذخیره
                     </Button>
-                  )}
+                    {step < 3 ? (
+                      <Button variant="contained" onClick={next} disabled={saving}>
+                        ذخیره و مرحله بعد
+                      </Button>
+                    ) : (
+                      <Tooltip title={isComplete ? "دانلود نسخه PDF استاندارد A4" : "پس از تکمیل ۱۰۰٪ فعال می‌شود"}>
+                        <span>
+                          <Button
+                            variant="contained"
+                            startIcon={<DownloadIcon />}
+                            onClick={downloadPDF}
+                            disabled={!isComplete || saving}
+                          >
+                            دانلود PDF
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </Stack>
-              </Stack>
+              </SectionCard>
             </Grid>
           </>
         )}
@@ -1165,6 +1248,7 @@ export default function ResumePage() {
             {/* ظرف A4: عرض ثابت تا html2canvas نتیجه نوار باریک ندهد */}
             <Box
               ref={pdfRef}
+              dir="rtl"
               sx={{
                 width: "794px",          // A4 @ 96dpi
                 maxWidth: "100%",
@@ -1174,69 +1258,94 @@ export default function ResumePage() {
                 borderRadius: 2,
                 border: "1px solid",
                 borderColor: "divider",
+                lineHeight: 1.9,
               }}
             >
-              {/* Header */}
-              <Typography
-                component="h2"
-                variant="h6"
-                fontWeight={900}
-                sx={{ color: BRAND }}
-              >
-                {form.basic?.name || "-"} {form.basic?.family || ""}
-              </Typography>
-              {(form.basic?.email || form.basic?.phone) && (
-                <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  {form.basic?.email ? `${form.basic.email}` : ""}{" "}
-                  {form.basic?.phone ? `• ${form.basic.phone}` : ""}
-                </Typography>
-              )}
-              <Divider sx={{ my: 1.5 }} />
+              {/* Header با آواتار + کانتکت‌ها */}
+              <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1.5 }}>
+                <Box
+                  component="img"
+                  alt="avatar"
+                  src={
+                    avatarDataUrl ||
+                    `data:image/svg+xml;utf8,${encodeURIComponent(
+                      `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'>
+                        <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+                          <stop offset='0' stop-color='#dbeafe'/><stop offset='1' stop-color='#bfdbfe'/></linearGradient></defs>
+                        <rect width='128' height='128' rx='64' fill='url(#g)'/>
+                        <circle cx='64' cy='48' r='24' fill='#fff'/>
+                        <rect x='24' y='80' width='80' height='32' rx='16' fill='#fff'/>
+                      </svg>`
+                    )}`
+                  }
+                  sx={{
+                    width: 84,
+                    height: 84,
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: "2px solid",
+                    borderColor: "divider",
+                    flexShrink: 0,
+                  }}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" fontWeight={900} sx={{ color: BRAND, mb: 0.5 }}>
+                    {form.basic?.name || "-"} {form.basic?.family || ""}
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {form.basic?.email && (
+                      <IconChip icon={<EmailOutlinedIcon fontSize="small" />} label={form.basic.email} />
+                    )}
+                    {form.basic?.phone && (
+                      <IconChip icon={<LocalPhoneOutlinedIcon fontSize="small" />} label={form.basic.phone} />
+                    )}
+                    {form.basic?.city && (
+                      <IconChip icon={<LocationOnOutlinedIcon fontSize="small" />} label={form.basic.city} />
+                    )}
+                  </Stack>
+                </Box>
+              </Stack>
 
-              {/* اطلاعات پایه */}
-              <Typography fontWeight={800} sx={{ mb: 0.75 }}>
-                اطلاعات
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1.5 }}>
-                {form.basic?.city && <Chip label={`شهر: ${form.basic.city}`} />}
+              {/* اطلاعات کلیدی با آیکن */}
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1.25 }}>
                 {form.basic?.birthDay && form.basic?.birthMonth && form.basic?.birthYear && (
-                  <Chip label={`تاریخ تولد: ${form.basic.birthDay} ${form.basic.birthMonth} ${form.basic.birthYear}`} />
+                  <IconChip
+                    icon={<CalendarMonthOutlinedIcon fontSize="small" />}
+                    label={`تولد: ${form.basic.birthDay} ${form.basic.birthMonth} ${form.basic.birthYear}`}
+                  />
                 )}
                 {form.basic?.gender && (
-                  <Chip
-                    label={`جنسیت: ${
-                      form.basic.gender === "male"
-                        ? "مرد"
-                        : form.basic.gender === "female"
-                        ? "زن"
-                        : "سایر"
-                    }`}
+                  <IconChip
+                    icon={<WorkOutlineIcon fontSize="small" />}
+                    label={`جنسیت: ${form.basic.gender === "male" ? "مرد" : form.basic.gender === "female" ? "زن" : "سایر"}`}
                   />
                 )}
                 {form.basic?.gender === "male" && form.basic?.militaryStatus && (
-                  <Chip label={`ن.وظیفه: ${form.basic.militaryStatus}`} />
+                  <IconChip
+                    icon={<MilitaryTechOutlinedIcon fontSize="small" />}
+                    label={`ن.وظیفه: ${form.basic.militaryStatus}`}
+                  />
                 )}
-                {form.basic?.salaryRange && <Chip label={`حقوق: ${form.basic.salaryRange}`} />}
+                {form.basic?.salaryRange && (
+                  <IconChip icon={<PaidOutlinedIcon fontSize="small" />} label={`حقوق: ${form.basic.salaryRange}`} />
+                )}
                 {(form.basic?.interestedFields || []).map((x) => (
-                  <Chip key={x} label={x} variant="outlined" />
+                  <IconChip key={x} icon={<WorkOutlineIcon fontSize="small" />} label={x} />
                 ))}
               </Stack>
 
               {/* تحصیلات */}
               {form.educations?.length > 0 && (
                 <>
-                  <Typography fontWeight={800} sx={{ mb: 0.5 }}>
-                    سوابق تحصیلی
-                  </Typography>
-                  <Stack sx={{ mb: 1.5 }}>
+                  <SectionTitle icon={<SchoolOutlinedIcon fontSize="small" />} text="سوابق تحصیلی" />
+                  <Stack sx={{ mb: 1.25 }}>
                     {form.educations.map((e, i) => (
-                      <Box key={i} sx={{ py: 0.5 }}>
+                      <Box key={i} sx={{ py: 0.4 }}>
                         <Typography fontWeight={700}>
                           {e.degree || "-"} — {e.field || "-"}
                         </Typography>
                         <Typography color="text.secondary" variant="body2">
-                          {e.university || "-"} • {e.startYear || "-"} —{" "}
-                          {e.stillStudying ? "تا کنون" : e.endYear || "-"}
+                          {e.university || "-"} • {e.startYear || "-"} — {e.stillStudying ? "تا کنون" : e.endYear || "-"}
                           {e.gpa ? ` • معدل: ${e.gpa}` : ""}
                         </Typography>
                       </Box>
@@ -1248,18 +1357,16 @@ export default function ResumePage() {
               {/* شغلی */}
               {form.jobs?.length > 0 && (
                 <>
-                  <Typography fontWeight={800} sx={{ mb: 0.5 }}>
-                    سوابق شغلی
-                  </Typography>
-                  <Stack sx={{ mb: 1.5 }}>
+                  <SectionTitle icon={<WorkOutlineIcon fontSize="small" />} text="سوابق شغلی" />
+                  <Stack sx={{ mb: 1.25 }}>
                     {form.jobs.map((j, i) => (
-                      <Box key={i} sx={{ py: 0.5 }}>
+                      <Box key={i} sx={{ py: 0.4 }}>
                         <Typography fontWeight={700}>
                           {j.title || "-"} — {j.org || "-"}
                         </Typography>
                         <Typography color="text.secondary" variant="body2">
-                          {j.city || ""} {j.country ? `(${j.country})` : ""} •{" "}
-                          {j.startMonth} {j.startYear} — {j.current ? "تا کنون" : `${j.endMonth} ${j.endYear || ""}`}
+                          {j.city || ""} {j.country ? `(${j.country})` : ""} • {j.startMonth} {j.startYear} —{" "}
+                          {j.current ? "تا کنون" : `${j.endMonth} ${j.endYear || ""}`}
                           {j.orgField ? ` • حوزه: ${j.orgField}` : ""}
                           {j.level ? ` • رده: ${j.level}` : ""}
                         </Typography>
@@ -1277,15 +1384,13 @@ export default function ResumePage() {
               {/* مهارت‌ها */}
               {(form.softwareSkills?.length > 0 || form.extraSkills?.length > 0) && (
                 <>
-                  <Typography fontWeight={800} sx={{ mb: 0.5 }}>
-                    مهارت‌ها
-                  </Typography>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1.5 }}>
+                  <SectionTitle icon={<BuildOutlinedIcon fontSize="small" />} text="مهارت‌ها" />
+                  <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 1.25 }}>
                     {(form.softwareSkills || []).map((s) => (
-                      <Chip key={s} label={s} variant="outlined" />
+                      <Chip key={s} label={s} variant="outlined" size="small" />
                     ))}
                     {(form.extraSkills || []).map((s) => (
-                      <Chip key={s} label={s} variant="outlined" />
+                      <Chip key={s} label={s} variant="outlined" size="small" />
                     ))}
                   </Stack>
                 </>
@@ -1294,12 +1399,10 @@ export default function ResumePage() {
               {/* زبان‌ها */}
               {form.languages?.length > 0 && (
                 <>
-                  <Typography fontWeight={800} sx={{ mb: 0.5 }}>
-                    زبان‌ها
-                  </Typography>
+                  <SectionTitle icon={<LanguageOutlinedIcon fontSize="small" />} text="زبان‌ها" />
                   <Stack direction="row" spacing={1} flexWrap="wrap">
                     {form.languages.map((l, i) => (
-                      <Chip key={i} label={`${l.name}: ${l.level}`} />
+                      <Chip key={i} label={`${l.name}: ${l.level}`} size="small" />
                     ))}
                   </Stack>
                 </>
@@ -1308,6 +1411,54 @@ export default function ResumePage() {
           </SectionCard>
         </Grid>
       </Grid>
+
+      {/* نوار اکشن موبایل (وقتی سایدبار نیست) */}
+      <Paper
+        elevation={6}
+        sx={{
+          position: "fixed",
+          left: 12,
+          right: 12,
+          bottom: 12,
+          display: { xs: "flex", md: "none" },
+          p: 1,
+          borderRadius: 999,
+          alignItems: "center",
+          gap: 1,
+          zIndex: 20,
+        }}
+      >
+        <Stack direction="row" sx={{ width: "100%" }} spacing={1}>
+          {mode === "view" ? (
+            <Button fullWidth variant="contained" startIcon={<EditIcon />} onClick={() => setMode("edit")}>
+              ویرایش
+            </Button>
+          ) : (
+            <Button
+              fullWidth
+              color="secondary"
+              variant="contained"
+              startIcon={<VisibilityIcon />}
+              onClick={() => setMode("view")}
+            >
+              مشاهده
+            </Button>
+          )}
+          <Tooltip title={isComplete ? "دانلود PDF" : "بعد از تکمیل ۱۰۰٪"}>
+            <span style={{ width: "100%" }}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={downloadPDF}
+                disabled={!isComplete}
+              >
+                PDF
+              </Button>
+            </span>
+          </Tooltip>
+        </Stack>
+      </Paper>
     </Box>
   );
 }
