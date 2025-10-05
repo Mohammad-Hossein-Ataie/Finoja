@@ -1,10 +1,17 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const OTPSchema = new mongoose.Schema({
-  mobile: { type: String, required: true, unique: true },
-  code: String,
-  type: String,
-  createdAt: { type: Date, default: Date.now, expires: 180 }, // 3 دقیقه اعتبار
-});
+const OTPSchema = new mongoose.Schema(
+  {
+    mobile: { type: String, required: true, index: true },
+    code: { type: String, required: true },
+    purpose: { type: String, default: "employer", index: true }, // مثلا employer|student|register|login
+    expiresAt: { type: Date, default: null }, // برای TTL
+  },
+  { timestamps: true }
+);
 
-export default mongoose.models.OTP || mongoose.model('OTP', OTPSchema);
+// TTL: اسناد بعد از expiresAt خودبه‌خود حذف می‌شوند
+OTPSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+OTPSchema.index({ mobile: 1, createdAt: -1 });
+
+export default mongoose.models.OTP || mongoose.model("OTP", OTPSchema);

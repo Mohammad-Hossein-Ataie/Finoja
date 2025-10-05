@@ -21,12 +21,21 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
 import DescriptionIcon from "@mui/icons-material/Description";
+import WorkIcon from "@mui/icons-material/Work";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 
 const NAV_ITEMS = [
   { href: "/student/courses", icon: <HomeIcon />, label: "دوره‌ها" },
   { href: "/student/best", icon: <EmojiEventsIcon />, label: "بهترین‌ها" },
   { href: "/student/profile", icon: <PersonIcon />, label: "پروفایل" },
-  { href: "/student/resume", icon: <DescriptionIcon />, label: "رزومه" }, // ← جدید
+  { href: "/student/resume", icon: <DescriptionIcon />, label: "رزومه" },
+  // مسیرِ فرصت‌ها حالا به نسخه‌ی دارای layout دانش‌آموز اشاره می‌کند:
+  { href: "/student/jobs", icon: <WorkIcon />, label: "فرصت‌ها" },
+  {
+    href: "/student/applications",
+    icon: <AssignmentTurnedInIcon />,
+    label: "درخواست‌ها",
+  },
 ];
 
 const COLORS = {
@@ -60,10 +69,19 @@ export default function StudentSidebar() {
     localStorage.setItem("sidebar_collapsed", next ? "1" : "0");
   };
 
+  // منطق تعیین فعال بودن هر آیتم (برای آینه‌ی /jobs هم حساب می‌کنیم)
+  const isActive = (href) => {
+    if (pathname.startsWith(href)) return true;
+    // دوره‌ها: مسیرهای roadmap هم زیر دوره‌ها حساب شوند
+    if (href === "/student/courses" && pathname.startsWith("/roadmap"))
+      return true;
+    // فرصت‌ها: اگر کاربر روی مسیر عمومی /jobs باشد، باز این آیتم فعال شود
+    if (href === "/student/jobs" && pathname.startsWith("/jobs")) return true;
+    return false;
+  };
+
   if (isMobile) {
-    const currentIndex = NAV_ITEMS.findIndex((n) =>
-      pathname.startsWith(n.href)
-    );
+    const currentIndex = NAV_ITEMS.findIndex((n) => isActive(n.href));
     return (
       <Box
         sx={{
@@ -76,7 +94,11 @@ export default function StudentSidebar() {
           zIndex: 1300,
         }}
       >
-        <BottomNavigation showLabels={false} value={currentIndex} sx={{ bgcolor: "transparent" }}>
+        <BottomNavigation
+          showLabels={false}
+          value={currentIndex}
+          sx={{ bgcolor: "transparent" }}
+        >
           {NAV_ITEMS.map((item) => (
             <BottomNavigationAction
               key={item.href}
@@ -89,6 +111,7 @@ export default function StudentSidebar() {
                 color: COLORS.textDim,
                 "&.Mui-selected": { color: COLORS.activeText },
               }}
+              className={isActive(item.href) ? "Mui-selected" : undefined}
             />
           ))}
           <BottomNavigationAction
@@ -131,11 +154,13 @@ export default function StudentSidebar() {
         </IconButton>
 
         {NAV_ITEMS.map((item) => {
-          const active =
-            pathname.startsWith(item.href) ||
-            (item.href === "/student/courses" && pathname.startsWith("/roadmap"));
+          const active = isActive(item.href);
           return (
-            <Tooltip key={item.href} title={collapsed ? item.label : ""} placement={isRTL ? "left" : "right"}>
+            <Tooltip
+              key={item.href}
+              title={collapsed ? item.label : ""}
+              placement={isRTL ? "left" : "right"}
+            >
               <Box
                 component={Link}
                 href={item.href}
@@ -168,7 +193,10 @@ export default function StudentSidebar() {
         <Box flexGrow={1} />
 
         <Tooltip title="خروج" placement={isRTL ? "left" : "right"}>
-          <IconButton onClick={handleLogout} sx={{ color: COLORS.text, mb: 2, alignSelf: "center" }}>
+          <IconButton
+            onClick={handleLogout}
+            sx={{ color: COLORS.text, mb: 2, alignSelf: "center" }}
+          >
             <LogoutIcon />
           </IconButton>
         </Tooltip>
