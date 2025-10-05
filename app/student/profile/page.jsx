@@ -22,6 +22,8 @@ import {
   DialogContent,
   DialogActions,
   Slider,
+  Menu,
+  MenuItem
 } from "@mui/material";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
@@ -32,15 +34,17 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import DescriptionIcon from "@mui/icons-material/Description";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import VisibilityIcon from "@mui/icons-material/Visibility";
 import Cropper from "react-easy-crop";
 
 /* ---------- Design tokens ---------- */
-const BRAND = "#2477F3";
+const BRAND = "#2563eb"; // هماهنگ با بقیه صفحات
 const GREY_BG = "#F6F8FB";
-const R_CARD = 3;
-const R_SECTION = 3;
+const R_CARD = 2;     // 8px
+const R_SECTION = 2;  // 8px
 
-/* ✅ آدرس عمومی استوریج: اگر NEXT_PUBLIC_LIARA_BASE_URL تنظیم شد از همون استفاده کن */
+/* ✅ آدرس عمومی استوریج */
 const PUBLIC_S3_BASE =
   process.env.NEXT_PUBLIC_LIARA_BASE_URL ||
   "https://storage.c2.liara.space/finoja";
@@ -95,6 +99,7 @@ export default function StudentProfilePage() {
 
   // رزومه
   const fileInputRef = useRef(null);
+
   // آواتار
   const avatarInputRef = useRef(null);
   const [avatarUrl, setAvatarUrl] = useState(null); // URL نهایی (عمومی)
@@ -102,9 +107,15 @@ export default function StudentProfilePage() {
   // Crop dialog
   const [cropOpen, setCropOpen] = useState(false);
   const [rawImage, setRawImage] = useState(null); // dataURL
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1.2);
   const [croppedPixels, setCroppedPixels] = useState(null);
+
+  // Image viewer dialog
+  const [viewOpen, setViewOpen] = useState(false);
+
+  // Avatar menu
+  const [menuEl, setMenuEl] = useState(null);
+  const menuOpen = Boolean(menuEl);
 
   const notify = (text, severity = "info") => setAlert({ text, severity });
 
@@ -130,7 +141,7 @@ export default function StudentProfilePage() {
       // ✅ اگر آواتار دارد، URL عمومی بساز
       const key = j?.avatar?.key || j?.avatarKey;
       if (key) {
-        setAvatarUrl(`${PUBLIC_S3_BASE}/${key}?ts=${Date.now()}`); // bust cache
+        setAvatarUrl(`${PUBLIC_S3_BASE}/${key}?ts=${Date.now()}`);
       } else {
         setAvatarUrl(null);
       }
@@ -249,7 +260,6 @@ export default function StudentProfilePage() {
     try {
       const dataUrl = await fileToDataUrl(file);
       setRawImage(dataUrl);
-      setCrop({ x: 0, y: 0 });
       setZoom(1.2);
       setCroppedPixels(null);
       setCropOpen(true);
@@ -259,10 +269,6 @@ export default function StudentProfilePage() {
       e.target.value = "";
     }
   };
-
-  const onCropComplete = useCallback((_, croppedAreaPixels) => {
-    setCroppedPixels(croppedAreaPixels);
-  }, []);
 
   const saveCroppedAvatar = async () => {
     if (!rawImage || !croppedPixels) return;
@@ -287,11 +293,9 @@ export default function StudentProfilePage() {
         setCropOpen(false);
         setRawImage(null);
 
-        // ✅ URL عمومی جدید از کلیدی که API برگردانده
         if (j?.key) {
           setAvatarUrl(`${PUBLIC_S3_BASE}/${j.key}?ts=${Date.now()}`);
         } else {
-          // بک‌آپ: پروفایل را دوباره بگیر
           await fetchProfile();
         }
       }
@@ -374,12 +378,10 @@ export default function StudentProfilePage() {
             borderRadius: 0,
           }}
         />
-        {/* Avatar + camera button */}
+        {/* Avatar area */}
         <Box sx={{ position: "relative" }}>
-          <Avatar
-            src={avatarUrl || undefined}
-            alt={`${data.name} ${data.family}`}
-            imgProps={{ referrerPolicy: "no-referrer" }}
+          {/* Avatar with hover overlay (view) */}
+          <Box
             sx={{
               width: 96,
               height: 96,
@@ -388,27 +390,58 @@ export default function StudentProfilePage() {
               left: "50%",
               transform: "translateX(-50%)",
               border: "4px solid #fff",
+              borderRadius: "50%",
               boxShadow: "0 4px 12px rgba(0,0,0,.15)",
+              overflow: "hidden",
+              cursor: "pointer",
+              "&:hover .avatar-overlay": { opacity: 1 },
               bgcolor: BRAND,
-              fontSize: 26,
             }}
+            onClick={() => setViewOpen(true)}
           >
-            {!avatarUrl && (
-              <img
-                src={fallbackAvatarURL(data.name, data.family)}
-                alt=""
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            )}
-          </Avatar>
+            <Avatar
+              src={avatarUrl || undefined}
+              alt={`${data.name} ${data.family}`}
+              imgProps={{ referrerPolicy: "no-referrer" }}
+              sx={{ width: "100%", height: "100%" }}
+            >
+              {!avatarUrl && (
+                <img
+                  src={fallbackAvatarURL(data.name, data.family)}
+                  alt=""
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              )}
+            </Avatar>
+            <Box
+              className="avatar-overlay"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: "rgba(0,0,0,.35)",
+                color: "#fff",
+                transition: "opacity .2s",
+                opacity: 0,
+                fontSize: 12,
+                gap: 0.5
+              }}
+            >
+              <VisibilityIcon fontSize="small" />
+              مشاهده
+            </Box>
+          </Box>
 
+          {/* Three-dot menu like Telegram */}
           <IconButton
-            aria-label="تغییر آواتار"
-            onClick={onAvatarClick}
+            aria-label="گزینه‌ها"
+            onClick={(e) => setMenuEl(e.currentTarget)}
             sx={{
               position: "absolute",
               top: 8,
-              left: "calc(50% + 34px)",
+              left: "calc(50% + 42px)",
               transform: "translateX(-50%)",
               bgcolor: "#fff",
               border: "1px solid #E6EAF2",
@@ -416,28 +449,42 @@ export default function StudentProfilePage() {
               zIndex: 2,
             }}
           >
-            <PhotoCameraIcon fontSize="small" />
+            <MoreVertIcon fontSize="small" />
           </IconButton>
 
-          {avatarUrl && (
-            <IconButton
-              aria-label="حذف آواتار"
-              onClick={deleteAvatar}
-              sx={{
-                position: "absolute",
-                top: 8,
-                left: "calc(50% - 68px)",
-                transform: "translateX(-50%)",
-                bgcolor: "#fff",
-                border: "1px solid #F3D3D3",
-                color: "error.main",
-                "&:hover": { bgcolor: "#fff4f4" },
-                zIndex: 2,
+          <Menu
+            anchorEl={menuEl}
+            open={menuOpen}
+            onClose={() => setMenuEl(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+          >
+            <MenuItem
+              onClick={() => {
+                setMenuEl(null);
+                setViewOpen(true);
               }}
             >
-              <DeleteOutlineIcon fontSize="small" />
-            </IconButton>
-          )}
+              <VisibilityIcon sx={{ ml: 1 }} fontSize="small" /> مشاهده تصویر
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setMenuEl(null);
+                onAvatarClick();
+              }}
+            >
+              <PhotoCameraIcon sx={{ ml: 1 }} fontSize="small" /> تغییر تصویر
+            </MenuItem>
+            <MenuItem
+              onClick={async () => {
+                setMenuEl(null);
+                await deleteAvatar();
+              }}
+              sx={{ color: "error.main" }}
+            >
+              <DeleteOutlineIcon sx={{ ml: 1 }} fontSize="small" /> حذف تصویر
+            </MenuItem>
+          </Menu>
 
           <input
             ref={avatarInputRef}
@@ -454,7 +501,7 @@ export default function StudentProfilePage() {
               <Alert
                 severity={alert.severity}
                 onClose={() => setAlert(null)}
-                sx={{ mb: 2, borderRadius: 6 }}
+                sx={{ mb: 2, borderRadius: 2 }}
               >
                 {alert.text}
               </Alert>
@@ -469,11 +516,7 @@ export default function StudentProfilePage() {
           >
             {data.name} {data.family}
           </Typography>
-          <Typography
-            align="center"
-            color="text.secondary"
-            sx={{ mb: 2, fontSize: 14 }}
-          >
+          <Typography align="center" color="text.secondary" sx={{ mb: 2, fontSize: 14 }}>
             {data.email ? `${data.email} • ` : ""}
             {data.mobile}
           </Typography>
@@ -492,6 +535,7 @@ export default function StudentProfilePage() {
               sx={{
                 bgcolor: GREY_BG,
                 "& .MuiChip-icon": { color: "text.secondary" },
+                borderRadius: 1.5
               }}
             />
             <Tooltip
@@ -507,7 +551,7 @@ export default function StudentProfilePage() {
                 icon={<EmojiEventsIcon />}
                 color="success"
                 label={`${data.totalXp ?? 0} XP`}
-                sx={{ fontWeight: 700, "& .MuiChip-icon": { color: "#fff" } }}
+                sx={{ fontWeight: 700, "& .MuiChip-icon": { color: "#fff" }, borderRadius: 1.5 }}
               />
             </Tooltip>
           </Stack>
@@ -550,8 +594,7 @@ export default function StudentProfilePage() {
                 </Box>
               </Stack>
 
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                {/* ✅ input باید مستقل باشه، نه در وسط JSX دیگر */}
+              <Stack direction="row" spacing={1}>
                 <input
                   ref={fileInputRef}
                   hidden
@@ -559,8 +602,6 @@ export default function StudentProfilePage() {
                   accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleFileChange}
                 />
-
-                {/* دکمهٔ اپلود/تعویض فایل */}
                 <Button
                   size="small"
                   variant="contained"
@@ -575,18 +616,6 @@ export default function StudentProfilePage() {
                 >
                   {resume?.key ? "تعویض" : "بارگذاری"}
                 </Button>
-
-                {/* لینک به رزومه‌ساز */}
-                <Button
-                  size="small"
-                  variant="outlined"
-                  href="/student/resume"
-                  sx={{ borderRadius: 1.5 }}
-                >
-                  ساخت رزومه با رزومه‌ساز
-                </Button>
-
-                {/* مشاهده فایل رزومه */}
                 <Tooltip title="مشاهده رزومه">
                   <span>
                     <IconButton
@@ -599,8 +628,6 @@ export default function StudentProfilePage() {
                     </IconButton>
                   </span>
                 </Tooltip>
-
-                {/* حذف فایل رزومه */}
                 <Tooltip title="حذف رزومه">
                   <span>
                     <IconButton
@@ -701,10 +728,10 @@ export default function StudentProfilePage() {
           {rawImage && (
             <Cropper
               image={rawImage}
-              crop={crop}
+              crop={{ x: 0, y: 0 }}
               zoom={zoom}
               aspect={1}
-              onCropChange={setCrop}
+              onCropChange={() => {}}
               onZoomChange={setZoom}
               onCropComplete={(_, area) => setCroppedPixels(area)}
               restrictPosition
@@ -717,25 +744,68 @@ export default function StudentProfilePage() {
           <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
             بزرگ‌نمایی
           </Typography>
-          <Slider
-            value={zoom}
-            min={1}
-            max={3}
-            step={0.01}
-            onChange={(_, v) => setZoom(v)}
-          />
+          <Slider value={zoom} min={1} max={3} step={0.01} onChange={(_, v) => setZoom(v)} />
         </Box>
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={() => setCropOpen(false)} disabled={busy}>
             انصراف
           </Button>
-          <Button
-            variant="contained"
-            onClick={saveCroppedAvatar}
-            disabled={busy || !croppedPixels}
-          >
+          <Button variant="contained" onClick={saveCroppedAvatar} disabled={busy || !croppedPixels}>
             ذخیره
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Avatar Viewer Dialog with Edit/Delete */}
+      <Dialog
+        open={viewOpen}
+        onClose={() => setViewOpen(false)}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle fontWeight={800}>مشاهده تصویر پروفایل</DialogTitle>
+        <DialogContent dividers sx={{ bgcolor: "#111" }}>
+          <Box
+            component="img"
+            alt="avatar"
+            src={
+              avatarUrl ||
+              `data:image/svg+xml;utf8,${encodeURIComponent(
+                `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'>
+                   <defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'>
+                     <stop offset='0' stop-color='#dbeafe'/><stop offset='1' stop-color='#bfdbfe'/>
+                   </linearGradient></defs>
+                   <rect width='128' height='128' rx='16' fill='url(#g)'/>
+                   <circle cx='64' cy='48' r='24' fill='#fff'/>
+                   <rect x='24' y='80' width='80' height='32' rx='16' fill='#fff'/>
+                 </svg>`
+              )}`
+            }
+            sx={{
+              display: "block",
+              width: "100%",
+              height: "auto",
+              borderRadius: 2,
+              border: "1px solid",
+              borderColor: "divider",
+              backgroundColor: "#fff"
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={async () => {
+            await deleteAvatar();
+            setViewOpen(false);
+          }}>
+            حذف
+          </Button>
+          <Button startIcon={<PhotoCameraIcon />} variant="contained" onClick={() => {
+            setViewOpen(false);
+            onAvatarClick();
+          }}>
+            ویرایش
+          </Button>
+          <Button onClick={() => setViewOpen(false)}>بستن</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -5,30 +5,31 @@ import Application from "../../../../../models/Application";
 import Student from "../../../../../models/Student";
 import Job from "../../../../../models/Job";
 
-/** GET: فهرست اپلیکیشن‌های یک آگهی برای کارفرما با فیلترهای رزومه */
-export async function GET(req, context) {
+/** GET: فهرست اپلیکیشن‌های یک آگهی برای کارفرما با فیلترهای رزومه
+ * Query:
+ *  expMin=2
+ *  gender=male|female|other
+ *  city=...
+ *  salary=... (exact match string)
+ *  degree=... (educations.degree)
+ *  field=... (educations.field)
+ *  finojaCourse=courseId (تکرارپذیر)
+ *  resumeUpdatedFrom=YYYY-MM-DD
+ *  resumeUpdatedTo=YYYY-MM-DD
+ */
+export async function GET(req, { params }) {
   await dbConnect();
-
   const payload = await getAuth(req);
-  try {
-    requireRole(payload, ["employer"]);
-  } catch (e) {
-    return NextResponse.json(
-      { error: e.message },
-      { status: e.statusCode || 403 }
-    );
+  try { requireRole(payload, ["employer"]); } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: e.statusCode || 403 });
   }
 
-  const { id } = context.params;
-  const job = await Job.findById(id).lean();
-  if (!job) {
+  const job = await Job.findById(params.id);
+  if (!job || String(job.company) !== String(payload.companyId)) {
     return NextResponse.json({ error: "آگهی معتبر نیست" }, { status: 404 });
   }
 
   const { searchParams } = new URL(req.url);
-  const includeWithdrawn = searchParams.get("includeWithdrawn") === "1";
-  const withdrawnOnly = searchParams.get("withdrawn") === "1";
-
   const expMin = Number(searchParams.get("expMin") || 0);
   const gender = searchParams.get("gender");
   const city = searchParams.get("city");
@@ -39,15 +40,7 @@ export async function GET(req, context) {
   const rFrom = searchParams.get("resumeUpdatedFrom");
   const rTo = searchParams.get("resumeUpdatedTo");
 
-  const withdrawnFilter = withdrawnOnly
-    ? true
-    : includeWithdrawn
-    ? { $in: [true, false] }
-    : { $ne: true };
-  const apps = await Application.find({
-    job: job._id,
-    withdrawn: withdrawnFilter,
-  })
+  const apps = await Application.find({ job: job._id, withdrawn: { $ne: true } })
     .populate({ path: "student", model: Student })
     .lean();
 
@@ -66,18 +59,26 @@ export async function GET(req, context) {
     if (degree && !educs.some((e) => e.degree === degree)) return false;
     if (field && !educs.some((e) => e.field === field)) return false;
 
-    if (expMin) {
-      const years = jobs.reduce(
-        (acc, j) => acc + (Number(j.years || 0) || 0),
-        0
-      );
+    if (finojaCourses.length > 0) {
+      // اگر یادگیرنده حداقل یکی از دوره‌های انتخابی را در learning داشته باشد
+      const hasCourse = (s.learning || []).some((l) => finojaCourses.includes(String(l.courseId)));
+      if (!hasCourse) return false;
+    }
+
+    if (expMin > 0) {
+      let years = 0;
+      for (const j of jobs) {
+        if (j.startYear) {
+          const endYear = j.current ? new Date().getFullYear() : (j.endYear || j.startYear);
+          years += Math.max(0, endYear - j.startYear);
+        }
+      }
       if (years < expMin) return false;
     }
 
-    const up = s.resumeForm?.updatedAt
-      ? new Date(s.resumeForm.updatedAt)
-      : null;
-    if (up) {
+    if (rFrom || rTo) {
+      const up = s.resumeForm?.updatedAt ? new Date(s.resumeForm.updatedAt) : null;
+      if (!up) return false;
       if (rFrom && up < new Date(rFrom)) return false;
       if (rTo && up > new Date(rTo)) return false;
     }
@@ -88,14 +89,8 @@ export async function GET(req, context) {
   // مخفی‌کردن تماس تا وقتی کارفرما نخرد
   const list = filtered.map((a) => {
     const s = a.student;
-    const maskedPhone = s.resumeForm?.basic?.phone
-      ? s.resumeForm.basic.phone.replace(/\d(?=\d{4})/g, "•")
-      : "";
-    const maskedEmail = s.resumeForm?.basic?.email
-      ? s.resumeForm.basic.email.replace(/^[^@]+/, (m) =>
-          "•".repeat(Math.max(1, m.length - 2))
-        )
-      : "";
+    const maskedPhone = s.resumeForm?.basic?.phone ? s.resumeForm.basic.phone.replace(/\d(?=\d{4})/g, "•") : "";
+    const maskedEmail = s.resumeForm?.basic?.email ? s.resumeForm.basic.email.replace(/^[^@]+/, (m)=>"•".repeat(Math.max(1,m.length-2))) : "";
     return {
       applicationId: a._id,
       status: a.status,

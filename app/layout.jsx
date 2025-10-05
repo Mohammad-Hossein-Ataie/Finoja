@@ -13,6 +13,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="fa" dir="rtl">
       <head>
+        {/* برای پشتیبانی کامل safe-area در iOS */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap"
@@ -23,7 +25,6 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png" />
         <link rel="manifest" href="/favicon/site.webmanifest" />
         <link rel="canonical" href="https://finoja.ir" />
-        {/* OG/Twitter meta ها اگر لازم داری همین‌جا */}
       </head>
       <body>
         <Providers>{children}</Providers>
