@@ -21,15 +21,17 @@ import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import MenuOpenIcon from "@mui/icons-material/MenuOpen";
 import MenuIcon from "@mui/icons-material/Menu";
+import BusinessIcon from "@mui/icons-material/Business"; // ⬅️ جدید
 
 import { endpoints } from "../../utils/endpoints";
 import { useCurrentUser } from "../../lib/useCurrentUser";
 
 const NAV_LINKS = [
-  { href: "/dashboard", icon: <DashboardIcon />, label: "داشبورد", roles: ["admin"] },
-  { href: "/dashboard/courses", icon: <SchoolIcon />, label: "دوره‌ها", roles: ["admin", "teacher"] },
-  { href: "/dashboard/teachers", icon: <PersonIcon />, label: "اساتید", roles: ["admin"] },
-  { href: "/dashboard/students", icon: <GroupOutlinedIcon />, label: "یادگیرندگان", roles: ["admin", "teacher"] },
+  { href: "/dashboard",            icon: <DashboardIcon />, label: "داشبورد",    roles: ["admin"] },
+  { href: "/dashboard/companies",  icon: <BusinessIcon />,  label: "شرکت‌ها",    roles: ["admin"] }, // ⬅️ جدید
+  { href: "/dashboard/courses",    icon: <SchoolIcon />,    label: "دوره‌ها",    roles: ["admin", "teacher"] },
+  { href: "/dashboard/teachers",   icon: <PersonIcon />,    label: "اساتید",     roles: ["admin"] },
+  { href: "/dashboard/students",   icon: <GroupOutlinedIcon />, label: "یادگیرندگان", roles: ["admin", "teacher"] },
 ];
 
 const COLORS = {
@@ -63,7 +65,6 @@ export default function Sidebar() {
     }
   };
 
-  // حالت باز/بسته دسکتاپ
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
     setCollapsed(localStorage.getItem("dashboard_sidebar_collapsed") === "1");
@@ -74,27 +75,18 @@ export default function Sidebar() {
     localStorage.setItem("dashboard_sidebar_collapsed", next ? "1" : "0");
   };
 
-  // تابع تطبیق active — «داشبورد» فقط برابر دقیق
   const isActive = (href) => {
     if (href === "/dashboard") return pathname === "/dashboard";
     return pathname === href || pathname.startsWith(href + "/");
   };
 
-  /* موبایل: Bottom Nav */
   if (isMobile) {
     const currentIndex = Math.max(0, links.findIndex(l => isActive(l.href)));
     return (
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          insetInlineStart: 0,
-          width: "100vw",
-          borderTop: `1px solid ${COLORS.divider}`,
-          bgcolor: COLORS.bg,
-          zIndex: 1300,
-        }}
-      >
+      <Box sx={{
+        position: "fixed", bottom: 0, insetInlineStart: 0, width: "100vw",
+        borderTop: `1px solid ${COLORS.divider}`, bgcolor: COLORS.bg, zIndex: 1300,
+      }}>
         <BottomNavigation showLabels={false} value={currentIndex} sx={{ bgcolor: "transparent" }}>
           {links.map((item) => (
             <BottomNavigationAction
@@ -103,11 +95,10 @@ export default function Sidebar() {
               component={Link}
               href={item.href}
               sx={{
-                minWidth: 0,
-                paddingY: 1,
-                color: COLORS.textDim,
+                minWidth: 0, paddingY: 1, color: COLORS.textDim,
                 "&.Mui-selected": { color: COLORS.activeText },
               }}
+              className={isActive(item.href) ? "Mui-selected" : undefined}
             />
           ))}
           <BottomNavigationAction
@@ -120,7 +111,6 @@ export default function Sidebar() {
     );
   }
 
-  /* دسکتاپ */
   const WIDTH = collapsed ? 84 : 220;
 
   return (
@@ -130,7 +120,7 @@ export default function Sidebar() {
         sx={{
           position: "fixed",
           top: 0,
-          insetInlineStart: 0,   // RTL-safe
+          insetInlineStart: 0,
           width: WIDTH,
           height: "100vh",
           bgcolor: COLORS.bg,
