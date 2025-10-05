@@ -550,7 +550,8 @@ export default function StudentProfilePage() {
                 </Box>
               </Stack>
 
-              <Stack direction="row" spacing={1}>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                {/* ✅ input باید مستقل باشه، نه در وسط JSX دیگر */}
                 <input
                   ref={fileInputRef}
                   hidden
@@ -558,6 +559,8 @@ export default function StudentProfilePage() {
                   accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleFileChange}
                 />
+
+                {/* دکمهٔ اپلود/تعویض فایل */}
                 <Button
                   size="small"
                   variant="contained"
@@ -572,6 +575,18 @@ export default function StudentProfilePage() {
                 >
                   {resume?.key ? "تعویض" : "بارگذاری"}
                 </Button>
+
+                {/* لینک به رزومه‌ساز */}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  href="/student/resume"
+                  sx={{ borderRadius: 1.5 }}
+                >
+                  ساخت رزومه با رزومه‌ساز
+                </Button>
+
+                {/* مشاهده فایل رزومه */}
                 <Tooltip title="مشاهده رزومه">
                   <span>
                     <IconButton
@@ -584,6 +599,8 @@ export default function StudentProfilePage() {
                     </IconButton>
                   </span>
                 </Tooltip>
+
+                {/* حذف فایل رزومه */}
                 <Tooltip title="حذف رزومه">
                   <span>
                     <IconButton

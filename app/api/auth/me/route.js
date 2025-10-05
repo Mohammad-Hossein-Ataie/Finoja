@@ -1,28 +1,34 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { verifyJwt } from "../../../../lib/jwt";
+import { cookies } from "next/headers";
 import dbConnect from "../../../../lib/dbConnect";
 import User from "../../../../models/User";
 import Student from "../../../../models/Student";
 import Employer from "../../../../models/Employer";
+import { verifyJwt } from "../../../../lib/jwt";
 
 export async function GET() {
-  await dbConnect();
-
-  // این تابع sync است؛ نباید await شود
-  const cookieStore = cookies();
-  const token = cookieStore.get("token")?.value;
-
-  const payload = await verifyJwt(token);
-  if (!payload) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // در توکن‌های جدید شما شناسه در sub است؛ در قدیمی‌ها ممکن است _id باشد
-  const id = String(payload.sub || payload._id || "");
-  const role = payload.role || payload.type || "user";
-
   try {
+    await dbConnect();
+
+    // طبق پیام Next: باید await شود
+    const cookieStore = await cookies();
+    const token = cookieStore.get("token")?.value;
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const payload = await verifyJwt(token).catch(() => null);
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const role = payload.role || payload.type || "user";
+    const id = String(payload.studentId || payload.sub || payload._id || "");
+
+    if (!id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     if (role === "student") {
       const doc = await Student.findById(id).select("-password").lean();
       if (!doc) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -38,7 +44,6 @@ export async function GET() {
       return NextResponse.json({ ...doc, role: "employer" });
     }
 
-    // پیش‌فرض: یوزر پنل ادمین/عمومی
     const doc = await User.findById(id)
       .select("-password")
       .populate("teacher")
@@ -47,7 +52,8 @@ export async function GET() {
     if (!doc) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     return NextResponse.json({ ...doc, role: doc.role || role });
-  } catch {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  } catch (err) {
+    console.error("/api/auth/me error", err);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

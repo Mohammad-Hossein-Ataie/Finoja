@@ -6,15 +6,19 @@ import { NextResponse } from "next/server";
 import { getAuth, requireRole } from "../../../../../lib/auth";
 import { renderStatusEmail, sendEmail } from "../../../../../lib/email";
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req, context) {
   await dbConnect();
   const payload = await getAuth(req);
-  try { requireRole(payload, ["employer"]); } catch (e) {
+  try {
+    requireRole(payload, ["employer"]);
+  } catch (e) {
     return NextResponse.json({ error: e.message }, { status: e.statusCode || 403 });
   }
 
+  const { id } = await context.params; // ← مهم
   const { status, reason } = await req.json(); // status ∈ ['seen','under_review','pre_approved','hired','rejected']
-  const app = await Application.findById(params.id).populate(["job", "student"]);
+
+  const app = await Application.findById(id).populate(["job", "student"]);
   if (!app) return NextResponse.json({ error: "درخواست یافت نشد" }, { status: 404 });
 
   if (String(app.company) !== String(payload.companyId)) {
@@ -25,18 +29,19 @@ export async function PATCH(req, { params }) {
   app.statusHistory.push({ status, at: new Date() });
   await app.save();
 
-  // ایمیل به دانش‌آموز
+  // ایمیل به دانش‌آموز (اختیاری)
   const student = app.student;
   const email = student?.resumeForm?.basic?.email || student?.email;
   if (email) {
+    const jobWithCompany = await Job.findById(app.job?._id).populate("company");
     const { subject, html } = renderStatusEmail({
       name: student?.resumeForm?.basic?.name || student?.name || "",
       jobTitle: app.job?.title || "",
-      companyName: (await Job.findById(app.job?._id).populate("company"))?.company?.name || "",
+      companyName: jobWithCompany?.company?.name || "",
       status,
       reason,
     });
-    try { await sendEmail(email, subject, html); } catch (e) { /* ایمیل اختیاری است */ }
+    try { await sendEmail(email, subject, html); } catch {}
   }
 
   return NextResponse.json({ success: true });

@@ -223,6 +223,50 @@ function SectionTitle({ icon, text }) {
 
 /* =============================================================== */
 
+
+
+/* ---------- Personal file resume upload (mirrors profile) ---------- */
+function PersonalResumeUpload({ initialResume }) {
+  const [busy, setBusy] = useState(false);
+  const [resume, setResume] = useState(initialResume || null);
+  const fileInputRef = useRef();
+  const onUploadClick = () => fileInputRef.current?.click();
+  const uploadFile = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const pres = await fetch("/api/students/resume/presigned", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: file.name, type: file.type, size: file.size }) });
+      const p = await pres.json();
+      const up = await fetch(p.url, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!up.ok) throw new Error("Upload failed");
+      const save = await fetch("/api/students/resume/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: p.key, name: file.name, size: file.size, type: file.type }) });
+      const d = await save.json();
+      if (!save.ok) throw new Error(d.error || "Save failed");
+      setResume({ key: p.key, name: file.name, size: file.size, type: file.type });
+    } catch (e) {
+      alert(e.message || "خطا در بارگذاری رزومه");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Box sx={{ p:2, mb:2, borderRadius:2, border:"1px dashed #CBD5E1", bgcolor:"#F8FAFC" }}>
+      <input ref={fileInputRef} type="file" hidden onChange={(e)=> uploadFile(e.target.files?.[0])} />
+      <Box sx={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:2 }}>
+        <Box>
+          <Typography fontWeight={700}>رزومه شخصی (فایل)</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {resume?.name ? `${resume.name}${resume.size ? " • " + (Math.round(resume.size/1024)) + "KB" : ""}` : "هنوز رزومه‌ای بارگذاری نشده است."}
+          </Typography>
+        </Box>
+        <Button variant="contained" onClick={onUploadClick} disabled={busy}>
+          {resume?.key ? "تعویض فایل" : "بارگذاری فایل"}
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
 export default function ResumePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
