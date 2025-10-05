@@ -5,18 +5,7 @@ import Application from "../../../../../models/Application";
 import Student from "../../../../../models/Student";
 import Job from "../../../../../models/Job";
 
-/** GET: فهرست اپلیکیشن‌های یک آگهی برای کارفرما با فیلترهای رزومه
- * Query:
- *  expMin=2
- *  gender=male|female|other
- *  city=...
- *  salary=... (exact match string)
- *  degree=... (educations.degree)
- *  field=... (educations.field)
- *  finojaCourse=courseId (تکرارپذیر)
- *  resumeUpdatedFrom=YYYY-MM-DD
- *  resumeUpdatedTo=YYYY-MM-DD
- */
+/** GET: فهرست اپلیکیشن‌های یک آگهی برای کارفرما با فیلترها */
 export async function GET(req, { params }) {
   await dbConnect();
   const payload = await getAuth(req);
@@ -24,86 +13,85 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: e.message }, { status: e.statusCode || 403 });
   }
 
-  const job = await Job.findById(params.id);
-  if (!job || String(job.company) !== String(payload.companyId)) {
-    return NextResponse.json({ error: "آگهی معتبر نیست" }, { status: 404 });
-  }
-
+  const jobId = params.id;
   const { searchParams } = new URL(req.url);
-  const expMin = Number(searchParams.get("expMin") || 0);
-  const gender = searchParams.get("gender");
+
+  const filter = { job: jobId };
+  const status = searchParams.get("status");
+  const withdrawn = searchParams.get("withdrawn");
+  const q = searchParams.get("q");
   const city = searchParams.get("city");
-  const salary = searchParams.get("salary");
+  const minExpYears = Number(searchParams.get("minExpYears") || 0);
+  const gender = searchParams.get("gender");
   const degree = searchParams.get("degree");
   const field = searchParams.get("field");
-  const finojaCourses = searchParams.getAll("finojaCourse");
-  const rFrom = searchParams.get("resumeUpdatedFrom");
-  const rTo = searchParams.get("resumeUpdatedTo");
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
 
-  const apps = await Application.find({ job: job._id, withdrawn: { $ne: true } })
-    .populate({ path: "student", model: Student })
-    .lean();
+  if (status) filter.status = status;
+  if (withdrawn === "true") filter.withdrawn = true;
+  if (withdrawn === "false") filter.withdrawn = { $ne: true };
+  if (from || to) {
+    filter.createdAt = {};
+    if (from) filter.createdAt.$gte = new Date(from);
+    if (to) filter.createdAt.$lte = new Date(to);
+  }
 
-  // فیلتر سمت سرور ساده روی student.resumeForm
-  const filtered = apps.filter((a) => {
-    const s = a.student;
-    if (!s) return false;
+  const apps = await Application.find(filter).populate("student").sort({ createdAt: -1 }).lean();
 
+  // فیلترهای مبتنی بر رزومه
+  const fits = (a) => {
+    const s = a.student || {};
     const basic = s.resumeForm?.basic || {};
-    const educs = s.resumeForm?.educations || [];
+    const educations = s.resumeForm?.educations || [];
     const jobs = s.resumeForm?.jobs || [];
+    // تخمین سابقه
+    const expYears = jobs.reduce((acc, j) => {
+      const sy = Number(j.startYear || 0);
+      const ey = Number(j.endYear || j.startYear || 0);
+      if (!sy) return acc;
+      return acc + Math.max(0, (ey || sy) - sy);
+    }, 0);
 
-    if (gender && basic.gender !== gender) return false;
-    if (city && basic.city !== city) return false;
-    if (salary && basic.salaryRange !== salary) return false;
-    if (degree && !educs.some((e) => e.degree === degree)) return false;
-    if (field && !educs.some((e) => e.field === field)) return false;
-
-    if (finojaCourses.length > 0) {
-      // اگر یادگیرنده حداقل یکی از دوره‌های انتخابی را در learning داشته باشد
-      const hasCourse = (s.learning || []).some((l) => finojaCourses.includes(String(l.courseId)));
-      if (!hasCourse) return false;
+    if (city && (basic.city || "") !== city) return false;
+    if (gender && gender !== "any" && (basic.gender || "any") !== gender) return false;
+    if (minExpYears && expYears < minExpYears) return false;
+    if (degree && !educations.some(e => (e.degree || "") === degree)) return false;
+    if (field && !educations.some(e => (e.field || "") === field)) return false;
+    if (q) {
+      const hay = [
+        basic.name, basic.family, basic.email, basic.phone,
+        ...(s.resumeForm?.softwareSkills || []),
+        ...(s.resumeForm?.extraSkills || []),
+      ].join(" ").toLowerCase();
+      if (!hay.includes(q.toLowerCase())) return false;
     }
-
-    if (expMin > 0) {
-      let years = 0;
-      for (const j of jobs) {
-        if (j.startYear) {
-          const endYear = j.current ? new Date().getFullYear() : (j.endYear || j.startYear);
-          years += Math.max(0, endYear - j.startYear);
-        }
-      }
-      if (years < expMin) return false;
-    }
-
-    if (rFrom || rTo) {
-      const up = s.resumeForm?.updatedAt ? new Date(s.resumeForm.updatedAt) : null;
-      if (!up) return false;
-      if (rFrom && up < new Date(rFrom)) return false;
-      if (rTo && up > new Date(rTo)) return false;
-    }
-
     return true;
-  });
+  };
 
-  // مخفی‌کردن تماس تا وقتی کارفرما نخرد
-  const list = filtered.map((a) => {
-    const s = a.student;
-    const maskedPhone = s.resumeForm?.basic?.phone ? s.resumeForm.basic.phone.replace(/\d(?=\d{4})/g, "•") : "";
-    const maskedEmail = s.resumeForm?.basic?.email ? s.resumeForm.basic.email.replace(/^[^@]+/, (m)=>"•".repeat(Math.max(1,m.length-2))) : "";
+  const list = apps.filter(fits).map(a => {
+    const s = a.student || {};
+    const maskedPhone = (s.resumeForm?.basic?.phone || s.mobile || "").replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+    const maskedEmail = (s.resumeForm?.basic?.email || s.email || "").replace(/(.).+(@.+)/, "$1***$2");
     return {
-      applicationId: a._id,
+      id: a._id,
       status: a.status,
+      withdrawn: !!a.withdrawn,
+      withdrawnAt: a.withdrawnAt || null,
+      statusHistory: (a.statusHistory || []).map(x => ({ status: x.status, at: x.at })),
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+      studentId: s._id,
+      resumeKind: a.resumeKind || "file",
+      resumeFile: a.resumeFile || null,
       student: {
-        _id: s._id,
-        name: s.resumeForm?.basic?.name || s.name,
-        family: s.resumeForm?.basic?.family || s.family,
+        name: s.resumeForm?.basic?.name || s.name || "",
+        family: s.resumeForm?.basic?.family || s.family || "",
         city: s.resumeForm?.basic?.city || "",
         gender: s.resumeForm?.basic?.gender || "",
         updatedAt: s.resumeForm?.updatedAt || s.updatedAt,
         maskedPhone,
         maskedEmail,
-        // مهارت‌ها/تحصیلات برای نمایش
         educations: s.resumeForm?.educations || [],
         softwareSkills: s.resumeForm?.softwareSkills || [],
         extraSkills: s.resumeForm?.extraSkills || [],

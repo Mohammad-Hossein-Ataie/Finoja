@@ -1,7 +1,7 @@
 // models/Application.js
 import mongoose from "mongoose";
 
-const statusEnum = ["seen", "under_review", "pre_approved", "hired", "rejected"];
+const statusEnum = ["seen", "under_review", "pre_approved", "hired", "rejected", "withdrawn"];
 
 /** اطلاعات رزومه فایل در لحظه اپلای (اسنپ‌شات) */
 const resumeFileSchema = new mongoose.Schema(
@@ -15,27 +15,30 @@ const resumeFileSchema = new mongoose.Schema(
   { _id: false }
 );
 
-/** تاریخچه‌ی وضعیت */
-const statusHistorySchema = new mongoose.Schema(
-  { status: { type: String, enum: statusEnum }, at: { type: Date, default: Date.now } },
-  { _id: false }
-);
-
 const ApplicationSchema = new mongoose.Schema(
   {
     job: { type: mongoose.Schema.Types.ObjectId, ref: "Job", required: true },
-    company: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
+    company: { type: mongoose.Schema.Types.ObjectId, ref: "Company" },
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student", required: true },
 
     status: { type: String, enum: statusEnum, default: "under_review" },
-    statusHistory: { type: [statusHistorySchema], default: [{ status: "under_review" }] },
+    statusHistory: {
+      type: [
+        {
+          status: { type: String, enum: statusEnum },
+          at: { type: Date, default: Date.now },
+        },
+      ],
+      default: [{ status: "under_review", at: Date.now }],
+    },
 
     withdrawn: { type: Boolean, default: false },
+    withdrawnAt: { type: Date, default: null },
 
-    /** ✅ نوع رزومه انتخاب‌شده در لحظه‌ی درخواست */
-    resumeKind: { type: String, enum: ["file", "builder", null], default: null },
+    /** نوع رزومه در زمان اپلای (file|builder) */
+    resumeKind: { type: String, enum: ["file", "builder"], default: "file" },
 
-    /** ✅ اسنپ‌شات رزومه فایل (اگر resumeKind = file) */
+    /** اسنپ‌شات فایل رزومه */
     resumeFile: { type: resumeFileSchema, default: undefined },
 
     /** ✅ اسنپ‌شات رزومه‌ساز (اگر resumeKind = builder) - ذخیره سبکِ فرم برای رفرنس */

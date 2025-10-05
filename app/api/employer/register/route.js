@@ -1,7 +1,9 @@
+// app/api/employer/register/route.js
 import dbConnect from "../../../../lib/dbConnect";
 import Company from "../../../../models/Company";
 import Employer from "../../../../models/Employer";
 import OTP from "../../../../models/OTP";
+import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { signJwt } from "../../../../lib/jwt";
 
@@ -17,57 +19,56 @@ function normalizeMobile(m) {
 
 export async function POST(req) {
   await dbConnect();
-  try {
-    const body = await req.json();
-    const { companyName, field, country, city, website, employer, otpCode } = body;
-    const nm = normalizeMobile(employer?.mobile);
+  const raw = await req.json().catch(() => ({}));
 
-    if (!companyName || !nm || !otpCode) {
-      return NextResponse.json({ error: "اطلاعات ناقص است." }, { status: 400 });
+  // دو شکل ورودی را پشتیبانی کنیم:
+  const companyPayload = raw.company
+    ? raw.company
+    : { name: raw.companyName, field: raw.field, country: raw.country, city: raw.city, website: raw.website };
+
+  const employerPayload = raw.employer || raw.owner || {};
+  const otpCode = String(raw.otpCode || "");
+  const password = raw.password ? String(raw.password) : null;
+
+  const mobile = normalizeMobile(employerPayload?.mobile);
+  if (!companyPayload?.name || !/^09\d{9}$/.test(mobile) || otpCode.length !== 6) {
+    return NextResponse.json({ error: "اطلاعات ناقص/نامعتبر است." }, { status: 400 });
     }
 
-    const otp = await OTP.findOne({ mobile: nm }).sort({ createdAt: -1 }).lean();
-    const now = Date.now();
-    const expired = otp?.expiresAt ? now > new Date(otp.expiresAt).getTime() : false;
-    if (!otp || otp.code !== String(otpCode) || expired) {
-      return NextResponse.json({ error: "کد تایید نادرست است." }, { status: 401 });
-    }
-
-    const exists = await Employer.findOne({ mobile: nm }).lean();
-    if (exists) {
-      return NextResponse.json({ error: "این موبایل قبلاً ثبت شده است." }, { status: 400 });
-    }
-
-    const company = await Company.create({
-      name: companyName,
-      field: field || "سایر",
-      country: country || "ایران",
-      city: city || "",
-      website: website || "",
-      kyc: { status: "none", docs: [] },
-      subscription: { plan: "trial", credits: 10 },
-    });
-
-    const emp = await Employer.create({
-      name: employer?.name || "",
-      email: employer?.email || "",
-      mobile: nm,
-      password: null,
-      company: company._id,
-    });
-
-    const token = await signJwt({ sub: String(emp._id), role: "employer", companyId: String(company._id) }, "7d");
-    const isProd = process.env.NODE_ENV === "production";
-    const res = NextResponse.json({ success: true, companyId: company._id, employerId: emp._id });
-    res.cookies.set("token", token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    return res;
-  } catch {
-    return NextResponse.json({ error: "خطا در ثبت‌نام کارفرما." }, { status: 500 });
+  // OTP: employer_register یا employer (سازگاری عقب)
+  const otp = await OTP.findOne({ mobile, purpose: { $in: ["employer_register", "employer"] } })
+    .sort({ createdAt: -1 });
+  if (!otp || otp.code !== otpCode || (otp.expiresAt && otp.expiresAt < new Date())) {
+    return NextResponse.json({ error: "کد تایید نامعتبر/منقضی است." }, { status: 400 });
   }
+  await OTP.deleteMany({ _id: otp._id });
+
+  // ایجاد شرکت
+  const company = await Company.create({
+    name: companyPayload.name,
+    field: companyPayload.field || "",
+    country: companyPayload.country || "",
+    city: companyPayload.city || "",
+    website: companyPayload.website || "",
+    // Company.js پیش‌فرض kyc.status = "none" دارد؛ همان را می‌گذاریم
+  });
+
+  // ایجاد کارفرما
+  let hashed = null;
+  if (password) hashed = await bcrypt.hash(password, 10);
+
+  const emp = await Employer.create({
+    name: employerPayload.name || "",
+    email: employerPayload.email || "",
+    mobile,
+    password: hashed, // می‌تواند null بماند (ورود OTP)
+    company: company._id,
+  });
+
+  // ورود
+  const token = await signJwt({ sub: String(emp._id), role: "employer", companyId: String(company._id) }, "7d");
+  const res = NextResponse.json({ success: true, companyId: company._id, employerId: emp._id });
+  const isProd = process.env.NODE_ENV === "production";
+  res.cookies.set("token", token, { httpOnly: true, secure: isProd, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
+  return res;
 }

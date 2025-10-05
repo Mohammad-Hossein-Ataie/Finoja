@@ -1,3 +1,4 @@
+// app/api/employer/login-otp/route.js
 import dbConnect from "../../../../lib/dbConnect";
 import OTP from "../../../../models/OTP";
 import Employer from "../../../../models/Employer";
@@ -16,32 +17,49 @@ function normalizeMobile(m) {
 
 export async function POST(req) {
   await dbConnect();
-  try {
-    const { mobile, code } = await req.json();
-    const nm = normalizeMobile(mobile);
+  const body = await req.json().catch(() => ({}));
+  const step = String(body?.step || "verify");
 
-    const otp = await OTP.findOne({ mobile: nm }).sort({ createdAt: -1 }).lean();
-    const now = Date.now();
-    const expired = otp?.expiresAt ? now > new Date(otp.expiresAt).getTime() : false;
-    if (!otp || otp.code !== String(code) || expired) {
-      return NextResponse.json({ error: "کد تایید نادرست یا منقضی است." }, { status: 401 });
-    }
-
-    const emp = await Employer.findOne({ mobile: nm }).populate("company").lean();
-    if (!emp) return NextResponse.json({ error: "ابتدا ثبت‌نام کنید." }, { status: 404 });
-
-    const token = await signJwt({ sub: String(emp._id), role: "employer", companyId: String(emp.company?._id) }, "7d");
-    const isProd = process.env.NODE_ENV === "production";
-    const res = NextResponse.json({ success: true });
-    res.cookies.set("token", token, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    return res;
-  } catch {
-    return NextResponse.json({ error: "خطا در ورود با OTP." }, { status: 500 });
+  // اگر کسی اشتباهاً این endpoint را برای request صدا بزند، خطای دوستانه بدهیم
+  if (step === "request") {
+    return NextResponse.json(
+      { error: "برای دریافت کد از /api/employer/send-otp استفاده کنید." },
+      { status: 400 }
+    );
   }
+
+  // VERIFY
+  const mobile = normalizeMobile(body?.mobile || "");
+  const code = String(body?.code || "");
+  if (!/^09\d{9}$/.test(mobile) || code.length !== 6) {
+    return NextResponse.json({ error: "اطلاعات نامعتبر است." }, { status: 400 });
+  }
+
+  const allowedPurposes = ["employer", "employer_login", "employer_register"];
+  const otp = await OTP.findOne({ mobile, purpose: { $in: allowedPurposes } })
+    .sort({ createdAt: -1 });
+
+  if (!otp || otp.code !== code || (otp.expiresAt && otp.expiresAt < new Date())) {
+    return NextResponse.json({ error: "کد تایید نامعتبر/منقضی است." }, { status: 400 });
+  }
+
+  const emp = await Employer.findOne({ mobile }).populate("company");
+  if (!emp) {
+    return NextResponse.json({ error: "حساب کارفرما یافت نشد." }, { status: 404 });
+  }
+
+  // مصرف کد
+  await OTP.deleteMany({ _id: otp._id });
+
+  const token = await signJwt({ sub: String(emp._id), role: "employer", companyId: String(emp.company?._id) }, "7d");
+  const isProd = process.env.NODE_ENV === "production";
+  const res = NextResponse.json({ success: true });
+  res.cookies.set("token", token, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return res;
 }

@@ -1,10 +1,10 @@
+// app/api/employer/send-otp/route.js
+import { NextResponse } from "next/server";
 import dbConnect from "../../../../lib/dbConnect";
 import OTP from "../../../../models/OTP";
-import { NextResponse } from "next/server";
-import { sendOtp } from "../../../../lib/sendOtp";
+import { sendOtpSMS } from "../../../../lib/sendOtp";
 
-const OTP_LIFETIME_MS = 3 * 60 * 1000; // 3 دقیقه
-
+// نرمال‌سازی موبایل ایران
 function normalizeMobile(m) {
   if (!m) return "";
   const fa2en = s => s.replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d));
@@ -15,27 +15,56 @@ function normalizeMobile(m) {
   return x;
 }
 
+// تنظیمات OTP
+const EXPIRE_MS = 2 * 60 * 1000;   // اعتبار کد: 2 دقیقه
+const COOLDOWN_MS = 90 * 1000;     // کول‌داون ارسال مجدد: 90 ثانیه
+const MAX_PER_10MIN = 5;           // سقف ارسال هر 10 دقیقه برای یک شماره/کاربرد
+
 export async function POST(req) {
   await dbConnect();
-  try {
-    const { mobile, purpose } = await req.json();
-    const nm = normalizeMobile(mobile);
-    if (!/^0\d{10}$/.test(nm)) {
-      return NextResponse.json({ error: "شماره موبایل نامعتبر است." }, { status: 400 });
-    }
+  const body = await req.json().catch(() => ({}));
+  const purpose = String(body?.purpose || "employer_login");
+  const mobile = normalizeMobile(body?.mobile || "");
 
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + OTP_LIFETIME_MS);
-
-    await OTP.create({ mobile: nm, code, purpose: purpose || "employer", expiresAt });
-
-    const r = await sendOtp(nm, code);
-    if (!r.success) {
-      return NextResponse.json({ error: r.message || "ارسال پیامک ناموفق بود." }, { status: 502 });
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: "خطای داخلی ارسال کد." }, { status: 500 });
+  if (!/^09\d{9}$/.test(mobile)) {
+    return NextResponse.json({ error: "شماره معتبر نیست." }, { status: 400 });
   }
+
+  // Rate-limit: cooldown و سقف تعداد
+  const now = Date.now();
+  const last = await OTP.findOne({ mobile, purpose }).sort({ createdAt: -1 }).lean();
+
+  if (last && last.createdAt && now - new Date(last.createdAt).getTime() < COOLDOWN_MS) {
+    const retryAfter = Math.ceil((COOLDOWN_MS - (now - new Date(last.createdAt).getTime())) / 1000);
+    return NextResponse.json(
+      { error: "ارسال مکرر مجاز نیست. کمی صبر کنید.", retryAfter },
+      { status: 429 }
+    );
+  }
+
+  const tenMinAgo = new Date(now - 10 * 60 * 1000);
+  const recentCount = await OTP.countDocuments({ mobile, purpose, createdAt: { $gte: tenMinAgo } });
+  if (recentCount >= MAX_PER_10MIN) {
+    return NextResponse.json(
+      { error: "تعداد درخواست زیاد است. بعداً تلاش کنید." },
+      { status: 429 }
+    );
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const expiresAt = new Date(now + EXPIRE_MS);
+
+  await OTP.create({ mobile, code, purpose, expiresAt });
+
+  const text =
+    purpose === "employer_register"
+      ? `کد ثبت‌نام شما: ${code}\nفینوجا`
+      : `کد ورود شما: ${code}\nفینوجا`;
+
+  const result = await sendOtpSMS(mobile, code, text);
+  if (!result?.success) {
+    return NextResponse.json({ error: result?.message || "خطا در ارسال پیامک." }, { status: 502 });
+  }
+
+  return NextResponse.json({ success: true, expiresAt, cooldown: COOLDOWN_MS / 1000 });
 }

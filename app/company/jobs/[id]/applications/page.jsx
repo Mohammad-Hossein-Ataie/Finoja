@@ -1,68 +1,76 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Container, Typography, Card, CardContent, Box, Button, Chip, Alert } from "@mui/material";
+import { Container, Typography, Card, CardContent, Box, Button, Chip, Alert, TextField, MenuItem } from "@mui/material";
 
 export default function JobApplicationsPage() {
   const { id } = useParams();
   const router = useRouter();
   const [items, setItems] = useState([]);
-  const [msg, setMsg] = useState(null);
+  const [filters, setFilters] = useState({ status: "", withdrawn: "all", q: "" });
 
   const load = async () => {
-    const res = await fetch(`/api/jobs/${id}/applications`);
+    const sp = new URLSearchParams();
+    if (filters.status) sp.set("status", filters.status);
+    if (filters.withdrawn === "true" || filters.withdrawn === "false") sp.set("withdrawn", filters.withdrawn);
+    if (filters.q) sp.set("q", filters.q);
+    const res = await fetch(`/api/jobs/${id}/applications?${sp.toString()}`);
     if (res.status === 401 || res.status === 403) { router.replace("/company/login"); return; }
     const data = await res.json();
     setItems(data.applications || []);
   };
-  useEffect(()=>{ load(); }, [id]);
 
-  const showContact = async (studentId, applicationId) => {
-    const res = await fetch(`/api/employer/resumes/${studentId}/contact`, {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ applicationId })
-    });
-    const d = await res.json();
-    if (!res.ok) { setMsg({ s:"error", t: d.error || "خطا در نمایش تماس" }); return; }
-    setItems(prev => prev.map(x => x.student?._id===studentId ? { ...x, revealed: d.contact, credits: d.credits } : x));
-    setMsg({ s:"success", t:`تماس نمایش داده شد. اعتبار باقی‌مانده: ${d.credits}` });
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [JSON.stringify(filters)]);
+
+  const reveal = async (studentId, applicationId) => {
+    await fetch(`/api/employer/resumes/${studentId}/contact`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ applicationId }) });
+    load();
   };
 
   return (
-    <Container sx={{ py: 4 }}>
-      {msg && <Alert severity={msg.s} sx={{ mb:2 }}>{msg.t}</Alert>}
-      <Typography variant="h5" sx={{ fontWeight:"bold", mb:2 }}>درخواست‌ها</Typography>
-      {items.map(a=>(
-        <Card key={a.applicationId} variant="outlined" sx={{ mb:1.5, borderRadius:2 }}>
+    <Container maxWidth="md" sx={{ py: 3 }}>
+      <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>درخواست‌های این آگهی</Typography>
+
+      <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+        <TextField select size="small" label="وضعیت" value={filters.status} onChange={e=>setFilters({...filters, status:e.target.value})}>
+          <MenuItem value="">همه</MenuItem>
+          <MenuItem value="under_review">در حال بررسی</MenuItem>
+          <MenuItem value="pre_approved">پیش‌تایید</MenuItem>
+          <MenuItem value="hired">استخدام</MenuItem>
+          <MenuItem value="rejected">رد شده</MenuItem>
+          <MenuItem value="withdrawn">انصراف‌داده</MenuItem>
+        </TextField>
+        <TextField select size="small" label="انصراف" value={filters.withdrawn} onChange={e=>setFilters({...filters, withdrawn:e.target.value})}>
+          <MenuItem value="all">همه</MenuItem>
+          <MenuItem value="false">فقط فعال</MenuItem>
+          <MenuItem value="true">فقط انصراف‌داده</MenuItem>
+        </TextField>
+        <TextField size="small" label="جستجو" value={filters.q} onChange={e=>setFilters({...filters, q:e.target.value})} />
+      </Box>
+
+      {items.length===0 && <Alert severity="info">هیچ درخواستی مطابق فیلترها پیدا نشد.</Alert>}
+
+      {items.map(a => (
+        <Card key={a.id} sx={{ mb: 2 }}>
           <CardContent>
-            <Typography variant="subtitle1" sx={{ fontWeight:"bold" }}>
-              {a.student?.name} {a.student?.family}
-            </Typography>
-            <Box sx={{ display:"flex", gap:1, mt:1, flexWrap:"wrap" }}>
-              {a.student?.city && <Chip label={a.student.city} />}
-              {a.student?.gender && <Chip label={a.student.gender==="male"?"آقا":a.student.gender==="female"?"خانم":"سایر"} />}
-              {!!a.student?.softwareSkills?.length && <Chip label={`مهارت‌ها: ${a.student.softwareSkills.slice(0,3).join("، ")}`} />}
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box>
+                <Typography sx={{ fontWeight: 800 }}>{a.student?.name || ""} {a.student?.family || ""}</Typography>
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 0.5 }}>
+                  <Chip size="small" label={`وضعیت: ${a.status}`} />
+                  {a.withdrawn && <Chip size="small" color="warning" label={`انصراف در ${a.withdrawnAt ? new Date(a.withdrawnAt).toLocaleString("fa-IR") : "—"}`} />}
+                  <Chip size="small" label={`شهر: ${a.student?.city || "—"}`} />
+                </Box>
+              </Box>
+              <Button size="small" variant="outlined" onClick={()=>reveal(a.studentId, a.id)}>نمایش تماس</Button>
             </Box>
-            <Box sx={{ mt:1.5, display:"flex", gap:1, flexWrap:"wrap" }}>
-              {!a.revealed ? (
-                <>
-                  <Chip label={`موبایل: ${a.student?.maskedPhone || "—"}`} />
-                  <Chip label={`ایمیل: ${a.student?.maskedEmail || "—"}`} />
-                  <Button size="small" variant="contained" onClick={()=>showContact(a.student?._id, a.applicationId)}>
-                    نمایش تماس
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Chip color="success" label={`موبایل: ${a.revealed.phone || "—"}`} />
-                  <Chip color="success" label={`ایمیل: ${a.revealed.email || "—"}`} />
-                </>
-              )}
+            <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Chip label={`تاریخ ثبت: ${new Date(a.createdAt).toLocaleString("fa-IR")}`} />
+              <Chip label={`آخرین بروزرسانی: ${new Date(a.updatedAt).toLocaleString("fa-IR")}`} />
             </Box>
           </CardContent>
         </Card>
       ))}
-      {items.length===0 && <Alert severity="info">هنوز درخواستی ثبت نشده است.</Alert>}
     </Container>
   );
 }
