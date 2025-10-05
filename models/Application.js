@@ -3,6 +3,19 @@ import mongoose from "mongoose";
 
 const statusEnum = ["seen", "under_review", "pre_approved", "hired", "rejected"];
 
+/** اطلاعات رزومه فایل در لحظه اپلای (اسنپ‌شات) */
+const resumeFileSchema = new mongoose.Schema(
+  {
+    key: String,
+    name: String,
+    size: Number,
+    type: String,
+    updatedAt: Date,
+  },
+  { _id: false }
+);
+
+/** تاریخچه‌ی وضعیت */
 const statusHistorySchema = new mongoose.Schema(
   { status: { type: String, enum: statusEnum }, at: { type: Date, default: Date.now } },
   { _id: false }
@@ -18,6 +31,15 @@ const ApplicationSchema = new mongoose.Schema(
     statusHistory: { type: [statusHistorySchema], default: [{ status: "under_review" }] },
 
     withdrawn: { type: Boolean, default: false },
+
+    /** ✅ نوع رزومه انتخاب‌شده در لحظه‌ی درخواست */
+    resumeKind: { type: String, enum: ["file", "builder", null], default: null },
+
+    /** ✅ اسنپ‌شات رزومه فایل (اگر resumeKind = file) */
+    resumeFile: { type: resumeFileSchema, default: undefined },
+
+    /** ✅ اسنپ‌شات رزومه‌ساز (اگر resumeKind = builder) - ذخیره سبکِ فرم برای رفرنس */
+    resumeFormSnapshot: { type: mongoose.Schema.Types.Mixed, default: undefined },
 
     contactViewed: { type: Boolean, default: false }, // کارفرما تماس این اپلیکنت را دیده است یا نه
   },

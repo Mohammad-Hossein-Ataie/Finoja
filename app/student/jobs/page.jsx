@@ -55,11 +55,8 @@ export default function StudentJobs() {
               value={province}
               onChange={e => { setProvince(e.target.value); setCity(""); }}
               displayEmpty
-              renderValue={(val) => val || "انتخاب استان"}
+              renderValue={(val) => val}
             >
-              <MenuItem value="">
-                <em>انتخاب استان</em>
-              </MenuItem>
               {IR_PROVINCES.map(p => (
                 <MenuItem key={p.name} value={p.name}>{p.name}</MenuItem>
               ))}
@@ -93,7 +90,7 @@ export default function StudentJobs() {
                      value={to} onChange={e => setTo(e.target.value)} />
         </Grid>
         <Grid item xs={12} md={1}>
-          <Button fullWidth variant="contained" onClick={() => fetchJobs(true)}>فیلتر</Button>
+          <Button fullWidth variant="contained" onClick={() => fetchJobs(true)}>اعمال فیلتر</Button>
         </Grid>
       </Grid>
 

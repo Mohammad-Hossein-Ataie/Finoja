@@ -39,7 +39,7 @@ export default function StudentApplicationsPage() {
               {a.withdrawn && <Chip color="default" label="انصراف داده‌اید" />}
             </Box>
             <Box sx={{ mt:2, display:"flex", gap:1 }}>
-              <Button size="small" variant="outlined" href={`/jobs/${a.jobId}`}>مشاهده آگهی</Button>
+              <Button size="small" variant="outlined" href={`/student/jobs/${a.jobId}`}>مشاهده آگهی</Button>
               {!a.withdrawn && <Button size="small" color="error" variant="text" onClick={()=>withdraw(a.jobId)}>انصراف</Button>}
             </Box>
           </CardContent>
